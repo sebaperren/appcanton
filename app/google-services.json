@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "493673380203",
+    "project_id": "perrendelivery",
+    "storage_bucket": "perrendelivery.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:493673380203:android:ae73dc080b737a80e9742e",
+        "android_client_info": {
+          "package_name": "com.example.perrendeliveryapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDXfpGilzGjP6MZPwbszw4YaNsHSZ_9DAM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
