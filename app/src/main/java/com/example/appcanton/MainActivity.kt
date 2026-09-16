@@ -667,6 +667,19 @@ fun SupplierWorkspaceScreen(
     var isRecordingAudio by remember { mutableStateOf(false) }
     var isPlayingAudio by remember { mutableStateOf(false) }
 
+    var editingArticleCode by remember { mutableStateOf<String?>(null) }
+    var expandedArticleCode by remember { mutableStateOf<String?>(null) }
+
+    val resetArticleForm = {
+        artName = ""
+        artFobUSD = ""
+        artMoq = ""
+        artNote = ""
+        artAudioPath = null
+        artPhotos.clear()
+        editingArticleCode = null
+    }
+
     val articleCameraLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicturePreview()
     ) { bitmap ->
@@ -821,10 +834,15 @@ fun SupplierWorkspaceScreen(
 
         Card(
             modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFFE8F5E9))
+            colors = CardDefaults.cardColors(containerColor = if (editingArticleCode != null) Color(0xFFFFF8E1) else Color(0xFFE8F5E9))
         ) {
             Column(modifier = Modifier.padding(14.dp)) {
-                Text("📦 INCORPORAR ARTÍCULO A ESTE PROVEEDOR", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color(0xFF2E7D32))
+                Text(
+                    if (editingArticleCode != null) "✏️ EDITANDO ARTÍCULO: $editingArticleCode" else "📦 INCORPORAR ARTÍCULO A ESTE PROVEEDOR",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 13.sp,
+                    color = if (editingArticleCode != null) Color(0xFFF57F17) else Color(0xFF2E7D32)
+                )
                 Spacer(modifier = Modifier.height(8.dp))
 
                 OutlinedTextField(
@@ -969,8 +987,9 @@ fun SupplierWorkspaceScreen(
                 Button(
                     onClick = {
                         if (artName.isNotBlank() && artFobUSD.isNotBlank()) {
+                            val artCode = editingArticleCode ?: "${supplier?.supplierCode ?: "CF26-P-0001"}-A${String.format("%02d", (supplier?.articles?.size ?: 0) + 1)}"
                             val newArt = ArticleItem(
-                                code = "${supplier?.supplierCode ?: "CF26-P-0001"}-A${String.format("%02d", (supplier?.articles?.size ?: 0) + 1)}",
+                                code = artCode,
                                 name = artName,
                                 fobPriceUSD = artFobUSD.toDoubleOrNull() ?: 0.0,
                                 moq = artMoq.toIntOrNull() ?: 100,
@@ -981,21 +1000,37 @@ fun SupplierWorkspaceScreen(
                                 photos = artPhotos.toList(),
                                 photoBitmap = artPhotos.firstOrNull()
                             )
-                            supplier?.articles?.add(newArt)
-                            artName = ""
-                            artFobUSD = ""
-                            artMoq = ""
-                            artNote = ""
-                            artAudioPath = null
-                            artPhotos.clear()
-                            Toast.makeText(context, "Artículo ${newArt.code} agregado con Foto/Nota/Audio", Toast.LENGTH_SHORT).show()
+
+                            if (editingArticleCode != null) {
+                                val idx = supplier?.articles?.indexOfFirst { it.code == editingArticleCode } ?: -1
+                                if (idx >= 0) {
+                                    supplier?.articles?.set(idx, newArt)
+                                    Toast.makeText(context, "✨ Artículo $artCode actualizado", Toast.LENGTH_SHORT).show()
+                                }
+                            } else {
+                                supplier?.articles?.add(newArt)
+                                Toast.makeText(context, "✨ Artículo $artCode agregado al proveedor", Toast.LENGTH_SHORT).show()
+                            }
+                            resetArticleForm()
+                        } else {
+                            Toast.makeText(context, "Ingresa al menos el Nombre y Precio FOB USD", Toast.LENGTH_SHORT).show()
                         }
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1976D2)),
+                    colors = ButtonDefaults.buttonColors(containerColor = if (editingArticleCode != null) Color(0xFFF57F17) else Color(0xFF1976D2)),
                     modifier = Modifier.fillMaxWidth().height(48.dp),
                     shape = RoundedCornerShape(8.dp)
                 ) {
-                    Text("+ AGREGAR ARTÍCULO A ESTE PROVEEDOR", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                    Text(if (editingArticleCode != null) "💾 ACTUALIZAR ARTÍCULO" else "+ AGREGAR ARTÍCULO A ESTE PROVEEDOR", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                }
+
+                if (editingArticleCode != null) {
+                    Spacer(modifier = Modifier.height(6.dp))
+                    OutlinedButton(
+                        onClick = { resetArticleForm() },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("CANCELAR EDICIÓN", color = Color.Gray, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    }
                 }
             }
         }
@@ -1006,11 +1041,16 @@ fun SupplierWorkspaceScreen(
         Spacer(modifier = Modifier.height(6.dp))
 
         supplier?.articles?.forEach { art ->
+            val isExpanded = expandedArticleCode == art.code
             Card(
-                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp)
+                    .clickable { expandedArticleCode = if (isExpanded) null else art.code },
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                elevation = CardDefaults.cardElevation(defaultElevation = if (isExpanded) 4.dp else 1.dp)
             ) {
-                Column(modifier = Modifier.padding(10.dp)) {
+                Column(modifier = Modifier.padding(12.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         val firstPhoto = art.photos.firstOrNull() ?: art.photoBitmap
                         if (firstPhoto != null) {
@@ -1018,42 +1058,105 @@ fun SupplierWorkspaceScreen(
                                 bitmap = firstPhoto.asImageBitmap(),
                                 contentDescription = "Foto Artículo",
                                 modifier = Modifier
-                                    .size(54.dp)
+                                    .size(if (isExpanded) 70.dp else 48.dp)
                                     .border(1.dp, Color.LightGray, RoundedCornerShape(6.dp))
                             )
-                            Spacer(modifier = Modifier.width(8.dp))
+                            Spacer(modifier = Modifier.width(10.dp))
                         }
                         Column(modifier = Modifier.weight(1f)) {
-                            Text("${art.code} - ${art.name}", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color(0xFF1B365D))
-                            Text("FOB: $${art.fobPriceUSD} USD | MOQ: ${art.moq} u | Puerto: ${art.port}", fontSize = 11.sp, color = Color(0xFF2E7D32), fontWeight = FontWeight.Bold)
+                            Text("${art.code} - ${art.name}", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color(0xFF1B365D))
+                            Text("FOB: $${art.fobPriceUSD} USD | MOQ: ${art.moq} u", fontSize = 11.sp, color = Color(0xFF2E7D32), fontWeight = FontWeight.Bold)
                         }
+                        Text(if (isExpanded) "▲" else "▼", fontSize = 14.sp, color = Color.Gray, fontWeight = FontWeight.Bold)
                     }
 
-                    if (art.note.isNotBlank()) {
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text("📝 Nota: ${art.note}", fontSize = 11.sp, color = Color.DarkGray)
-                    }
+                    if (isExpanded) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        HorizontalDivider(color = Color(0xFFEEEEEE))
+                        Spacer(modifier = Modifier.height(8.dp))
 
-                    if (art.audioPath != null) {
-                        Spacer(modifier = Modifier.height(6.dp))
-                        var playingThisAudio by remember { mutableStateOf(false) }
-                        Button(
-                            onClick = {
-                                if (playingThisAudio) {
-                                    AudioRecorderManager.stopAudio()
-                                    playingThisAudio = false
-                                } else {
-                                    playingThisAudio = true
-                                    AudioRecorderManager.playAudio(art.audioPath) {
-                                        playingThisAudio = false
-                                    }
+                        if (art.photos.isNotEmpty()) {
+                            Text("📷 GALERÍA DE FOTOS (${art.photos.size})", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                art.photos.forEach { p ->
+                                    Image(
+                                        bitmap = p.asImageBitmap(),
+                                        contentDescription = "Foto ampliada",
+                                        modifier = Modifier
+                                            .size(80.dp)
+                                            .border(1.dp, Color.Gray, RoundedCornerShape(6.dp))
+                                    )
                                 }
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1565C0)),
-                            modifier = Modifier.height(32.dp),
-                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
-                        ) {
-                            Text(if (playingThisAudio) "⏹️ Detener Audio" else "▶️ Escuchar Nota de Voz", fontSize = 10.sp)
+                            }
+                            Spacer(modifier = Modifier.height(8.dp))
+                        }
+
+                        Text("📦 Puerto Origen: ${art.port} | Tiempo Entrega: ${art.leadTime}", fontSize = 11.sp, color = Color.DarkGray)
+
+                        if (art.note.isNotBlank()) {
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text("📝 Nota: ${art.note}", fontSize = 11.sp, color = Color(0xFF333333), fontWeight = FontWeight.Medium)
+                        }
+
+                        if (art.audioPath != null) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            var playingThisAudio by remember { mutableStateOf(false) }
+                            Button(
+                                onClick = {
+                                    if (playingThisAudio) {
+                                        AudioRecorderManager.stopAudio()
+                                        playingThisAudio = false
+                                    } else {
+                                        playingThisAudio = true
+                                        AudioRecorderManager.playAudio(art.audioPath) {
+                                            playingThisAudio = false
+                                        }
+                                    }
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1565C0)),
+                                modifier = Modifier.height(34.dp),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
+                            ) {
+                                Text(if (playingThisAudio) "⏹️ Detener Audio" else "▶️ Escuchar Nota de Voz", fontSize = 11.sp)
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                            Button(
+                                onClick = {
+                                    editingArticleCode = art.code
+                                    artName = art.name
+                                    artFobUSD = art.fobPriceUSD.toString()
+                                    artMoq = art.moq.toString()
+                                    artPort = art.port
+                                    artLeadTime = art.leadTime
+                                    artNote = art.note
+                                    artAudioPath = art.audioPath
+                                    artPhotos.clear()
+                                    artPhotos.addAll(art.photos)
+                                    Toast.makeText(context, "📝 Cargado en el formulario para editar", Toast.LENGTH_SHORT).show()
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF57F17)),
+                                modifier = Modifier.height(34.dp),
+                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp)
+                            ) {
+                                Text("✏️ EDITAR ARTÍCULO", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            }
+
+                            Spacer(modifier = Modifier.width(6.dp))
+
+                            OutlinedButton(
+                                onClick = {
+                                    supplier?.articles?.remove(art)
+                                    Toast.makeText(context, "🗑️ Artículo eliminado", Toast.LENGTH_SHORT).show()
+                                },
+                                modifier = Modifier.height(34.dp),
+                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp)
+                            ) {
+                                Text("🗑️ ELIMINAR", fontSize = 11.sp, color = Color.Red, fontWeight = FontWeight.Bold)
+                            }
                         }
                     }
                 }
