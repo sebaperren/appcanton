@@ -41,6 +41,8 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.regex.Pattern
+import android.content.ContentValues
+import android.provider.MediaStore
 import android.media.MediaPlayer
 import android.media.MediaRecorder
 import com.google.mlkit.vision.common.InputImage
@@ -256,6 +258,41 @@ object AudioRecorderManager {
             mediaPlayer = null
         } catch (e: Exception) {
             mediaPlayer = null
+        }
+    }
+}
+
+// MARK: - Guardado Automático de Fotos en la Galería del Celular (MediaStore)
+object MediaStoreHelper {
+    fun saveBitmapToGallery(context: Context, bitmap: Bitmap, prefix: String = "CantonFair"): Uri? {
+        return try {
+            val filename = "${prefix}_${SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())}.jpg"
+            val contentValues = ContentValues().apply {
+                put(MediaStore.Images.Media.DISPLAY_NAME, filename)
+                put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                    put(MediaStore.Images.Media.RELATIVE_PATH, "Pictures/CantonFair2026")
+                    put(MediaStore.Images.Media.IS_PENDING, 1)
+                }
+            }
+
+            val resolver = context.contentResolver
+            val uri = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
+
+            if (uri != null) {
+                resolver.openOutputStream(uri)?.use { stream ->
+                    bitmap.compress(Bitmap.CompressFormat.JPEG, 95, stream)
+                }
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                    contentValues.clear()
+                    contentValues.put(MediaStore.Images.Media.IS_PENDING, 0)
+                    resolver.update(uri, contentValues, null, null)
+                }
+            }
+            uri
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
         }
     }
 }
@@ -636,6 +673,8 @@ fun SupplierWorkspaceScreen(
         contract = ActivityResultContracts.TakePicturePreview()
     ) { bitmap ->
         if (bitmap != null) {
+            MediaStoreHelper.saveBitmapToGallery(context, bitmap, "Marquesina")
+            Toast.makeText(context, "📸 Foto guardada en la Galería (Pictures/CantonFair2026)", Toast.LENGTH_SHORT).show()
             autoFillDataFromPhoto(bitmap)
         }
     }
@@ -685,7 +724,8 @@ fun SupplierWorkspaceScreen(
     ) { bitmap ->
         if (bitmap != null) {
             artPhotos.add(bitmap)
-            Toast.makeText(context, "📷 Foto del artículo capturada", Toast.LENGTH_SHORT).show()
+            MediaStoreHelper.saveBitmapToGallery(context, bitmap, "Articulo")
+            Toast.makeText(context, "📸 Foto de artículo guardada en la Galería (Pictures/CantonFair2026)", Toast.LENGTH_SHORT).show()
         }
     }
 
