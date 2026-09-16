@@ -33,6 +33,7 @@ import com.example.appcanton.ui.theme.AppCantonTheme
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import java.io.File
 import java.io.OutputStreamWriter
 import java.net.HttpURLConnection
 import java.net.URL
@@ -40,6 +41,8 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.regex.Pattern
+import android.media.MediaPlayer
+import android.media.MediaRecorder
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
@@ -52,6 +55,9 @@ data class ArticleItem(
     val moq: Int,
     val port: String,
     val leadTime: String,
+    val note: String = "",
+    val audioPath: String? = null,
+    val photos: List<Bitmap> = emptyList(),
     val photoBitmap: Bitmap? = null
 )
 
@@ -182,6 +188,74 @@ object PhotoOCRProcessor {
                 }
         } catch (e: Exception) {
             onComplete("", "", "")
+        }
+    }
+}
+
+// MARK: - Gestor de Grabación y Reproducción de Notas de Voz (Audio)
+object AudioRecorderManager {
+    private var mediaRecorder: MediaRecorder? = null
+    private var mediaPlayer: MediaPlayer? = null
+
+    fun startRecording(context: Context): String? {
+        return try {
+            val audioFile = File(context.cacheDir, "audio_note_${System.currentTimeMillis()}.3gp")
+            mediaRecorder = MediaRecorder().apply {
+                setAudioSource(MediaRecorder.AudioSource.MIC)
+                setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP)
+                setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB)
+                setOutputFile(audioFile.absolutePath)
+                prepare()
+                start()
+            }
+            audioFile.absolutePath
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
+    fun stopRecording(): Boolean {
+        return try {
+            mediaRecorder?.apply {
+                stop()
+                release()
+            }
+            mediaRecorder = null
+            true
+        } catch (e: Exception) {
+            e.printStackTrace()
+            mediaRecorder = null
+            false
+        }
+    }
+
+    fun playAudio(audioPath: String, onComplete: () -> Unit = {}) {
+        try {
+            stopAudio()
+            mediaPlayer = MediaPlayer().apply {
+                setDataSource(audioPath)
+                prepare()
+                start()
+                setOnCompletionListener {
+                    onComplete()
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            onComplete()
+        }
+    }
+
+    fun stopAudio() {
+        try {
+            mediaPlayer?.apply {
+                if (isPlaying) stop()
+                release()
+            }
+            mediaPlayer = null
+        } catch (e: Exception) {
+            mediaPlayer = null
         }
     }
 }
@@ -587,6 +661,37 @@ fun SupplierWorkspaceScreen(
     var artMoq by remember { mutableStateOf("") }
     var artPort by remember { mutableStateOf("Shenzhen") }
     var artLeadTime by remember { mutableStateOf("30 días") }
+    var artNote by remember { mutableStateOf("") }
+    val artPhotos = remember { mutableStateListOf<Bitmap>() }
+    var artAudioPath by remember { mutableStateOf<String?>(null) }
+    var isRecordingAudio by remember { mutableStateOf(false) }
+    var isPlayingAudio by remember { mutableStateOf(false) }
+
+    val articleCameraLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicturePreview()
+    ) { bitmap ->
+        if (bitmap != null) {
+            artPhotos.add(bitmap)
+            Toast.makeText(context, "📷 Foto del artículo capturada", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    val articleGalleryLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            try {
+                val inputStream = context.contentResolver.openInputStream(uri)
+                val bitmap = android.graphics.BitmapFactory.decodeStream(inputStream)
+                if (bitmap != null) {
+                    artPhotos.add(bitmap)
+                    Toast.makeText(context, "🖼️ Foto de artículo cargada", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                Toast.makeText(context, "Error al cargar foto", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -753,7 +858,113 @@ fun SupplierWorkspaceScreen(
                     )
                 }
 
+                Spacer(modifier = Modifier.height(6.dp))
+
+                // Campo Nota de Texto
+                OutlinedTextField(
+                    value = artNote, onValueChange = { artNote = it },
+                    label = { Text("Nota / Observaciones de Texto") }, modifier = Modifier.fillMaxWidth()
+                )
+
                 Spacer(modifier = Modifier.height(10.dp))
+
+                // Sección Foto del Artículo
+                Text("📷 FOTOS DEL ARTÍCULO (${artPhotos.size})", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1976D2))
+                Spacer(modifier = Modifier.height(4.dp))
+
+                if (artPhotos.isNotEmpty()) {
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        artPhotos.forEach { photo ->
+                            Image(
+                                bitmap = photo.asImageBitmap(),
+                                contentDescription = "Foto Artículo",
+                                modifier = Modifier
+                                    .size(60.dp)
+                                    .border(1.dp, Color.Gray, RoundedCornerShape(6.dp))
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(6.dp))
+                }
+
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    Button(
+                        onClick = { articleCameraLauncher.launch(null) },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1976D2)),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("📷 FOTO CÁMARA", fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                    }
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Button(
+                        onClick = { articleGalleryLauncher.launch("image/*") },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF7B1FA2)),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("🖼️ GALERÍA", fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+
+                // Sección Audio / Grabación de Voz
+                Spacer(modifier = Modifier.height(10.dp))
+                Text("🎙️ NOTA DE VOZ (AUDIO)", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFFD32F2F))
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    if (!isRecordingAudio) {
+                        Button(
+                            onClick = {
+                                val path = AudioRecorderManager.startRecording(context)
+                                if (path != null) {
+                                    artAudioPath = path
+                                    isRecordingAudio = true
+                                    Toast.makeText(context, "🔴 Grabando nota de voz...", Toast.LENGTH_SHORT).show()
+                                } else {
+                                    Toast.makeText(context, "Error al iniciar grabación", Toast.LENGTH_SHORT).show()
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD32F2F)),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text("🔴 GRABAR VOZ", fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                        }
+                    } else {
+                        Button(
+                            onClick = {
+                                AudioRecorderManager.stopRecording()
+                                isRecordingAudio = false
+                                Toast.makeText(context, "⏹️ Grabación de voz guardada", Toast.LENGTH_SHORT).show()
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color.Black),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text("⏹️ DETENER GRABACIÓN", fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+
+                    if (artAudioPath != null && !isRecordingAudio) {
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Button(
+                            onClick = {
+                                if (isPlayingAudio) {
+                                    AudioRecorderManager.stopAudio()
+                                    isPlayingAudio = false
+                                } else {
+                                    isPlayingAudio = true
+                                    AudioRecorderManager.playAudio(artAudioPath!!) {
+                                        isPlayingAudio = false
+                                    }
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF388E3C)),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text(if (isPlayingAudio) "⏹️ PARAR" else "▶️ ESCUCHAR VOZ", fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
 
                 Button(
                     onClick = {
@@ -764,19 +975,27 @@ fun SupplierWorkspaceScreen(
                                 fobPriceUSD = artFobUSD.toDoubleOrNull() ?: 0.0,
                                 moq = artMoq.toIntOrNull() ?: 100,
                                 port = artPort,
-                                leadTime = artLeadTime
+                                leadTime = artLeadTime,
+                                note = artNote,
+                                audioPath = artAudioPath,
+                                photos = artPhotos.toList(),
+                                photoBitmap = artPhotos.firstOrNull()
                             )
                             supplier?.articles?.add(newArt)
                             artName = ""
                             artFobUSD = ""
                             artMoq = ""
-                            Toast.makeText(context, "Artículo ${newArt.code} agregado al proveedor", Toast.LENGTH_SHORT).show()
+                            artNote = ""
+                            artAudioPath = null
+                            artPhotos.clear()
+                            Toast.makeText(context, "Artículo ${newArt.code} agregado con Foto/Nota/Audio", Toast.LENGTH_SHORT).show()
                         }
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1976D2)),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth().height(48.dp),
+                    shape = RoundedCornerShape(8.dp)
                 ) {
-                    Text("+ AGREGAR ARTÍCULO", fontWeight = FontWeight.Bold)
+                    Text("+ AGREGAR ARTÍCULO A ESTE PROVEEDOR", fontWeight = FontWeight.Bold, fontSize = 12.sp)
                 }
             }
         }
@@ -788,12 +1007,55 @@ fun SupplierWorkspaceScreen(
 
         supplier?.articles?.forEach { art ->
             Card(
-                modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp),
+                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
                 colors = CardDefaults.cardColors(containerColor = Color.White)
             ) {
                 Column(modifier = Modifier.padding(10.dp)) {
-                    Text("${art.code} - ${art.name}", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color(0xFF1B365D))
-                    Text("FOB: $${art.fobPriceUSD} USD | MOQ: ${art.moq} u | Puerto: ${art.port}", fontSize = 11.sp, color = Color(0xFF2E7D32), fontWeight = FontWeight.Bold)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        val firstPhoto = art.photos.firstOrNull() ?: art.photoBitmap
+                        if (firstPhoto != null) {
+                            Image(
+                                bitmap = firstPhoto.asImageBitmap(),
+                                contentDescription = "Foto Artículo",
+                                modifier = Modifier
+                                    .size(54.dp)
+                                    .border(1.dp, Color.LightGray, RoundedCornerShape(6.dp))
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                        }
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("${art.code} - ${art.name}", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color(0xFF1B365D))
+                            Text("FOB: $${art.fobPriceUSD} USD | MOQ: ${art.moq} u | Puerto: ${art.port}", fontSize = 11.sp, color = Color(0xFF2E7D32), fontWeight = FontWeight.Bold)
+                        }
+                    }
+
+                    if (art.note.isNotBlank()) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text("📝 Nota: ${art.note}", fontSize = 11.sp, color = Color.DarkGray)
+                    }
+
+                    if (art.audioPath != null) {
+                        Spacer(modifier = Modifier.height(6.dp))
+                        var playingThisAudio by remember { mutableStateOf(false) }
+                        Button(
+                            onClick = {
+                                if (playingThisAudio) {
+                                    AudioRecorderManager.stopAudio()
+                                    playingThisAudio = false
+                                } else {
+                                    playingThisAudio = true
+                                    AudioRecorderManager.playAudio(art.audioPath) {
+                                        playingThisAudio = false
+                                    }
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1565C0)),
+                            modifier = Modifier.height(32.dp),
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
+                        ) {
+                            Text(if (playingThisAudio) "⏹️ Detener Audio" else "▶️ Escuchar Nota de Voz", fontSize = 10.sp)
+                        }
+                    }
                 }
             }
         }
