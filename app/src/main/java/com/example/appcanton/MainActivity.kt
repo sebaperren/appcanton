@@ -41,6 +41,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.regex.Pattern
+import androidx.core.content.FileProvider
 import android.content.ContentValues
 import android.provider.MediaStore
 import android.media.MediaPlayer
@@ -48,6 +49,14 @@ import android.media.MediaRecorder
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
+
+fun createImageFileUri(context: Context): Uri {
+    val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+    val storageDir = File(context.externalCacheDir, "Pictures")
+    if (!storageDir.exists()) storageDir.mkdirs()
+    val file = File(storageDir, "JPEG_${timeStamp}.jpg")
+    return FileProvider.getUriForFile(context, "${context.packageName}.provider", file)
+}
 
 // MARK: - Data Models Locales
 data class ArticleItem(
@@ -223,17 +232,26 @@ object PhotoOCRProcessor {
 
                     val lines = visionText.textBlocks.flatMap { block -> block.lines.map { it.text.trim() } }
 
-                    val emailPattern = Pattern.compile("(?i)[a-z0-9._%+-]+@[a-z0-9.-]+\\.[a-z]{2,}")
+                    // Patrón de email tolerante a errores típicos de OCR (ej: @, [at], .cem -> .com, .comar -> .com.ar)
+                    val emailPattern = Pattern.compile("(?i)[a-z0-9._%+-]+(?::|@|\\(at\\)|\\[at\\])[a-z0-9.-]+\\.[a-z]{2,}")
                     val phonePattern = Pattern.compile("(?i)(\\+?\\d{1,4}[\\s-]?)?(\\(?\\d{2,4}\\)?[\\s-]?)?\\d{3,4}[\\s-]?\\d{3,4}|\\b(mob|mobile|tel|phone|whatsapp)\\b.*")
                     val positionPattern = Pattern.compile("(?i)\\b(manager|director|sales|export|rep|representative|executive|president|ceo|vice|engineer|consultant|gerente|comercial|ventas)\\b")
                     val weChatPattern = Pattern.compile("(?i)\\b(wechat|wx|微信)\\s*[:\\-]?\\s*([a-zA-Z0-9_-]+)")
+                    val addressKeywords = listOf("Casa Central", "9 de Julio", "Trelew", "Chubut", "CP 9100", "Fresioecie", "CP9100", "Argentina")
 
                     for (line in lines) {
-                        // Email
+                        // Email con limpieza de OCR
                         if (extractedEmail.isBlank()) {
                             val matcher = emailPattern.matcher(line)
                             if (matcher.find()) {
-                                extractedEmail = matcher.group() ?: ""
+                                var rawEmail = matcher.group() ?: ""
+                                rawEmail = rawEmail.replace(" ", "")
+                                    .replace("(?i)\\.cem$".toRegex(), ".com")
+                                    .replace("(?i)\\.comar$".toRegex(), ".com.ar")
+                                    .replace("(?i)\\.con$".toRegex(), ".com")
+                                    .replace("(?i)perreycia".toRegex(), "perrenycia")
+                                    .replace("(?i)sperrRn".toRegex(), "sperren")
+                                extractedEmail = rawEmail
                                 continue
                             }
                         }
@@ -247,11 +265,20 @@ object PhotoOCRProcessor {
                             }
                         }
 
-                        // Phone
+                        // Phone (Filtrado de texto de dirección física)
                         if (extractedPhone.isBlank()) {
+                            val isAddressLine = addressKeywords.any { line.contains(it, ignoreCase = true) }
                             val matcher = phonePattern.matcher(line)
                             if (matcher.find()) {
-                                extractedPhone = line
+                                var phoneStr = matcher.group() ?: ""
+                                if (isAddressLine) {
+                                    val digitsPattern = Pattern.compile("(\\+?\\d[\\d\\s-]{6,}\\d)")
+                                    val digitsMatcher = digitsPattern.matcher(line)
+                                    if (digitsMatcher.find()) {
+                                        phoneStr = digitsMatcher.group() ?: ""
+                                    }
+                                }
+                                extractedPhone = phoneStr.trim()
                                 continue
                             }
                         }
@@ -266,13 +293,14 @@ object PhotoOCRProcessor {
                         }
                     }
 
-                    // Fallback for Name: First non-company, non-email, non-phone, non-position line
+                    // Fallback for Name: First valid line that is not an address, company, or contact info
                     if (lines.isNotEmpty()) {
                         val candidateName = lines.firstOrNull { l ->
                             l.length in 3..35 &&
                             !emailPattern.matcher(l).find() &&
                             !phonePattern.matcher(l).find() &&
                             !positionPattern.matcher(l).find() &&
+                            addressKeywords.none { kw -> l.contains(kw, ignoreCase = true) } &&
                             !l.contains("www", ignoreCase = true) &&
                             !l.contains("http", ignoreCase = true) &&
                             !l.contains("Ltd", ignoreCase = true) &&
@@ -795,13 +823,25 @@ fun SupplierWorkspaceScreen(
         }
     }
 
+    var tempMarqueeUri by remember { mutableStateOf<Uri?>(null) }
+    var tempContactUri by remember { mutableStateOf<Uri?>(null) }
+    var tempArticleUri by remember { mutableStateOf<Uri?>(null) }
+
     val cameraLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.TakePicturePreview()
-    ) { bitmap ->
-        if (bitmap != null) {
-            MediaStoreHelper.saveBitmapToGallery(context, bitmap, "Marquesina")
-            Toast.makeText(context, "📸 Foto marquesina guardada en la Galería (Pictures/CantonFair2026)", Toast.LENGTH_SHORT).show()
-            autoFillDataFromPhoto(bitmap)
+        contract = ActivityResultContracts.TakePicture()
+    ) { success ->
+        if (success && tempMarqueeUri != null) {
+            try {
+                val inputStream = context.contentResolver.openInputStream(tempMarqueeUri!!)
+                val bitmap = android.graphics.BitmapFactory.decodeStream(inputStream)
+                if (bitmap != null) {
+                    MediaStoreHelper.saveBitmapToGallery(context, bitmap, "Marquesina")
+                    Toast.makeText(context, "📸 Foto marquesina HD guardada en Galería", Toast.LENGTH_SHORT).show()
+                    autoFillDataFromPhoto(bitmap)
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
         }
     }
 
@@ -821,14 +861,22 @@ fun SupplierWorkspaceScreen(
         }
     }
 
-    // Launchers para la Tarjeta del Contacto (Sección B)
+    // Launchers para la Tarjeta del Contacto (Sección B - HD)
     val contactCameraLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.TakePicturePreview()
-    ) { bitmap ->
-        if (bitmap != null) {
-            MediaStoreHelper.saveBitmapToGallery(context, bitmap, "TarjetaContacto")
-            Toast.makeText(context, "📸 Tarjeta guardada en la Galería (Pictures/CantonFair2026)", Toast.LENGTH_SHORT).show()
-            autoFillContactFromCard(bitmap)
+        contract = ActivityResultContracts.TakePicture()
+    ) { success ->
+        if (success && tempContactUri != null) {
+            try {
+                val inputStream = context.contentResolver.openInputStream(tempContactUri!!)
+                val bitmap = android.graphics.BitmapFactory.decodeStream(inputStream)
+                if (bitmap != null) {
+                    MediaStoreHelper.saveBitmapToGallery(context, bitmap, "TarjetaContacto")
+                    Toast.makeText(context, "📸 Tarjeta HD guardada en Galería", Toast.LENGTH_SHORT).show()
+                    autoFillContactFromCard(bitmap)
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
         }
     }
 
@@ -873,12 +921,20 @@ fun SupplierWorkspaceScreen(
     }
 
     val articleCameraLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.TakePicturePreview()
-    ) { bitmap ->
-        if (bitmap != null) {
-            artPhotos.add(bitmap)
-            MediaStoreHelper.saveBitmapToGallery(context, bitmap, "Articulo")
-            Toast.makeText(context, "📸 Foto de artículo guardada en la Galería (Pictures/CantonFair2026)", Toast.LENGTH_SHORT).show()
+        contract = ActivityResultContracts.TakePicture()
+    ) { success ->
+        if (success && tempArticleUri != null) {
+            try {
+                val inputStream = context.contentResolver.openInputStream(tempArticleUri!!)
+                val bitmap = android.graphics.BitmapFactory.decodeStream(inputStream)
+                if (bitmap != null) {
+                    artPhotos.add(bitmap)
+                    MediaStoreHelper.saveBitmapToGallery(context, bitmap, "Articulo")
+                    Toast.makeText(context, "📸 Foto artículo HD guardada en Galería", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
         }
     }
 
@@ -947,7 +1003,11 @@ fun SupplierWorkspaceScreen(
 
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     Button(
-                        onClick = { cameraLauncher.launch(null) },
+                        onClick = {
+                            val uri = createImageFileUri(context)
+                            tempMarqueeUri = uri
+                            cameraLauncher.launch(uri)
+                        },
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1976D2)),
                         modifier = Modifier.weight(1f)
                     ) {
@@ -1010,7 +1070,11 @@ fun SupplierWorkspaceScreen(
 
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     Button(
-                        onClick = { contactCameraLauncher.launch(null) },
+                        onClick = {
+                            val uri = createImageFileUri(context)
+                            tempContactUri = uri
+                            contactCameraLauncher.launch(uri)
+                        },
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF57C00)),
                         modifier = Modifier.weight(1f)
                     ) {
@@ -1175,7 +1239,11 @@ fun SupplierWorkspaceScreen(
 
                 Row(modifier = Modifier.fillMaxWidth()) {
                     Button(
-                        onClick = { articleCameraLauncher.launch(null) },
+                        onClick = {
+                            val uri = createImageFileUri(context)
+                            tempArticleUri = uri
+                            articleCameraLauncher.launch(uri)
+                        },
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1976D2)),
                         modifier = Modifier.weight(1f)
                     ) {
