@@ -72,6 +72,13 @@ data class LocalSupplier(
     val category: String,
     val gpsCoordinates: String,
     val marqueePhotoBitmap: Bitmap? = null,
+    // SECCIÓN B. CONTACTO DE LA PERSONA QUE NOS ATENDIÓ
+    val contactName: String = "",
+    val contactPosition: String = "",
+    val contactWeChat: String = "",
+    val contactPhone: String = "",
+    val contactEmail: String = "",
+    val contactCardPhotoBitmap: Bitmap? = null,
     val articles: MutableList<ArticleItem> = mutableListOf(),
     val createdAt: String
 )
@@ -105,6 +112,11 @@ object FirestoreManager {
                         "stand": {"stringValue": "${supplier.stand}"},
                         "rubro": {"stringValue": "${supplier.category}"},
                         "gps": {"stringValue": "${supplier.gpsCoordinates}"},
+                        "contactNombre": {"stringValue": "${supplier.contactName}"},
+                        "contactCargo": {"stringValue": "${supplier.contactPosition}"},
+                        "contactWeChat": {"stringValue": "${supplier.contactWeChat}"},
+                        "contactTelefono": {"stringValue": "${supplier.contactPhone}"},
+                        "contactEmail": {"stringValue": "${supplier.contactEmail}"},
                         "fechaCreacion": {"stringValue": "${supplier.createdAt}"}
                       }
                     }
@@ -190,6 +202,96 @@ object PhotoOCRProcessor {
                 }
         } catch (e: Exception) {
             onComplete("", "", "")
+        }
+    }
+
+    fun extractContactFromBusinessCard(
+        bitmap: Bitmap,
+        onComplete: (name: String, position: String, weChat: String, phone: String, email: String) -> Unit
+    ) {
+        try {
+            val image = InputImage.fromBitmap(bitmap, 0)
+            val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
+
+            recognizer.process(image)
+                .addOnSuccessListener { visionText ->
+                    var extractedName = ""
+                    var extractedPosition = ""
+                    var extractedWeChat = ""
+                    var extractedPhone = ""
+                    var extractedEmail = ""
+
+                    val lines = visionText.textBlocks.flatMap { block -> block.lines.map { it.text.trim() } }
+
+                    val emailPattern = Pattern.compile("(?i)[a-z0-9._%+-]+@[a-z0-9.-]+\\.[a-z]{2,}")
+                    val phonePattern = Pattern.compile("(?i)(\\+?\\d{1,4}[\\s-]?)?(\\(?\\d{2,4}\\)?[\\s-]?)?\\d{3,4}[\\s-]?\\d{3,4}|\\b(mob|mobile|tel|phone|whatsapp)\\b.*")
+                    val positionPattern = Pattern.compile("(?i)\\b(manager|director|sales|export|rep|representative|executive|president|ceo|vice|engineer|consultant|gerente|comercial|ventas)\\b")
+                    val weChatPattern = Pattern.compile("(?i)\\b(wechat|wx|微信)\\s*[:\\-]?\\s*([a-zA-Z0-9_-]+)")
+
+                    for (line in lines) {
+                        // Email
+                        if (extractedEmail.isBlank()) {
+                            val matcher = emailPattern.matcher(line)
+                            if (matcher.find()) {
+                                extractedEmail = matcher.group() ?: ""
+                                continue
+                            }
+                        }
+
+                        // WeChat
+                        if (extractedWeChat.isBlank()) {
+                            val matcher = weChatPattern.matcher(line)
+                            if (matcher.find()) {
+                                extractedWeChat = line
+                                continue
+                            }
+                        }
+
+                        // Phone
+                        if (extractedPhone.isBlank()) {
+                            val matcher = phonePattern.matcher(line)
+                            if (matcher.find()) {
+                                extractedPhone = line
+                                continue
+                            }
+                        }
+
+                        // Position / Cargo
+                        if (extractedPosition.isBlank()) {
+                            val matcher = positionPattern.matcher(line)
+                            if (matcher.find()) {
+                                extractedPosition = line
+                                continue
+                            }
+                        }
+                    }
+
+                    // Fallback for Name: First non-company, non-email, non-phone, non-position line
+                    if (lines.isNotEmpty()) {
+                        val candidateName = lines.firstOrNull { l ->
+                            l.length in 3..35 &&
+                            !emailPattern.matcher(l).find() &&
+                            !phonePattern.matcher(l).find() &&
+                            !positionPattern.matcher(l).find() &&
+                            !l.contains("www", ignoreCase = true) &&
+                            !l.contains("http", ignoreCase = true) &&
+                            !l.contains("Ltd", ignoreCase = true) &&
+                            !l.contains("Co.", ignoreCase = true) &&
+                            !l.contains("Inc", ignoreCase = true) &&
+                            !l.contains("S.A.", ignoreCase = true)
+                        }
+                        if (candidateName != null) {
+                            extractedName = candidateName
+                        }
+                    }
+
+                    onComplete(extractedName, extractedPosition, extractedWeChat, extractedPhone, extractedEmail)
+                }
+                .addOnFailureListener {
+                    onComplete("", "", "", "", "")
+                }
+        } catch (e: Exception) {
+            onComplete("", "", "", "", "")
         }
     }
 }
@@ -646,26 +748,50 @@ fun SupplierWorkspaceScreen(
     val context = LocalContext.current
     val scrollState = rememberScrollState()
 
+    // SECCIÓN A. DATOS DE LA FÁBRICA Y MARQUESINA
     var companyName by remember(supplier) { mutableStateOf(supplier?.companyName ?: "") }
     var companyChinese by remember(supplier) { mutableStateOf(supplier?.companyChinese ?: "") }
     var stand by remember(supplier) { mutableStateOf(supplier?.stand ?: "") }
     var category by remember(supplier) { mutableStateOf(supplier?.category ?: "Sanitarios") }
-
     var capturedMarqueeBitmap by remember(supplier) { mutableStateOf<Bitmap?>(supplier?.marqueePhotoBitmap) }
 
+    // SECCIÓN B. CONTACTO DE LA PERSONA QUE NOS ATENDIÓ
+    var contactName by remember(supplier) { mutableStateOf(supplier?.contactName ?: "") }
+    var contactPosition by remember(supplier) { mutableStateOf(supplier?.contactPosition ?: "") }
+    var contactWeChat by remember(supplier) { mutableStateOf(supplier?.contactWeChat ?: "") }
+    var contactPhone by remember(supplier) { mutableStateOf(supplier?.contactPhone ?: "") }
+    var contactEmail by remember(supplier) { mutableStateOf(supplier?.contactEmail ?: "") }
+    var capturedContactCardBitmap by remember(supplier) { mutableStateOf<Bitmap?>(supplier?.contactCardPhotoBitmap) }
+
+    // OCR para Foto de Marquesina / Stand
     val autoFillDataFromPhoto = { bitmap: Bitmap ->
         capturedMarqueeBitmap = bitmap
-        Toast.makeText(context, "🔍 Procesando imagen con Google ML Kit...", Toast.LENGTH_SHORT).show()
+        Toast.makeText(context, "🔍 Procesando imagen de marquesina con Google ML Kit...", Toast.LENGTH_SHORT).show()
         PhotoOCRProcessor.extractDataFromPhoto(bitmap) { extractedCompany, extractedChinese, extractedStand ->
             if (extractedCompany.isNotBlank()) companyName = extractedCompany
             if (extractedChinese.isNotBlank()) companyChinese = extractedChinese
             if (extractedStand.isNotBlank()) stand = extractedStand
 
             if (extractedCompany.isNotBlank() || extractedChinese.isNotBlank() || extractedStand.isNotBlank()) {
-                Toast.makeText(context, "✨ OCR ML Kit: Datos detectados en la foto", Toast.LENGTH_LONG).show()
+                Toast.makeText(context, "✨ OCR ML Kit: Fábrica detectada en la foto", Toast.LENGTH_LONG).show()
             } else {
-                Toast.makeText(context, "📷 Foto guardada. No se detectó texto reconocible.", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "📷 Foto marquesina guardada.", Toast.LENGTH_SHORT).show()
             }
+        }
+    }
+
+    // OCR para Tarjeta de Presentación del Contacto
+    val autoFillContactFromCard = { bitmap: Bitmap ->
+        capturedContactCardBitmap = bitmap
+        Toast.makeText(context, "🔍 Procesando tarjeta de contacto con Google ML Kit...", Toast.LENGTH_SHORT).show()
+        PhotoOCRProcessor.extractContactFromBusinessCard(bitmap) { name, position, weChat, phone, email ->
+            if (name.isNotBlank()) contactName = name
+            if (position.isNotBlank()) contactPosition = position
+            if (weChat.isNotBlank()) contactWeChat = weChat
+            if (phone.isNotBlank()) contactPhone = phone
+            if (email.isNotBlank()) contactEmail = email
+
+            Toast.makeText(context, "✨ OCR Tarjeta: Datos de contacto extraídos", Toast.LENGTH_LONG).show()
         }
     }
 
@@ -674,7 +800,7 @@ fun SupplierWorkspaceScreen(
     ) { bitmap ->
         if (bitmap != null) {
             MediaStoreHelper.saveBitmapToGallery(context, bitmap, "Marquesina")
-            Toast.makeText(context, "📸 Foto guardada en la Galería (Pictures/CantonFair2026)", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, "📸 Foto marquesina guardada en la Galería (Pictures/CantonFair2026)", Toast.LENGTH_SHORT).show()
             autoFillDataFromPhoto(bitmap)
         }
     }
@@ -691,6 +817,33 @@ fun SupplierWorkspaceScreen(
                 }
             } catch (e: Exception) {
                 Toast.makeText(context, "Error al cargar la foto de la galería", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    // Launchers para la Tarjeta del Contacto (Sección B)
+    val contactCameraLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicturePreview()
+    ) { bitmap ->
+        if (bitmap != null) {
+            MediaStoreHelper.saveBitmapToGallery(context, bitmap, "TarjetaContacto")
+            Toast.makeText(context, "📸 Tarjeta guardada en la Galería (Pictures/CantonFair2026)", Toast.LENGTH_SHORT).show()
+            autoFillContactFromCard(bitmap)
+        }
+    }
+
+    val contactGalleryLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            try {
+                val inputStream = context.contentResolver.openInputStream(uri)
+                val bitmap = android.graphics.BitmapFactory.decodeStream(inputStream)
+                if (bitmap != null) {
+                    autoFillContactFromCard(bitmap)
+                }
+            } catch (e: Exception) {
+                Toast.makeText(context, "Error al cargar tarjeta de contacto", Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -771,12 +924,13 @@ fun SupplierWorkspaceScreen(
 
         Spacer(modifier = Modifier.height(10.dp))
 
+        // --- SECCIÓN A. DATOS PRINCIPALES DE LA FÁBRICA & MARQUESINA ---
         Card(
             modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = Color.White)
+            colors = CardDefaults.cardColors(containerColor = Color(0xFFE3F2FD))
         ) {
             Column(modifier = Modifier.padding(14.dp)) {
-                Text("📷 FOTO MARQUESINA Y STAND", fontWeight = FontWeight.Bold, fontSize = 11.sp, color = Color(0xFF1976D2))
+                Text("🏢 SECCIÓN A. DATOS PRINCIPALES DE LA FÁBRICA & MARQUESINA", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = Color(0xFF1565C0))
                 Spacer(modifier = Modifier.height(8.dp))
 
                 if (capturedMarqueeBitmap != null) {
@@ -797,7 +951,7 @@ fun SupplierWorkspaceScreen(
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1976D2)),
                         modifier = Modifier.weight(1f)
                     ) {
-                        Text("📷 ABRIR CÁMARA", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        Text("📷 FOTO MARQUESINA", fontSize = 11.sp, fontWeight = FontWeight.Bold)
                     }
                     Spacer(modifier = Modifier.width(6.dp))
                     Button(
@@ -809,19 +963,6 @@ fun SupplierWorkspaceScreen(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(6.dp))
-                Text(supplier?.gpsCoordinates ?: "GPS: Lat -43.2512, Long -65.3094", fontSize = 10.sp, color = Color.Gray)
-            }
-        }
-
-        Spacer(modifier = Modifier.height(10.dp))
-
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = Color.White)
-        ) {
-            Column(modifier = Modifier.padding(14.dp)) {
-                Text("DATOS PRINCIPALES DE LA FÁBRICA", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = Color(0xFF1B365D))
                 Spacer(modifier = Modifier.height(8.dp))
 
                 OutlinedTextField(
@@ -838,10 +979,85 @@ fun SupplierWorkspaceScreen(
                     value = stand, onValueChange = { stand = it },
                     label = { Text("Número de Stand (ej: 10.1 B23)") }, modifier = Modifier.fillMaxWidth()
                 )
+
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(supplier?.gpsCoordinates ?: "GPS: Lat -43.2512, Long -65.3094", fontSize = 10.sp, color = Color.Gray)
             }
         }
 
-        Spacer(modifier = Modifier.height(10.dp))
+        Spacer(modifier = Modifier.height(14.dp))
+
+        // --- SECCIÓN B. CONTACTO DE LA PERSONA QUE NOS ATENDIÓ ---
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF3E0))
+        ) {
+            Column(modifier = Modifier.padding(14.dp)) {
+                Text("📇 SECCIÓN B. CONTACTO DE LA PERSONA QUE NOS ATENDIÓ", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = Color(0xFFE65100))
+                Spacer(modifier = Modifier.height(8.dp))
+
+                if (capturedContactCardBitmap != null) {
+                    Image(
+                        bitmap = capturedContactCardBitmap!!.asImageBitmap(),
+                        contentDescription = "Tarjeta del Contacto",
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(140.dp)
+                            .border(1.dp, Color.Gray, RoundedCornerShape(8.dp))
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Button(
+                        onClick = { contactCameraLauncher.launch(null) },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF57C00)),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("📷 TARJETA CONTACTO (OCR)", fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                    }
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Button(
+                        onClick = { contactGalleryLauncher.launch("image/*") },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF7B1FA2)),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("🖼️ GALERÍA TARJETA", fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                OutlinedTextField(
+                    value = contactName, onValueChange = { contactName = it },
+                    label = { Text("Nombre y Apellido del Contacto") }, modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                OutlinedTextField(
+                    value = contactPosition, onValueChange = { contactPosition = it },
+                    label = { Text("Cargo / Puesto (ej: Sales Manager)") }, modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    OutlinedTextField(
+                        value = contactWeChat, onValueChange = { contactWeChat = it },
+                        label = { Text("WeChat ID / QR") }, modifier = Modifier.weight(1f)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    OutlinedTextField(
+                        value = contactPhone, onValueChange = { contactPhone = it },
+                        label = { Text("Teléfono / Mobile / WhatsApp") }, modifier = Modifier.weight(1f)
+                    )
+                }
+                Spacer(modifier = Modifier.height(6.dp))
+                OutlinedTextField(
+                    value = contactEmail, onValueChange = { contactEmail = it },
+                    label = { Text("Email de Contacto") }, modifier = Modifier.fillMaxWidth()
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
 
         Button(
             onClick = {
@@ -849,7 +1065,13 @@ fun SupplierWorkspaceScreen(
                     companyName = companyName,
                     companyChinese = companyChinese,
                     stand = stand,
-                    marqueePhotoBitmap = capturedMarqueeBitmap
+                    marqueePhotoBitmap = capturedMarqueeBitmap,
+                    contactName = contactName,
+                    contactPosition = contactPosition,
+                    contactWeChat = contactWeChat,
+                    contactPhone = contactPhone,
+                    contactEmail = contactEmail,
+                    contactCardPhotoBitmap = capturedContactCardBitmap
                 ) ?: LocalSupplier(
                     id = System.currentTimeMillis().toString(),
                     supplierCode = "CF26-P-0001",
@@ -859,6 +1081,12 @@ fun SupplierWorkspaceScreen(
                     category = category,
                     gpsCoordinates = "GPS: Lat -43.2512, Long -65.3094",
                     marqueePhotoBitmap = capturedMarqueeBitmap,
+                    contactName = contactName,
+                    contactPosition = contactPosition,
+                    contactWeChat = contactWeChat,
+                    contactPhone = contactPhone,
+                    contactEmail = contactEmail,
+                    contactCardPhotoBitmap = capturedContactCardBitmap,
                     createdAt = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(Date())
                 )
                 onSaveSupplier(updated)
@@ -867,7 +1095,7 @@ fun SupplierWorkspaceScreen(
             modifier = Modifier.fillMaxWidth().height(48.dp),
             shape = RoundedCornerShape(8.dp)
         ) {
-            Text("💾 GUARDAR REGISTRO LOCAL (SE MANTIENE ABIERTO)", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+            Text("💾 GUARDAR REGISTRO PROVEEDOR & CONTACTO", fontWeight = FontWeight.Bold, fontSize = 12.sp)
         }
 
         Spacer(modifier = Modifier.height(16.dp))
