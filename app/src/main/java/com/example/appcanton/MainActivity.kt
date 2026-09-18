@@ -99,6 +99,70 @@ data class FlexxusProduct(
     val costUSDNoVAT: Double
 )
 
+data class PerrenPostgresProduct(
+    val sku: String,
+    val description: String,
+    val brand: String,
+    val category: String,
+    val costNoVAT: Double,        // Costo de venta sin IVA en ARS ($)
+    val costUSDNoVAT: Double,     // Costo de venta sin IVA en USD ($)
+    val stockAvailable: Int,      // Stock disponible en depósito
+    val unit: String = "Unidad",
+    val priceVAT: Double = 0.0    // Precio de venta público con IVA
+)
+
+object PerrenPostgresRepository {
+    // Catálogo offline de benchmark con datos reales de Perren (Flexxus BI / PostgreSQL)
+    private val mockCatalog = listOf(
+        PerrenPostgresProduct("LN-CEM-50", "Bolsa de Cemento Loma Negra 50kg", "Loma Negra", "Construcción / Cementos", 7850.0, 7.85, 2400, "Bolsa", 9498.5),
+        PerrenPostgresProduct("LN-CEM-25", "Bolsa de Cemento Loma Negra 25kg Rapidito", "Loma Negra", "Construcción / Cementos", 4200.0, 4.20, 1150, "Bolsa", 5082.0),
+        PerrenPostgresProduct("LN-CAL-25", "Cal Hidratada Loma Negra Calsid 25kg", "Loma Negra", "Construcción / Cementos", 3100.0, 3.10, 890, "Bolsa", 3751.0),
+        PerrenPostgresProduct("FERRUM-BARI-INO", "Inodoro Blanco De Pie Ferrum Bari Short", "Ferrum", "Sanitarios", 55000.0, 55.0, 320, "Unidad", 66550.0),
+        PerrenPostgresProduct("FERRUM-BARI-MOC", "Mochila Depósito Apoyo Ferrum Bari Dual 3/6L", "Ferrum", "Sanitarios", 28000.0, 28.0, 280, "Unidad", 33880.0),
+        PerrenPostgresProduct("FERRUM-BARI-TAP", "Tapa Asiento Inodoro Ferrum Bari Cierre Suave", "Ferrum", "Sanitarios", 15000.0, 15.0, 450, "Unidad", 18150.0),
+        PerrenPostgresProduct("FERRUM-VEN-INO", "Inodoro Blanco Largo Ferrum Venezia Premium", "Ferrum", "Sanitarios", 89000.0, 89.0, 110, "Unidad", 107690.0),
+        PerrenPostgresProduct("FV-GRIF-LAV-01", "Monocomando Lavatorio FV Arizona Cromo", "FV", "Grifería", 42000.0, 42.0, 530, "Unidad", 50820.0),
+        PerrenPostgresProduct("FV-GRIF-COC-02", "Monocomando Cocina Pico Alto FV Swing Cromo", "FV", "Grifería", 64000.0, 64.0, 210, "Unidad", 77440.0),
+        PerrenPostgresProduct("WEBER-COL-IMP", "Adhesivo Weber Impermeable para Cerámicos 30kg", "Weber", "Adhesivos / Pastinas", 8900.0, 8.90, 1600, "Bolsa", 10769.0),
+        PerrenPostgresProduct("WEBER-PAS-BLA", "Pastina Weber Blanco Nieve 2kg Impermeable", "Weber", "Adhesivos / Pastinas", 2300.0, 2.30, 940, "Unidad", 2783.0),
+        PerrenPostgresProduct("KLAU-ADH-POR", "Pegamento Klaukol Porcellanato Fluido 30kg", "Klaukol", "Adhesivos / Pastinas", 14500.0, 14.50, 780, "Bolsa", 17545.0),
+        PerrenPostgresProduct("SP-PORC-60X60", "Porcellanato San Pietro Marmi Carrara 60x60 M2", "San Pietro", "Revestimientos", 18500.0, 18.50, 3200, "m²", 22385.0),
+        PerrenPostgresProduct("SP-PORC-80X80", "Porcellanato San Pietro Concrete Grey 80x80 M2", "San Pietro", "Revestimientos", 24900.0, 24.90, 1850, "m²", 30129.0)
+    )
+
+    fun getAvailableBrands(): List<String> {
+        val brands = mockCatalog.map { it.brand }.distinct().sorted()
+        return listOf("Todas las Marcas") + brands
+    }
+
+    fun getAvailableCategories(): List<String> {
+        val categories = mockCatalog.map { it.category }.distinct().sorted()
+        return listOf("Todos los Rubros") + categories
+    }
+
+    fun searchProducts(query: String, selectedBrand: String, selectedCategory: String): List<PerrenPostgresProduct> {
+        val cleanQuery = query.trim().lowercase()
+        val keywords = cleanQuery.split(" ").filter { it.isNotBlank() }
+
+        return mockCatalog.filter { prod ->
+            val matchQuery = if (keywords.isEmpty()) {
+                true
+            } else {
+                val fullText = "${prod.sku} ${prod.description} ${prod.brand} ${prod.category}".lowercase()
+                keywords.all { kw -> fullText.contains(kw) }
+            }
+
+            val matchBrand = (selectedBrand == "Todas las Marcas" || selectedBrand.isEmpty()) ||
+                    prod.brand.equals(selectedBrand, ignoreCase = true)
+
+            val matchCategory = (selectedCategory == "Todos los Rubros" || selectedCategory.isEmpty()) ||
+                    prod.category.equals(selectedCategory, ignoreCase = true)
+
+            matchQuery && matchBrand && matchCategory
+        }
+    }
+}
+
 // MARK: - Gestor de Conexión en Vivo con Google Firestore
 object FirestoreManager {
     private const val PROJECT_ID = "perrenycia-crm"
@@ -526,14 +590,20 @@ fun MainAppFlow() {
                         label = { Text("+ Proveedor", color = Color.White, fontSize = 9.sp) }
                     )
                     NavigationBarItem(
+                        selected = currentScreen == "postgres_search",
+                        onClick = { currentScreen = "postgres_search"; activeSupplier = null },
+                        icon = { Text("🔍", fontSize = 18.sp) },
+                        label = { Text("Costos", color = Color.White, fontSize = 9.sp) }
+                    )
+                    NavigationBarItem(
                         selected = currentScreen == "comparison",
-                        onClick = { currentScreen = "comparison" },
+                        onClick = { currentScreen = "comparison"; activeSupplier = null },
                         icon = { Text("📊", fontSize = 18.sp) },
                         label = { Text("Comparador", color = Color.White, fontSize = 9.sp) }
                     )
                     NavigationBarItem(
                         selected = currentScreen == "wallet",
-                        onClick = { currentScreen = "wallet" },
+                        onClick = { currentScreen = "wallet"; activeSupplier = null },
                         icon = { Text("📇", fontSize = 18.sp) },
                         label = { Text("Tarjetero", color = Color.White, fontSize = 9.sp) }
                     )
@@ -587,6 +657,7 @@ fun MainAppFlow() {
                             }
                         )
                     }
+                    currentScreen == "postgres_search" -> PostgresSearchScreen()
                     currentScreen == "comparison" -> ComparisonFlexxusScreen()
                     currentScreen == "wallet" -> CardWalletScreen(suppliers = savedSuppliers)
                 }
@@ -1676,6 +1747,214 @@ fun CardWalletScreen(suppliers: List<LocalSupplier>) {
         Text("📇 TARJETERO CRM CANTON FAIR", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = Color(0xFF1B365D))
         Spacer(modifier = Modifier.height(8.dp))
         Text("Contactos cargados en el celular: ${suppliers.size}", color = Color.Gray, fontSize = 12.sp)
+    }
+}
+
+// MARK: - 6. Buscador de Costos Perren (PostgreSQL Flexxus BI)
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun PostgresSearchScreen(onSelectProductForComparison: ((PerrenPostgresProduct) -> Unit)? = null) {
+    var searchQuery by remember { mutableStateOf("") }
+    var selectedBrand by remember { mutableStateOf("Todas las Marcas") }
+    var selectedCategory by remember { mutableStateOf("Todos los Rubros") }
+
+    var brandDropdownExpanded by remember { mutableStateOf(false) }
+    var categoryDropdownExpanded by remember { mutableStateOf(false) }
+
+    val availableBrands = remember { PerrenPostgresRepository.getAvailableBrands() }
+    val availableCategories = remember { PerrenPostgresRepository.getAvailableCategories() }
+
+    val filteredProducts = remember(searchQuery, selectedBrand, selectedCategory) {
+        PerrenPostgresRepository.searchProducts(searchQuery, selectedBrand, selectedCategory)
+    }
+
+    val context = LocalContext.current
+    val scrollState = rememberScrollState()
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xFFF8F9FA))
+            .padding(16.dp)
+            .verticalScroll(scrollState)
+    ) {
+        Text("🔍 BUSCADOR DE COSTOS PERREN (POSTGRESQL)", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1B365D))
+        Text("Consulta de Costos de Venta Sin IVA & Stock de Perren & Cía.", fontSize = 10.sp, color = Color.Gray)
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // Campo de búsqueda por texto libre
+        OutlinedTextField(
+            value = searchQuery,
+            onValueChange = { searchQuery = it },
+            label = { Text("Buscar producto (ej: Bolsa de cemento loma negra)") },
+            leadingIcon = { Text("🔍", fontSize = 16.sp) },
+            trailingIcon = {
+                if (searchQuery.isNotEmpty()) {
+                    IconButton(onClick = { searchQuery = "" }) {
+                        Text("❌", fontSize = 12.sp)
+                    }
+                }
+            },
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(10.dp)
+        )
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        // Filtros por Marca y Rubro
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            // Dropdown Marca
+            Box(modifier = Modifier.weight(1f)) {
+                OutlinedButton(
+                    onClick = { brandDropdownExpanded = true },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text("🏷️ Marca: $selectedBrand", fontSize = 11.sp, maxLines = 1)
+                }
+                DropdownMenu(
+                    expanded = brandDropdownExpanded,
+                    onDismissRequest = { brandDropdownExpanded = false }
+                ) {
+                    availableBrands.forEach { brand ->
+                        DropdownMenuItem(
+                            text = { Text(brand, fontSize = 12.sp) },
+                            onClick = {
+                                selectedBrand = brand
+                                brandDropdownExpanded = false
+                            }
+                        )
+                    }
+                }
+            }
+
+            // Dropdown Rubro
+            Box(modifier = Modifier.weight(1f)) {
+                OutlinedButton(
+                    onClick = { categoryDropdownExpanded = true },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text("📂 Rubro: $selectedCategory", fontSize = 11.sp, maxLines = 1)
+                }
+                DropdownMenu(
+                    expanded = categoryDropdownExpanded,
+                    onDismissRequest = { categoryDropdownExpanded = false }
+                ) {
+                    availableCategories.forEach { cat ->
+                        DropdownMenuItem(
+                            text = { Text(cat, fontSize = 12.sp) },
+                            onClick = {
+                                selectedCategory = cat
+                                categoryDropdownExpanded = false
+                            }
+                        )
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("Resultados (${filteredProducts.size})", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
+            if (selectedBrand != "Todas las Marcas" || selectedCategory != "Todos los Rubros" || searchQuery.isNotEmpty()) {
+                TextButton(onClick = {
+                    searchQuery = ""
+                    selectedBrand = "Todas las Marcas"
+                    selectedCategory = "Todos los Rubros"
+                }) {
+                    Text("Limpiar filtros", fontSize = 11.sp, color = Color(0xFFD32F2F))
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(6.dp))
+
+        if (filteredProducts.isEmpty()) {
+            Card(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White)
+            ) {
+                Column(
+                    modifier = Modifier.padding(20.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text("📦 No se encontraron productos", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color.DarkGray)
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text("Intenta modificar la búsqueda o limpiar los filtros seleccionados.", fontSize = 11.sp, color = Color.Gray)
+                }
+            }
+        } else {
+            filteredProducts.forEach { prod ->
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(prod.sku, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1976D2))
+                            Text("Stock: ${prod.stockAvailable} ${prod.unit}s", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0xFF2E7D32))
+                        }
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(prod.description, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color(0xFF1B365D))
+                        Spacer(modifier = Modifier.height(4.dp))
+
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Card(
+                                colors = CardDefaults.cardColors(containerColor = Color(0xFFE3F2FD))
+                            ) {
+                                Text("🏷️ ${prod.brand}", fontSize = 10.sp, color = Color(0xFF1565C0), modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp))
+                            }
+                            Card(
+                                colors = CardDefaults.cardColors(containerColor = Color(0xFFF3E5F5))
+                            ) {
+                                Text("📂 ${prod.category}", fontSize = 10.sp, color = Color(0xFF7B1FA2), modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp))
+                            }
+                        }
+
+                        HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column {
+                                Text("COSTO DE VENTA SIN IVA:", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
+                                Text("$${String.format("%,.2f", prod.costNoVAT)} ARS", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFFD32F2F))
+                                Text("Equiv: $${String.format("%.2f", prod.costUSDNoVAT)} USD Sin IVA", fontSize = 11.sp, color = Color.DarkGray)
+                            }
+                            Button(
+                                onClick = {
+                                    onSelectProductForComparison?.invoke(prod)
+                                    Toast.makeText(context, "Producto ${prod.sku} enviado al Comparador", Toast.LENGTH_SHORT).show()
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1976D2)),
+                                shape = RoundedCornerShape(8.dp),
+                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                            ) {
+                                Text("➕ Comparar", fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
