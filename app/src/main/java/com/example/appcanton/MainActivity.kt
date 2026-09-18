@@ -47,6 +47,7 @@ import android.provider.MediaStore
 import android.media.MediaPlayer
 import android.media.MediaRecorder
 import com.google.mlkit.vision.common.InputImage
+import com.google.mlkit.vision.text.Text
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 
@@ -220,12 +221,12 @@ object PhotoOCRProcessor {
             val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
 
             recognizer.process(image)
-                .addOnSuccessListener { visionText ->
+                .addOnSuccessListener { visionText: Text ->
                     var extractedCompany = ""
                     var extractedChinese = ""
                     var extractedStand = ""
 
-                    val lines = visionText.textBlocks.flatMap { block -> block.lines.map { it.text.trim() } }
+                    val lines = visionText.textBlocks.flatMap { block: Text.TextBlock -> block.lines.map { line: Text.Line -> line.text.trim() } }
 
                     val standPattern = Pattern.compile("(?i)\\b(\\d{1,2}\\.\\d{1,2}\\s?[A-Z]\\d{2,4}|stand\\s?#?\\d+|booth\\s?#?[A-Z0-9-]+)\\b")
                     val companyKeywordPattern = Pattern.compile("(?i)\\b(S\\.A\\.|S\\.R\\.L\\.|LTD|LIMITED|CO\\.|CORP|CORPORATION|INC|GROUP|INDUSTRIES|FACTORY|SANITARY|HARDWARE|PLUMBING|IMPORT|EXPORT|INTERNATIONAL|MANUFACTURING)\\b")
@@ -255,7 +256,7 @@ object PhotoOCRProcessor {
 
                     // Fallback: If no company keyword found, pick the top non-empty valid header line
                     if (extractedCompany.isBlank() && lines.isNotEmpty()) {
-                        val candidate = lines.firstOrNull { l ->
+                        val candidate = lines.firstOrNull { l: String ->
                             l.length > 2 &&
                             !standPattern.matcher(l).find() &&
                             !l.contains("Tel", ignoreCase = true) &&
@@ -273,7 +274,7 @@ object PhotoOCRProcessor {
                 .addOnFailureListener {
                     onComplete("", "", "")
                 }
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             onComplete("", "", "")
         }
     }
@@ -287,14 +288,14 @@ object PhotoOCRProcessor {
             val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
 
             recognizer.process(image)
-                .addOnSuccessListener { visionText ->
+                .addOnSuccessListener { visionText: Text ->
                     var extractedName = ""
                     var extractedPosition = ""
                     var extractedWeChat = ""
                     var extractedPhone = ""
                     var extractedEmail = ""
 
-                    val lines = visionText.textBlocks.flatMap { block -> block.lines.map { it.text.trim() } }
+                    val lines = visionText.textBlocks.flatMap { block: Text.TextBlock -> block.lines.map { line: Text.Line -> line.text.trim() } }
 
                     // Patrón de email tolerante a errores típicos de OCR (ej: @, [at], .cem -> .com, .comar -> .com.ar)
                     val emailPattern = Pattern.compile("(?i)[a-z0-9._%+-]+(?::|@|\\(at\\)|\\[at\\])[a-z0-9.-]+\\.[a-z]{2,}")
@@ -507,10 +508,10 @@ fun MainAppFlow() {
     val context = LocalContext.current
     val prefs = remember { context.getSharedPreferences("canton_app_prefs", Context.MODE_PRIVATE) }
 
-    val SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000L
+    val sevenDaysMs = 7 * 24 * 60 * 60 * 1000L
     val savedTimestamp = prefs.getLong("login_timestamp", 0L)
     val isRemembered = prefs.getBoolean("remember_me", true)
-    val isSessionValid = isRemembered && ((System.currentTimeMillis() - savedTimestamp) < SEVEN_DAYS_MS)
+    val isSessionValid = isRemembered && ((System.currentTimeMillis() - savedTimestamp) < sevenDaysMs)
 
     var isLoggedIn by remember { mutableStateOf(isSessionValid) }
     var currentScreen by remember { mutableStateOf("dashboard") }
@@ -1654,7 +1655,7 @@ fun ComparisonFlexxusScreen() {
                     }
                 }
 
-                Divider(modifier = Modifier.padding(vertical = 6.dp))
+                HorizontalDivider(modifier = Modifier.padding(vertical = 6.dp))
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     Text("COSTO TOTAL COMBO FLEXXUS SIN IVA:", fontWeight = FontWeight.Bold, fontSize = 11.sp)
                     Text("$${String.format("%.2f", totalFlexxusCostNoVAT)} USD", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color(0xFFD32F2F))
