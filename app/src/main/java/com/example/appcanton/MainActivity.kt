@@ -53,7 +53,8 @@ import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 
 fun createImageFileUri(context: Context): Uri {
     val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
-    val storageDir = File(context.externalCacheDir, "Pictures")
+    val baseDir = context.externalCacheDir ?: context.cacheDir
+    val storageDir = File(baseDir, "Pictures")
     if (!storageDir.exists()) storageDir.mkdirs()
     val file = File(storageDir, "JPEG_${timeStamp}.jpg")
     return FileProvider.getUriForFile(context, "${context.packageName}.provider", file)
