@@ -10,6 +10,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -116,21 +117,42 @@ data class PerrenPostgresProduct(
 object PerrenPostgresRepository {
     // Catálogo offline de benchmark con datos reales de Perren (Flexxus BI / PostgreSQL)
     private val mockCatalog = listOf(
-        PerrenPostgresProduct("LN-CEM-50", "Bolsa de Cemento Loma Negra 50kg", "Loma Negra", "Construcción / Cementos", 7850.0, 7.85, 2400, "Bolsa", 9498.5),
-        PerrenPostgresProduct("LN-CEM-25", "Bolsa de Cemento Loma Negra 25kg Rapidito", "Loma Negra", "Construcción / Cementos", 4200.0, 4.20, 1150, "Bolsa", 5082.0),
-        PerrenPostgresProduct("LN-CAL-25", "Cal Hidratada Loma Negra Calsid 25kg", "Loma Negra", "Construcción / Cementos", 3100.0, 3.10, 890, "Bolsa", 3751.0),
-        PerrenPostgresProduct("FERRUM-BARI-INO", "Inodoro Blanco De Pie Ferrum Bari Short", "Ferrum", "Sanitarios", 55000.0, 55.0, 320, "Unidad", 66550.0),
-        PerrenPostgresProduct("FERRUM-BARI-MOC", "Mochila Depósito Apoyo Ferrum Bari Dual 3/6L", "Ferrum", "Sanitarios", 28000.0, 28.0, 280, "Unidad", 33880.0),
-        PerrenPostgresProduct("FERRUM-BARI-TAP", "Tapa Asiento Inodoro Ferrum Bari Cierre Suave", "Ferrum", "Sanitarios", 15000.0, 15.0, 450, "Unidad", 18150.0),
-        PerrenPostgresProduct("FERRUM-VEN-INO", "Inodoro Blanco Largo Ferrum Venezia Premium", "Ferrum", "Sanitarios", 89000.0, 89.0, 110, "Unidad", 107690.0),
-        PerrenPostgresProduct("FV-GRIF-LAV-01", "Monocomando Lavatorio FV Arizona Cromo", "FV", "Grifería", 42000.0, 42.0, 530, "Unidad", 50820.0),
-        PerrenPostgresProduct("FV-GRIF-COC-02", "Monocomando Cocina Pico Alto FV Swing Cromo", "FV", "Grifería", 64000.0, 64.0, 210, "Unidad", 77440.0),
-        PerrenPostgresProduct("WEBER-COL-IMP", "Adhesivo Weber Impermeable para Cerámicos 30kg", "Weber", "Adhesivos / Pastinas", 8900.0, 8.90, 1600, "Bolsa", 10769.0),
-        PerrenPostgresProduct("WEBER-PAS-BLA", "Pastina Weber Blanco Nieve 2kg Impermeable", "Weber", "Adhesivos / Pastinas", 2300.0, 2.30, 940, "Unidad", 2783.0),
-        PerrenPostgresProduct("KLAU-ADH-POR", "Pegamento Klaukol Porcellanato Fluido 30kg", "Klaukol", "Adhesivos / Pastinas", 14500.0, 14.50, 780, "Bolsa", 17545.0),
-        PerrenPostgresProduct("SP-PORC-60X60", "Porcellanato San Pietro Marmi Carrara 60x60 M2", "San Pietro", "Revestimientos", 18500.0, 18.50, 3200, "m²", 22385.0),
-        PerrenPostgresProduct("SP-PORC-80X80", "Porcellanato San Pietro Concrete Grey 80x80 M2", "San Pietro", "Revestimientos", 24900.0, 24.90, 1850, "m²", 30129.0)
+        // CEMENTOS & CONSTRUCCIÓN (LOMA NEGRA)
+        PerrenPostgresProduct("LN-CEM-50", "Bolsa de Cemento Loma Negra 50kg", "Loma Negra", "Construcción / Cementos", 7850.0, 5.81, 2400, "Bolsa", 9498.5),
+        PerrenPostgresProduct("LN-CEM-25", "Bolsa de Cemento Loma Negra 25kg Rapidito", "Loma Negra", "Construcción / Cementos", 4200.0, 3.11, 1150, "Bolsa", 5082.0),
+        PerrenPostgresProduct("LN-CAL-25", "Cal Hidratada Loma Negra Calsid 25kg", "Loma Negra", "Construcción / Cementos", 3100.0, 2.30, 890, "Bolsa", 3751.0),
+        PerrenPostgresProduct("LN-MAS-30", "Pastina Loma Negra Plastocor 30kg", "Loma Negra", "Construcción / Cementos", 5200.0, 3.85, 620, "Bolsa", 6292.0),
+        
+        // SANITARIOS (FERRUM)
+        PerrenPostgresProduct("FERRUM-BARI-INO", "Inodoro Blanco De Pie Ferrum Bari Short", "Ferrum", "Sanitarios", 55000.0, 40.74, 320, "Unidad", 66550.0),
+        PerrenPostgresProduct("FERRUM-BARI-MOC", "Mochila Depósito Apoyo Ferrum Bari Dual 3/6L", "Ferrum", "Sanitarios", 28000.0, 20.74, 280, "Unidad", 33880.0),
+        PerrenPostgresProduct("FERRUM-BARI-TAP", "Tapa Asiento Inodoro Ferrum Bari Cierre Suave", "Ferrum", "Sanitarios", 15000.0, 11.11, 450, "Unidad", 18150.0),
+        PerrenPostgresProduct("FERRUM-VEN-INO", "Inodoro Blanco Largo Ferrum Venezia Premium", "Ferrum", "Sanitarios", 89000.0, 65.92, 110, "Unidad", 107690.0),
+        PerrenPostgresProduct("FERRUM-MAYO-BID", "Bidé 1 Agujero Ferrum Mayo Blanco", "Ferrum", "Sanitarios", 38000.0, 28.14, 190, "Unidad", 45980.0),
+
+        // GRIFERÍA (FV)
+        PerrenPostgresProduct("FV-GRIF-LAV-01", "Monocomando Lavatorio FV Arizona Cromo", "FV", "Grifería", 42000.0, 31.11, 530, "Unidad", 50820.0),
+        PerrenPostgresProduct("FV-GRIF-COC-02", "Monocomando Cocina Pico Alto FV Swing Cromo", "FV", "Grifería", 64000.0, 47.40, 210, "Unidad", 77440.0),
+        PerrenPostgresProduct("FV-GRIF-DUCH-03", "Juego de Ducha con Transferencia FV Temple", "FV", "Grifería", 95000.0, 70.37, 140, "Unidad", 114950.0),
+
+        // ADHESIVOS & PASTINAS (WEBER & KLAUKOL)
+        PerrenPostgresProduct("WEBER-COL-IMP", "Adhesivo Weber Impermeable para Cerámicos 30kg", "Weber", "Adhesivos / Pastinas", 8900.0, 6.59, 1600, "Bolsa", 10769.0),
+        PerrenPostgresProduct("WEBER-PAS-BLA", "Pastina Weber Blanco Nieve 2kg Impermeable", "Weber", "Adhesivos / Pastinas", 2300.0, 1.70, 940, "Unidad", 2783.0),
+        PerrenPostgresProduct("KLAU-ADH-POR", "Pegamento Klaukol Porcellanato Fluido 30kg", "Klaukol", "Adhesivos / Pastinas", 14500.0, 10.74, 780, "Bolsa", 17545.0),
+        PerrenPostgresProduct("KLAU-ADH-STD", "Klaukol Tradicional Bolsa 30kg", "Klaukol", "Adhesivos / Pastinas", 9800.0, 7.25, 1200, "Bolsa", 11858.0),
+
+        // REVESTIMIENTOS (SAN PIETRO & CERRO NEGRO & CORTINES)
+        PerrenPostgresProduct("SP-PORC-60X60", "Porcellanato San Pietro Marmi Carrara 60x60 M2", "San Pietro", "Revestimientos", 18500.0, 13.70, 3200, "m²", 22385.0),
+        PerrenPostgresProduct("SP-PORC-80X80", "Porcellanato San Pietro Concrete Grey 80x80 M2", "San Pietro", "Revestimientos", 24900.0, 18.44, 1850, "m²", 30129.0),
+        PerrenPostgresProduct("CN-PORC-60X60", "Porcellanato Cerro Negro Madera Roble 60x60 M2", "Cerro Negro", "Revestimientos", 16800.0, 12.44, 2100, "m²", 20328.0),
+        PerrenPostgresProduct("CORT-CER-40X40", "Cerámica Cortines Piedra Beige 40x40 M2", "Cortines", "Revestimientos", 9200.0, 6.81, 4500, "m²", 11132.0),
+
+        // CONSTRUCCIÓN EN SECO & AISLACIONES (DURLOCK & ISOVER)
+        PerrenPostgresProduct("DURL-PLA-125", "Placa de Yeso Durlock Estándar 12.5mm 1.20x2.40", "Durlock", "Construcción en Seco", 11500.0, 8.51, 1400, "Unidad", 13915.0),
+        PerrenPostgresProduct("ISOV-LAN-50", "Lana de Vidrio Isover Rolac Plata 50mm 12m2", "Isover", "Aislaciones", 28500.0, 21.11, 480, "Rollo", 34485.0)
     )
+
+    fun getAllProducts(): List<PerrenPostgresProduct> = mockCatalog
 
     fun getAvailableBrands(): List<String> {
         val brands = mockCatalog.map { it.brand }.distinct().sorted()
@@ -301,8 +323,9 @@ object PhotoOCRProcessor {
                     // Patrón de email tolerante a errores típicos de OCR (ej: @, [at], .cem -> .com, .comar -> .com.ar)
                     val emailPattern = Pattern.compile("(?i)[a-z0-9._%+-]+(?::|@|\\(at\\)|\\[at\\])[a-z0-9.-]+\\.[a-z]{2,}")
                     val phonePattern = Pattern.compile("(?i)(\\+?\\d{1,4}[\\s-]?)?(\\(?\\d{2,4}\\)?[\\s-]?)?\\d{3,4}[\\s-]?\\d{3,4}|\\b(mob|mobile|tel|phone|whatsapp)\\b.*")
-                    val positionPattern = Pattern.compile("(?i)\\b(manager|director|sales|export|rep|representative|executive|president|ceo|vice|engineer|consultant|gerente|comercial|ventas)\\b")
+                    val positionPattern = Pattern.compile("(?i)\\b(presidente|president|vicepresidente|vice-president|gerente|director|directora|manager|sales|export|rep|representative|executive|ceo|cfo|cto|engineer|consultant|comercial|ventas|apoderado)\\b")
                     val weChatPattern = Pattern.compile("(?i)\\b(wechat|wx|微信)\\s*[:\\-]?\\s*([a-zA-Z0-9_-]+)")
+                    val companyPattern = Pattern.compile("(?i)\\b(perren|s\\.a\\.|s\\.r\\.l\\.|ltd|limited|co\\.|corp|corporation|inc|group|industries|factory)\\b")
                     val addressKeywords = listOf("Casa Central", "9 de Julio", "Trelew", "Chubut", "CP 9100", "Fresioecie", "CP9100", "Argentina")
 
                     for (line in lines) {
@@ -366,17 +389,22 @@ object PhotoOCRProcessor {
                             !emailPattern.matcher(l).find() &&
                             !phonePattern.matcher(l).find() &&
                             !positionPattern.matcher(l).find() &&
+                            !companyPattern.matcher(l).find() &&
                             addressKeywords.none { kw -> l.contains(kw, ignoreCase = true) } &&
                             !l.contains("www", ignoreCase = true) &&
-                            !l.contains("http", ignoreCase = true) &&
-                            !l.contains("Ltd", ignoreCase = true) &&
-                            !l.contains("Co.", ignoreCase = true) &&
-                            !l.contains("Inc", ignoreCase = true) &&
-                            !l.contains("S.A.", ignoreCase = true)
+                            !l.contains("http", ignoreCase = true)
                         }
                         if (candidateName != null) {
                             extractedName = candidateName
                         }
+                    }
+
+                    // Verificación de seguridad adicional: si extractedName coincide con un cargo, reasignarlo a extractedPosition
+                    if (extractedName.isNotBlank() && positionPattern.matcher(extractedName).find()) {
+                        if (extractedPosition.isBlank()) {
+                            extractedPosition = extractedName
+                        }
+                        extractedName = ""
                     }
 
                     onComplete(extractedName, extractedPosition, extractedWeChat, extractedPhone, extractedEmail)
@@ -1575,44 +1603,62 @@ fun SupplierWorkspaceScreen(
 }
 
 // MARK: - 4. Comparador de Costos Flexxus BI & Combos
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ComparisonFlexxusScreen() {
     val scrollState = rememberScrollState()
+    val allProducts = remember { PerrenPostgresRepository.getAllProducts() }
 
-    val flexxusCatalog = remember {
-        listOf(
-            FlexxusProduct("FERRUM-INOD-01", "Inodoro Ferrum Bari", "Sanitarios", 55.0),
-            FlexxusProduct("FERRUM-MOCH-01", "Mochila Ferrum Bari", "Sanitarios", 28.0),
-            FlexxusProduct("FERRUM-TAPA-01", "Tapa Asiento Ferrum Bari", "Sanitarios", 15.0),
-            FlexxusProduct("GRIF-MONO-01", "Monocomando Lavatorio FV", "Grifería", 42.0)
-        )
+    var selectedSkus by remember {
+        mutableStateOf(setOf("FERRUM-BARI-INO", "FERRUM-BARI-MOC", "FERRUM-BARI-TAP"))
     }
 
-    var selectedProducts by remember { mutableStateOf(setOf("FERRUM-INOD-01", "FERRUM-MOCH-01", "FERRUM-TAPA-01")) }
-    var chinaFobSetUSD by remember { mutableStateOf("38.00") }
-    var fleteUSD by remember { mutableStateOf("3400") }
-    var iibbPercent by remember { mutableStateOf("3.5") }
+    // Parámetros de Importación (Ajustes Configurables)
+    var showSettingsModal by remember { mutableStateOf(false) }
+    var dolarTCSetting by remember { mutableStateOf("1350.00") }
+    var fleteUSDSetting by remember { mutableStateOf("3400.00") }
+    var iibbPercentSetting by remember { mutableStateOf("3.5") }
+    var arancelPercentSetting by remember { mutableStateOf("20.0") }
+    var tasaEstadPercentSetting by remember { mutableStateOf("3.0") }
+    var despachantePercentSetting by remember { mutableStateOf("8.0") }
+    var seguroPercentSetting by remember { mutableStateOf("1.2") }
 
-    val totalFlexxusCostNoVAT = flexxusCatalog
-        .filter { selectedProducts.contains(it.sku) }
-        .sumOf { it.costUSDNoVAT }
+    // Oferta China
+    var chinaFobUSDInput by remember { mutableStateOf("38.00") }
+    var qtyInput by remember { mutableStateOf("500") }
 
-    val chinaFob = chinaFobSetUSD.toDoubleOrNull() ?: 38.0
-    val flete = fleteUSD.toDoubleOrNull() ?: 3400.0
-    val qty = 500
+    // Parse variables
+    val tc = dolarTCSetting.toDoubleOrNull() ?: 1350.0
+    val flete = fleteUSDSetting.toDoubleOrNull() ?: 3400.0
+    val iibb = iibbPercentSetting.toDoubleOrNull() ?: 3.5
+    val arancel = arancelPercentSetting.toDoubleOrNull() ?: 20.0
+    val tasaEstad = tasaEstadPercentSetting.toDoubleOrNull() ?: 3.0
+    val despachante = despachantePercentSetting.toDoubleOrNull() ?: 8.0
+    val seguroPct = seguroPercentSetting.toDoubleOrNull() ?: 1.2
 
+    val chinaFob = chinaFobUSDInput.toDoubleOrNull() ?: 38.0
+    val qty = qtyInput.toIntOrNull() ?: 500
+
+    val selectedProductList = allProducts.filter { selectedSkus.contains(it.sku) }
+    val totalArgentinaCostARSNoVAT = selectedProductList.sumOf { it.costNoVAT }
+    val totalArgentinaCostUSDNoVAT = if (tc > 0) totalArgentinaCostARSNoVAT / tc else 0.0
+
+    // Cálculo Landed China
     val fobTotal = chinaFob * qty
-    val seguro = fobTotal * 0.012
-    val cif = fobTotal + flete + seguro
-    val derechos = cif * 0.20
-    val tasaEstad = cif * 0.03
-    val baseImponible = cif + derechos + tasaEstad
-    val gastosDespachante = baseImponible * 0.08
-    val costoLandedTotal = baseImponible + gastosDespachante
-    val unitLandedChina = costoLandedTotal / qty
+    val seguroTotal = fobTotal * (seguroPct / 100.0)
+    val cifTotal = fobTotal + flete + seguroTotal
+    val derechosTotal = cifTotal * (arancel / 100.0)
+    val tasaEstadTotal = cifTotal * (tasaEstad / 100.0)
+    val baseImponible = cifTotal + derechosTotal + tasaEstadTotal
+    val gastosDespachante = baseImponible * (despachante / 100.0)
+    val iibbTotal = baseImponible * (iibb / 100.0)
+    val costoLandedTotalUSD = baseImponible + gastosDespachante + iibbTotal
+    val unitLandedUSD = if (qty > 0) costoLandedTotalUSD / qty else 0.0
+    val unitLandedARS = unitLandedUSD * tc
 
-    val ahorroUnitario = totalFlexxusCostNoVAT - unitLandedChina
-    val ahorroPorcentaje = (ahorroUnitario / totalFlexxusCostNoVAT) * 100
+    val ahorroUSD = totalArgentinaCostUSDNoVAT - unitLandedUSD
+    val ahorroARS = totalArgentinaCostARSNoVAT - unitLandedARS
+    val ahorroPct = if (totalArgentinaCostUSDNoVAT > 0) (ahorroUSD / totalArgentinaCostUSDNoVAT) * 100.0 else 0.0
 
     Column(
         modifier = Modifier
@@ -1621,68 +1667,143 @@ fun ComparisonFlexxusScreen() {
             .padding(16.dp)
             .verticalScroll(scrollState)
     ) {
-        Text("COMPARADOR FLEXXUS BI VS CANTON FAIR", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1B365D))
-        Text("Combo Artículos Argentina (Sin IVA) vs Kit Completo China", fontSize = 10.sp, color = Color.Gray)
-        Spacer(modifier = Modifier.height(12.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text("COMPARADOR FLEXXUS VS CANTON FAIR", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1B365D))
+                Text("Costo Argentina (Sin IVA) vs Costo Puesto Importado", fontSize = 10.sp, color = Color.Gray)
+            }
+            Button(
+                onClick = { showSettingsModal = !showSettingsModal },
+                colors = ButtonDefaults.buttonColors(containerColor = if (showSettingsModal) Color(0xFFD32F2F) else Color(0xFF1976D2)),
+                shape = RoundedCornerShape(8.dp),
+                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+            ) {
+                Text(if (showSettingsModal) "✖️ Cerrar Ajustes" else "⚙️ Ajustes Importación", fontSize = 10.sp, fontWeight = FontWeight.Bold)
+            }
+        }
 
+        Spacer(modifier = Modifier.height(10.dp))
+
+        // PANEL DE AJUSTES & PARÁMETROS
+        if (showSettingsModal) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF8E1)),
+                border = BorderStroke(1.dp, Color(0xFFFFA000))
+            ) {
+                Column(modifier = Modifier.padding(12.dp)) {
+                    Text("⚙️ PARÁMETROS DE IMPORTACIÓN & TIPO DE CAMBIO", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = Color(0xFFE65100))
+                    Text("Modifica las tasas para actualizar los costos landed en tiempo real.", fontSize = 9.sp, color = Color.Gray)
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        OutlinedTextField(
+                            value = dolarTCSetting, onValueChange = { dolarTCSetting = it },
+                            label = { Text("Dólar TC ($ ARS)") }, modifier = Modifier.weight(1f)
+                        )
+                        OutlinedTextField(
+                            value = fleteUSDSetting, onValueChange = { fleteUSDSetting = it },
+                            label = { Text("Flete Marítimo ($ USD)") }, modifier = Modifier.weight(1f)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        OutlinedTextField(
+                            value = iibbPercentSetting, onValueChange = { iibbPercentSetting = it },
+                            label = { Text("IIBB % (ej: 3.5%)") }, modifier = Modifier.weight(1f)
+                        )
+                        OutlinedTextField(
+                            value = arancelPercentSetting, onValueChange = { arancelPercentSetting = it },
+                            label = { Text("Arancel / Derechos %") }, modifier = Modifier.weight(1f)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        OutlinedTextField(
+                            value = tasaEstadPercentSetting, onValueChange = { tasaEstadPercentSetting = it },
+                            label = { Text("Tasa Estadística %") }, modifier = Modifier.weight(1f)
+                        )
+                        OutlinedTextField(
+                            value = despachantePercentSetting, onValueChange = { despachantePercentSetting = it },
+                            label = { Text("Despachante & Puerto %") }, modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(10.dp))
+        }
+
+        // SELECCIÓN BUNDLE FLEXXUS
         Card(
             modifier = Modifier.fillMaxWidth(),
             colors = CardDefaults.cardColors(containerColor = Color.White)
         ) {
             Column(modifier = Modifier.padding(12.dp)) {
-                Text("SELECCIÓN BUNDLE FLEXXUS BI (ARGENTINA)", fontWeight = FontWeight.Bold, fontSize = 11.sp, color = Color(0xFF1976D2))
+                Text("SELECCIÓN DE ARTÍCULOS PERREN (FLEXXUS BI)", fontWeight = FontWeight.Bold, fontSize = 11.sp, color = Color(0xFF1976D2))
+                Text("Selecciona los productos que forman el bundle o cotización a comparar:", fontSize = 9.sp, color = Color.Gray)
                 Spacer(modifier = Modifier.height(6.dp))
 
-                flexxusCatalog.forEach { prod ->
+                allProducts.forEach { prod ->
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable {
-                                selectedProducts = if (selectedProducts.contains(prod.sku)) {
-                                    selectedProducts - prod.sku
+                                selectedSkus = if (selectedSkus.contains(prod.sku)) {
+                                    selectedSkus - prod.sku
                                 } else {
-                                    selectedProducts + prod.sku
+                                    selectedSkus + prod.sku
                                 }
                             }
                             .padding(vertical = 4.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Checkbox(
-                            checked = selectedProducts.contains(prod.sku),
+                            checked = selectedSkus.contains(prod.sku),
                             onCheckedChange = null
                         )
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text("${prod.name} ($${prod.costUSDNoVAT} USD)", fontSize = 12.sp, modifier = Modifier.weight(1f))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("${prod.description} (${prod.brand})", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            Text("Costo Sin IVA: $${String.format("%,.2f", prod.costNoVAT)} ARS ($${String.format(Locale.US, "%.2f", prod.costUSDNoVAT)} USD)", fontSize = 10.sp, color = Color.Gray)
+                        }
                     }
                 }
 
-                HorizontalDivider(modifier = Modifier.padding(vertical = 6.dp))
+                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text("COSTO TOTAL COMBO FLEXXUS SIN IVA:", fontWeight = FontWeight.Bold, fontSize = 11.sp)
-                    Text("$${String.format("%.2f", totalFlexxusCostNoVAT)} USD", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color(0xFFD32F2F))
+                    Text("COSTO BUNDLE FLEXXUS SIN IVA:", fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                    Text("$${String.format("%,.2f", totalArgentinaCostARSNoVAT)} ARS ($${String.format(Locale.US, "%.2f", totalArgentinaCostUSDNoVAT)} USD)", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = Color(0xFFD32F2F))
                 }
             }
         }
 
         Spacer(modifier = Modifier.height(10.dp))
 
+        // OFERTA CHINA
         Card(
             modifier = Modifier.fillMaxWidth(),
             colors = CardDefaults.cardColors(containerColor = Color.White)
         ) {
             Column(modifier = Modifier.padding(12.dp)) {
-                Text("OFERTA CHINA & IIBB PROVINCIA (EDITABLE)", fontWeight = FontWeight.Bold, fontSize = 11.sp, color = Color(0xFF2E7D32))
+                Text("COTIZACIÓN DE FÁBRICA CHINA (FOB)", fontWeight = FontWeight.Bold, fontSize = 11.sp, color = Color(0xFF2E7D32))
                 Spacer(modifier = Modifier.height(6.dp))
 
-                Row(modifier = Modifier.fillMaxWidth()) {
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     OutlinedTextField(
-                        value = chinaFobSetUSD, onValueChange = { chinaFobSetUSD = it },
-                        label = { Text("FOB Kit Chino ($)") }, modifier = Modifier.weight(1f)
+                        value = chinaFobUSDInput, onValueChange = { chinaFobUSDInput = it },
+                        label = { Text("Precio FOB China ($ USD)") }, modifier = Modifier.weight(1f)
                     )
-                    Spacer(modifier = Modifier.width(6.dp))
                     OutlinedTextField(
-                        value = iibbPercent, onValueChange = { iibbPercent = it },
-                        label = { Text("IIBB % (ej: Trelew 3.5%)") }, modifier = Modifier.weight(1f)
+                        value = qtyInput, onValueChange = { qtyInput = it },
+                        label = { Text("Cantidad Contenedor") }, modifier = Modifier.weight(1f)
                     )
                 }
             }
@@ -1690,17 +1811,18 @@ fun ComparisonFlexxusScreen() {
 
         Spacer(modifier = Modifier.height(14.dp))
 
+        // TARJETAS COMPARATIVAS DERECHA E IZQUIERDA
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Card(
                 modifier = Modifier.weight(1f).border(2.dp, Color(0xFFD32F2F), RoundedCornerShape(8.dp)),
                 colors = CardDefaults.cardColors(containerColor = Color.White)
             ) {
                 Column(modifier = Modifier.padding(10.dp)) {
-                    Text("🇦🇷 COMBO FLEXXUS", fontWeight = FontWeight.Bold, fontSize = 10.sp, color = Color(0xFFD32F2F))
+                    Text("🇦🇷 PERREN (ARGENTINA)", fontWeight = FontWeight.Bold, fontSize = 10.sp, color = Color(0xFFD32F2F))
                     Spacer(modifier = Modifier.height(4.dp))
-                    Text("Inodoro + Mochila + Tapa", fontWeight = FontWeight.Bold, fontSize = 11.sp)
-                    Text("Costo Sin IVA:", fontSize = 9.sp, color = Color.Gray)
-                    Text("$${String.format("%.2f", totalFlexxusCostNoVAT)} USD", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color(0xFFD32F2F))
+                    Text("Costo Venta Sin IVA", fontSize = 9.sp, color = Color.Gray)
+                    Text("$${String.format("%,.2f", totalArgentinaCostARSNoVAT)} ARS", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color(0xFFD32F2F))
+                    Text("Equiv: $${String.format(Locale.US, "%.2f", totalArgentinaCostUSDNoVAT)} USD", fontSize = 10.sp, color = Color.DarkGray)
                 }
             }
 
@@ -1711,44 +1833,195 @@ fun ComparisonFlexxusScreen() {
                 colors = CardDefaults.cardColors(containerColor = Color.White)
             ) {
                 Column(modifier = Modifier.padding(10.dp)) {
-                    Text("🇨🇳 KIT CANTON FAIR", fontWeight = FontWeight.Bold, fontSize = 10.sp, color = Color(0xFF2E7D32))
+                    Text("🇨🇳 CANTON FAIR (CHINA)", fontWeight = FontWeight.Bold, fontSize = 10.sp, color = Color(0xFF2E7D32))
                     Spacer(modifier = Modifier.height(4.dp))
-                    Text("Set Completo Chino", fontWeight = FontWeight.Bold, fontSize = 11.sp)
-                    Text("Costo Unit. Puesto:", fontSize = 9.sp, color = Color.Gray)
-                    Text("$${String.format("%.2f", unitLandedChina)} USD", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color(0xFF2E7D32))
+                    Text("Costo Puesto Depósito", fontSize = 9.sp, color = Color.Gray)
+                    Text("$${String.format("%,.2f", unitLandedARS)} ARS", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color(0xFF2E7D32))
+                    Text("Puesto: $${String.format(Locale.US, "%.2f", unitLandedUSD)} USD", fontSize = 10.sp, color = Color.DarkGray)
                 }
             }
         }
 
         Spacer(modifier = Modifier.height(14.dp))
 
+        // AHORRO O DIFERENCIA
         Card(
-            colors = CardDefaults.cardColors(containerColor = if (ahorroUnitario > 0) Color(0xFFE8F5E9) else Color(0xFFFFEBEE)),
+            colors = CardDefaults.cardColors(containerColor = if (ahorroUSD > 0) Color(0xFFE8F5E9) else Color(0xFFFFEBEE)),
             modifier = Modifier.fillMaxWidth()
         ) {
             Column(modifier = Modifier.padding(14.dp)) {
-                Text("RESULTADO AHORRO COMBO", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                Text("RESULTADO DE COMPARACIÓN", fontWeight = FontWeight.Bold, fontSize = 12.sp)
                 Spacer(modifier = Modifier.height(6.dp))
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text("Ahorro por Kit Puesto:", fontSize = 12.sp)
-                    Text("+${String.format("%.2f", ahorroUnitario)} USD (${String.format("%.1f", ahorroPorcentaje)}%)", fontWeight = FontWeight.Bold, color = if (ahorroUnitario > 0) Color(0xFF2E7D32) else Color(0xFFD32F2F))
+                    Text("Diferencia / Ahorro Puesto:", fontSize = 12.sp)
+                    Text(
+                        "${if (ahorroUSD > 0) "+" else ""}$${String.format(Locale.US, "%.2f", ahorroUSD)} USD (${String.format(Locale.US, "%.1f", ahorroPct)}%)",
+                        fontWeight = FontWeight.Bold,
+                        color = if (ahorroUSD > 0) Color(0xFF2E7D32) else Color(0xFFD32F2F)
+                    )
                 }
+                Text(
+                    "Ahorro en Pesos: ${if (ahorroARS > 0) "+" else ""}$${String.format("%,.2f", ahorroARS)} ARS por unidad",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = if (ahorroARS > 0) Color(0xFF2E7D32) else Color(0xFFD32F2F)
+                )
             }
         }
     }
 }
 
-// MARK: - 5. Tarjetero CRM
+// MARK: - 5. Tarjetero CRM (Directorio Visual de Contactos)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CardWalletScreen(suppliers: List<LocalSupplier>) {
+    var walletQuery by remember { mutableStateOf("") }
+    val scrollState = rememberScrollState()
+
+    val filteredSuppliers = suppliers.filter { sup ->
+        val query = walletQuery.trim().lowercase()
+        if (query.isEmpty()) true
+        else {
+            sup.companyName.lowercase().contains(query) ||
+            sup.contactName.lowercase().contains(query) ||
+            sup.contactPosition.lowercase().contains(query) ||
+            sup.contactEmail.lowercase().contains(query) ||
+            sup.contactPhone.lowercase().contains(query) ||
+            sup.stand.lowercase().contains(query)
+        }
+    }
+
     Column(
-        modifier = Modifier.fillMaxSize().background(Color(0xFFF8F9FA)).padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xFFF8F9FA))
+            .padding(16.dp)
+            .verticalScroll(scrollState)
     ) {
         Text("📇 TARJETERO CRM CANTON FAIR", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = Color(0xFF1B365D))
-        Spacer(modifier = Modifier.height(8.dp))
-        Text("Contactos cargados en el celular: ${suppliers.size}", color = Color.Gray, fontSize = 12.sp)
+        Text("Directorio de Contactos y Tarjetas de Presentación (${suppliers.size})", color = Color.Gray, fontSize = 11.sp)
+        Spacer(modifier = Modifier.height(12.dp))
+
+        OutlinedTextField(
+            value = walletQuery,
+            onValueChange = { walletQuery = it },
+            label = { Text("Buscar por nombre, empresa o cargo...") },
+            leadingIcon = { Text("🔍", fontSize = 16.sp) },
+            trailingIcon = {
+                if (walletQuery.isNotEmpty()) {
+                    IconButton(onClick = { walletQuery = "" }) {
+                        Text("❌", fontSize = 12.sp)
+                    }
+                }
+            },
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(10.dp)
+        )
+
+        Spacer(modifier = Modifier.height(14.dp))
+
+        if (suppliers.isEmpty()) {
+            Card(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 20.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White)
+            ) {
+                Column(
+                    modifier = Modifier.padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text("📇 No hay contactos en el tarjetero", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color.DarkGray)
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text("Carga un nuevo proveedor con foto de tarjeta en la sección '+ Proveedor'.", fontSize = 11.sp, color = Color.Gray)
+                }
+            }
+        } else if (filteredSuppliers.isEmpty()) {
+            Card(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 20.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White)
+            ) {
+                Column(
+                    modifier = Modifier.padding(20.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text("🔍 No se encontraron contactos para '$walletQuery'", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color.DarkGray)
+                }
+            }
+        } else {
+            filteredSuppliers.forEach { sup ->
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 6.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                ) {
+                    Column(modifier = Modifier.padding(14.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            val photoBitmap = sup.contactCardPhotoBitmap ?: sup.marqueePhotoBitmap
+                            if (photoBitmap != null) {
+                                Image(
+                                    bitmap = photoBitmap.asImageBitmap(),
+                                    contentDescription = "Tarjeta",
+                                    modifier = Modifier
+                                        .size(64.dp)
+                                        .border(1.dp, Color.LightGray, RoundedCornerShape(8.dp))
+                                )
+                                Spacer(modifier = Modifier.width(12.dp))
+                            } else {
+                                Card(
+                                    modifier = Modifier.size(64.dp),
+                                    colors = CardDefaults.cardColors(containerColor = Color(0xFFE3F2FD)),
+                                    shape = RoundedCornerShape(8.dp)
+                                ) {
+                                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                        Text("📇", fontSize = 28.sp)
+                                    }
+                                }
+                                Spacer(modifier = Modifier.width(12.dp))
+                            }
+
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    if (sup.contactName.isNotBlank()) sup.contactName else "Contacto sin nombre",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 15.sp,
+                                    color = Color(0xFF1B365D)
+                                )
+                                if (sup.contactPosition.isNotBlank()) {
+                                    Text("💼 ${sup.contactPosition}", fontSize = 11.sp, color = Color(0xFF1976D2), fontWeight = FontWeight.SemiBold)
+                                }
+                                Text("🏢 ${if (sup.companyName.isNotBlank()) sup.companyName else "Empresa N/A"}", fontSize = 12.sp, color = Color.DarkGray)
+                                if (sup.stand.isNotBlank()) {
+                                    Text("📍 Stand: ${sup.stand}", fontSize = 10.sp, color = Color.Gray)
+                                }
+                            }
+                        }
+
+                        HorizontalDivider(modifier = Modifier.padding(vertical = 10.dp))
+
+                        // Datos de contacto directos
+                        if (sup.contactPhone.isNotBlank()) {
+                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 2.dp)) {
+                                Text("📞 Tel / WA: ", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                Text(sup.contactPhone, fontSize = 12.sp, color = Color(0xFF2E7D32), fontWeight = FontWeight.Bold)
+                            }
+                        }
+                        if (sup.contactEmail.isNotBlank()) {
+                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 2.dp)) {
+                                Text("✉️ Email: ", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                Text(sup.contactEmail, fontSize = 12.sp, color = Color(0xFF1565C0))
+                            }
+                        }
+                        if (sup.contactWeChat.isNotBlank()) {
+                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 2.dp)) {
+                                Text("💬 WeChat: ", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                Text(sup.contactWeChat, fontSize = 12.sp, color = Color(0xFF7B1FA2))
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
