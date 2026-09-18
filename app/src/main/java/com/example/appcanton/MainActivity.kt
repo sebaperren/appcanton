@@ -221,12 +221,12 @@ object PhotoOCRProcessor {
             val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
 
             recognizer.process(image)
-                .addOnSuccessListener { visionText: Text ->
+                .addOnSuccessListener { visionText ->
                     var extractedCompany = ""
                     var extractedChinese = ""
                     var extractedStand = ""
 
-                    val lines = visionText.textBlocks.flatMap { block: Text.TextBlock -> block.lines.map { line: Text.Line -> line.text.trim() } }
+                    val lines = visionText.textBlocks.flatMap { block -> block.lines.map { line -> line.text.trim() } }
 
                     val standPattern = Pattern.compile("(?i)\\b(\\d{1,2}\\.\\d{1,2}\\s?[A-Z]\\d{2,4}|stand\\s?#?\\d+|booth\\s?#?[A-Z0-9-]+)\\b")
                     val companyKeywordPattern = Pattern.compile("(?i)\\b(S\\.A\\.|S\\.R\\.L\\.|LTD|LIMITED|CO\\.|CORP|CORPORATION|INC|GROUP|INDUSTRIES|FACTORY|SANITARY|HARDWARE|PLUMBING|IMPORT|EXPORT|INTERNATIONAL|MANUFACTURING)\\b")
@@ -256,7 +256,7 @@ object PhotoOCRProcessor {
 
                     // Fallback: If no company keyword found, pick the top non-empty valid header line
                     if (extractedCompany.isBlank() && lines.isNotEmpty()) {
-                        val candidate = lines.firstOrNull { l: String ->
+                        val candidate = lines.firstOrNull { l ->
                             l.length > 2 &&
                             !standPattern.matcher(l).find() &&
                             !l.contains("Tel", ignoreCase = true) &&
@@ -288,14 +288,14 @@ object PhotoOCRProcessor {
             val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
 
             recognizer.process(image)
-                .addOnSuccessListener { visionText: Text ->
+                .addOnSuccessListener { visionText ->
                     var extractedName = ""
                     var extractedPosition = ""
                     var extractedWeChat = ""
                     var extractedPhone = ""
                     var extractedEmail = ""
 
-                    val lines = visionText.textBlocks.flatMap { block: Text.TextBlock -> block.lines.map { line: Text.Line -> line.text.trim() } }
+                    val lines = visionText.textBlocks.flatMap { block -> block.lines.map { line -> line.text.trim() } }
 
                     // Patrón de email tolerante a errores típicos de OCR (ej: @, [at], .cem -> .com, .comar -> .com.ar)
                     val emailPattern = Pattern.compile("(?i)[a-z0-9._%+-]+(?::|@|\\(at\\)|\\[at\\])[a-z0-9.-]+\\.[a-z]{2,}")
@@ -383,7 +383,7 @@ object PhotoOCRProcessor {
                 .addOnFailureListener {
                     onComplete("", "", "", "", "")
                 }
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             onComplete("", "", "", "", "")
         }
     }
