@@ -34,6 +34,10 @@ import com.example.appcanton.ui.theme.AppCantonTheme
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import android.graphics.BitmapFactory
+import java.io.FileOutputStream
+import org.json.JSONArray
+import org.json.JSONObject
 import java.io.File
 import java.io.OutputStreamWriter
 import java.net.HttpURLConnection
@@ -187,34 +191,60 @@ object PerrenPostgresRepository {
     }
 }
 
-// MARK: - Gestor de Conexión en Vivo con Google Firestore
+// MARK: - Gestor de Conexión en Vivo con Google Firestore (Multi-Dispositivo)
 object FirestoreManager {
     private const val PROJECT_ID = "perrenycia-crm"
     
-    fun syncSupplierToFirestore(supplier: LocalSupplier, onComplete: (Boolean) -> Unit) {
+    fun syncSupplierToFirestore(supplier: LocalSupplier, onComplete: (Boolean) -> Unit = {}) {
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val url = URL("https://firestore.googleapis.com/v1/projects/$PROJECT_ID/databases/(default)/documents/proveedores?documentId=${supplier.supplierCode}")
+                val docId = supplier.supplierCode.ifBlank { supplier.id }
+                val url = URL("https://firestore.googleapis.com/v1/projects/$PROJECT_ID/databases/(default)/documents/proveedores/$docId")
                 val conn = url.openConnection() as HttpURLConnection
-                conn.requestMethod = "POST"
+                conn.requestMethod = "PATCH"
                 conn.setRequestProperty("Content-Type", "application/json")
+                conn.connectTimeout = 8000
+                conn.readTimeout = 8000
                 conn.doOutput = true
+
+                val articlesJsonArray = supplier.articles.map { art ->
+                    """
+                    {
+                      "mapValue": {
+                        "fields": {
+                          "code": {"stringValue": "${art.code.replace("\"", "\\\"")}"},
+                          "name": {"stringValue": "${art.name.replace("\"", "\\\"")}"},
+                          "fobPriceUSD": {"doubleValue": ${art.fobPriceUSD}},
+                          "moq": {"integerValue": ${art.moq}},
+                          "port": {"stringValue": "${art.port.replace("\"", "\\\"")}"},
+                          "leadTime": {"stringValue": "${art.leadTime.replace("\"", "\\\"")}"},
+                          "note": {"stringValue": "${art.note.replace("\"", "\\\"")}"}
+                        }
+                      }
+                    }
+                    """.trimIndent()
+                }.joinToString(",")
 
                 val jsonPayload = """
                     {
                       "fields": {
                         "codigoProveedor": {"stringValue": "${supplier.supplierCode}"},
-                        "empresa": {"stringValue": "${supplier.companyName}"},
-                        "empresaChino": {"stringValue": "${supplier.companyChinese}"},
-                        "stand": {"stringValue": "${supplier.stand}"},
+                        "empresa": {"stringValue": "${supplier.companyName.replace("\"", "\\\"")}"},
+                        "empresaChino": {"stringValue": "${supplier.companyChinese.replace("\"", "\\\"")}"},
+                        "stand": {"stringValue": "${supplier.stand.replace("\"", "\\\"")}"},
                         "rubro": {"stringValue": "${supplier.category}"},
                         "gps": {"stringValue": "${supplier.gpsCoordinates}"},
-                        "contactNombre": {"stringValue": "${supplier.contactName}"},
-                        "contactCargo": {"stringValue": "${supplier.contactPosition}"},
-                        "contactWeChat": {"stringValue": "${supplier.contactWeChat}"},
-                        "contactTelefono": {"stringValue": "${supplier.contactPhone}"},
-                        "contactEmail": {"stringValue": "${supplier.contactEmail}"},
-                        "fechaCreacion": {"stringValue": "${supplier.createdAt}"}
+                        "contactNombre": {"stringValue": "${supplier.contactName.replace("\"", "\\\"")}"},
+                        "contactCargo": {"stringValue": "${supplier.contactPosition.replace("\"", "\\\"")}"},
+                        "contactWeChat": {"stringValue": "${supplier.contactWeChat.replace("\"", "\\\"")}"},
+                        "contactTelefono": {"stringValue": "${supplier.contactPhone.replace("\"", "\\\"")}"},
+                        "contactEmail": {"stringValue": "${supplier.contactEmail.replace("\"", "\\\"")}"},
+                        "fechaCreacion": {"stringValue": "${supplier.createdAt}"},
+                        "articles": {
+                          "arrayValue": {
+                            "values": [ $articlesJsonArray ]
+                          }
+                        }
                       }
                     }
                 """.trimIndent()
@@ -225,9 +255,101 @@ object FirestoreManager {
                 writer.close()
 
                 val code = conn.responseCode
-                onComplete(code == 200 || code == 409)
+                onComplete(code in 200..299)
             } catch (e: Exception) {
                 onComplete(false)
+            }
+        }
+    }
+
+    fun fetchSuppliersFromFirestore(onComplete: (List<LocalSupplier>) -> Unit) {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val url = URL("https://firestore.googleapis.com/v1/projects/$PROJECT_ID/databases/(default)/documents/proveedores")
+                val conn = url.openConnection() as HttpURLConnection
+                conn.requestMethod = "GET"
+                conn.connectTimeout = 8000
+                conn.readTimeout = 8000
+
+                if (conn.responseCode == 200) {
+                    val responseText = conn.inputStream.bufferedReader().use { it.readText() }
+                    val rootObj = JSONObject(responseText)
+                    val docsArray = rootObj.optJSONArray("documents")
+                    val fetchedList = mutableListOf<LocalSupplier>()
+
+                    if (docsArray != null) {
+                        for (i in 0 until docsArray.length()) {
+                            val doc = docsArray.getJSONObject(i)
+                            val fields = doc.optJSONObject("fields") ?: continue
+
+                            val code = fields.optJSONObject("codigoProveedor")?.optString("stringValue", "") ?: ""
+                            val company = fields.optJSONObject("empresa")?.optString("stringValue", "") ?: ""
+                            val companyChi = fields.optJSONObject("empresaChino")?.optString("stringValue", "") ?: ""
+                            val stand = fields.optJSONObject("stand")?.optString("stringValue", "") ?: ""
+                            val cat = fields.optJSONObject("rubro")?.optString("stringValue", "Sanitarios") ?: "Sanitarios"
+                            val gps = fields.optJSONObject("gps")?.optString("stringValue", "") ?: ""
+                            val cName = fields.optJSONObject("contactNombre")?.optString("stringValue", "") ?: ""
+                            val cPos = fields.optJSONObject("contactCargo")?.optString("stringValue", "") ?: ""
+                            val cWeChat = fields.optJSONObject("contactWeChat")?.optString("stringValue", "") ?: ""
+                            val cPhone = fields.optJSONObject("contactTelefono")?.optString("stringValue", "") ?: ""
+                            val cEmail = fields.optJSONObject("contactEmail")?.optString("stringValue", "") ?: ""
+                            val createdAt = fields.optJSONObject("fechaCreacion")?.optString("stringValue", "") ?: ""
+                            val docId = doc.optString("name", "").substringAfterLast("/")
+
+                            val articles = mutableListOf<ArticleItem>()
+                            val articlesField = fields.optJSONObject("articles")
+                            if (articlesField != null) {
+                                val arrayValue = articlesField.optJSONObject("arrayValue")
+                                val values = arrayValue?.optJSONArray("values")
+                                if (values != null) {
+                                    for (j in 0 until values.length()) {
+                                        val mapFields = values.getJSONObject(j).optJSONObject("mapValue")?.optJSONObject("fields")
+                                        if (mapFields != null) {
+                                            articles.add(
+                                                ArticleItem(
+                                                    code = mapFields.optJSONObject("code")?.optString("stringValue", "") ?: "",
+                                                    name = mapFields.optJSONObject("name")?.optString("stringValue", "") ?: "",
+                                                    fobPriceUSD = mapFields.optJSONObject("fobPriceUSD")?.optDouble("doubleValue", 0.0)
+                                                        ?: mapFields.optJSONObject("fobPriceUSD")?.optInt("integerValue", 0)?.toDouble() ?: 0.0,
+                                                    moq = mapFields.optJSONObject("moq")?.optInt("integerValue", 0) ?: 0,
+                                                    port = mapFields.optJSONObject("port")?.optString("stringValue", "Shenzhen") ?: "Shenzhen",
+                                                    leadTime = mapFields.optJSONObject("leadTime")?.optString("stringValue", "30 días") ?: "30 días",
+                                                    note = mapFields.optJSONObject("note")?.optString("stringValue", "") ?: ""
+                                                )
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+
+                            if (code.isNotBlank() || company.isNotBlank()) {
+                                fetchedList.add(
+                                    LocalSupplier(
+                                        id = if (docId.isNotBlank()) docId else System.currentTimeMillis().toString(),
+                                        supplierCode = if (code.isNotBlank()) code else docId,
+                                        companyName = company,
+                                        companyChinese = companyChi,
+                                        stand = stand,
+                                        category = cat,
+                                        gpsCoordinates = gps,
+                                        contactName = cName,
+                                        contactPosition = cPos,
+                                        contactWeChat = cWeChat,
+                                        contactPhone = cPhone,
+                                        contactEmail = cEmail,
+                                        articles = articles,
+                                        createdAt = createdAt
+                                    )
+                                )
+                            }
+                        }
+                    }
+                    onComplete(fetchedList)
+                } else {
+                    onComplete(emptyList())
+                }
+            } catch (_: Exception) {
+                onComplete(emptyList())
             }
         }
     }
@@ -521,6 +643,165 @@ object MediaStoreHelper {
     }
 }
 
+// MARK: - Gestor de Persistencia Local de Proveedores en Disco
+object LocalPersistenceManager {
+    private const val FILE_NAME = "canton_suppliers.json"
+
+    fun saveSuppliers(context: Context, suppliers: List<LocalSupplier>) {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val jsonArray = JSONArray()
+                for (sup in suppliers) {
+                    val supObj = JSONObject().apply {
+                        put("id", sup.id)
+                        put("supplierCode", sup.supplierCode)
+                        put("companyName", sup.companyName)
+                        put("companyChinese", sup.companyChinese)
+                        put("stand", sup.stand)
+                        put("category", sup.category)
+                        put("gpsCoordinates", sup.gpsCoordinates)
+                        put("contactName", sup.contactName)
+                        put("contactPosition", sup.contactPosition)
+                        put("contactWeChat", sup.contactWeChat)
+                        put("contactPhone", sup.contactPhone)
+                        put("contactEmail", sup.contactEmail)
+                        put("createdAt", sup.createdAt)
+
+                        val marqueePath = saveBitmapToInternal(context, sup.marqueePhotoBitmap, "marquee_${sup.id}")
+                        put("marqueePhotoPath", marqueePath ?: "")
+
+                        val cardPath = saveBitmapToInternal(context, sup.contactCardPhotoBitmap, "card_${sup.id}")
+                        put("contactCardPhotoPath", cardPath ?: "")
+
+                        val articlesArray = JSONArray()
+                        for (art in sup.articles) {
+                            val artObj = JSONObject().apply {
+                                put("code", art.code)
+                                put("name", art.name)
+                                put("fobPriceUSD", art.fobPriceUSD)
+                                put("moq", art.moq)
+                                put("port", art.port)
+                                put("leadTime", art.leadTime)
+                                put("note", art.note)
+                                put("audioPath", art.audioPath ?: "")
+
+                                val photoPaths = JSONArray()
+                                art.photos.forEachIndexed { idx, bmp ->
+                                    val path = saveBitmapToInternal(context, bmp, "art_${art.code}_$idx")
+                                    if (path != null) photoPaths.put(path)
+                                }
+                                put("photoPaths", photoPaths)
+                            }
+                            articlesArray.put(artObj)
+                        }
+                        put("articles", articlesArray)
+                    }
+                    jsonArray.put(supObj)
+                }
+
+                val file = File(context.filesDir, FILE_NAME)
+                file.writeText(jsonArray.toString())
+            } catch (_: Exception) {}
+        }
+    }
+
+    fun loadSuppliers(context: Context): List<LocalSupplier> {
+        val file = File(context.filesDir, FILE_NAME)
+        if (!file.exists()) return emptyList()
+
+        val list = mutableListOf<LocalSupplier>()
+        try {
+            val jsonArray = JSONArray(file.readText())
+            for (i in 0 until jsonArray.length()) {
+                val supObj = jsonArray.getJSONObject(i)
+
+                val marqueePath = supObj.optString("marqueePhotoPath", "")
+                val marqueeBmp = if (marqueePath.isNotBlank()) loadBitmapFromPath(marqueePath) else null
+
+                val cardPath = supObj.optString("contactCardPhotoPath", "")
+                val cardBmp = if (cardPath.isNotBlank()) loadBitmapFromPath(cardPath) else null
+
+                val articles = mutableListOf<ArticleItem>()
+                val articlesArray = supObj.optJSONArray("articles")
+                if (articlesArray != null) {
+                    for (j in 0 until articlesArray.length()) {
+                        val artObj = articlesArray.getJSONObject(j)
+                        val photoPathsArray = artObj.optJSONArray("photoPaths")
+                        val photos = mutableListOf<Bitmap>()
+                        if (photoPathsArray != null) {
+                            for (k in 0 until photoPathsArray.length()) {
+                                val pPath = photoPathsArray.getString(k)
+                                val bmp = loadBitmapFromPath(pPath)
+                                if (bmp != null) photos.add(bmp)
+                            }
+                        }
+                        articles.add(
+                            ArticleItem(
+                                code = artObj.optString("code", ""),
+                                name = artObj.optString("name", ""),
+                                fobPriceUSD = artObj.optDouble("fobPriceUSD", 0.0),
+                                moq = artObj.optInt("moq", 0),
+                                port = artObj.optString("port", ""),
+                                leadTime = artObj.optString("leadTime", ""),
+                                note = artObj.optString("note", ""),
+                                audioPath = artObj.optString("audioPath", "").ifBlank { null },
+                                photos = photos,
+                                photoBitmap = photos.firstOrNull()
+                            )
+                        )
+                    }
+                }
+
+                list.add(
+                    LocalSupplier(
+                        id = supObj.optString("id", ""),
+                        supplierCode = supObj.optString("supplierCode", ""),
+                        companyName = supObj.optString("companyName", ""),
+                        companyChinese = supObj.optString("companyChinese", ""),
+                        stand = supObj.optString("stand", ""),
+                        category = supObj.optString("category", ""),
+                        gpsCoordinates = supObj.optString("gpsCoordinates", ""),
+                        marqueePhotoBitmap = marqueeBmp,
+                        contactName = supObj.optString("contactName", ""),
+                        contactPosition = supObj.optString("contactPosition", ""),
+                        contactWeChat = supObj.optString("contactWeChat", ""),
+                        contactPhone = supObj.optString("contactPhone", ""),
+                        contactEmail = supObj.optString("contactEmail", ""),
+                        contactCardPhotoBitmap = cardBmp,
+                        articles = articles,
+                        createdAt = supObj.optString("createdAt", "")
+                    )
+                )
+            }
+        } catch (_: Exception) {}
+        return list
+    }
+
+    private fun saveBitmapToInternal(context: Context, bitmap: Bitmap?, namePrefix: String): String? {
+        if (bitmap == null) return null
+        return try {
+            val dir = File(context.filesDir, "saved_photos")
+            if (!dir.exists()) dir.mkdirs()
+            val file = File(dir, "${namePrefix}.jpg")
+            FileOutputStream(file).use { out ->
+                bitmap.compress(Bitmap.CompressFormat.JPEG, 90, out)
+            }
+            file.absolutePath
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    private fun loadBitmapFromPath(path: String): Bitmap? {
+        return try {
+            val file = File(path)
+            if (file.exists()) BitmapFactory.decodeFile(file.absolutePath) else null
+        } catch (_: Exception) {
+            null
+        }
+    }
+}
+
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -547,6 +828,55 @@ fun MainAppFlow() {
 
     val savedSuppliers = remember { mutableStateListOf<LocalSupplier>() }
     var activeSupplier by remember { mutableStateOf<LocalSupplier?>(null) }
+    var isSyncingCloud by remember { mutableStateOf(false) }
+    var lastSyncTime by remember { mutableStateOf("") }
+
+    val syncWithCloud: () -> Unit = {
+        isSyncingCloud = true
+        FirestoreManager.fetchSuppliersFromFirestore { cloudSuppliers ->
+            CoroutineScope(Dispatchers.Main).launch {
+                if (cloudSuppliers.isNotEmpty()) {
+                    val merged = savedSuppliers.toMutableList()
+                    for (cloudSup in cloudSuppliers) {
+                        val idx = merged.indexOfFirst { it.supplierCode == cloudSup.supplierCode || it.id == cloudSup.id }
+                        if (idx >= 0) {
+                            val existing = merged[idx]
+                            val combinedArticles = existing.articles.toMutableList()
+                            for (cArt in cloudSup.articles) {
+                                if (combinedArticles.none { it.code == cArt.code }) {
+                                    combinedArticles.add(cArt)
+                                }
+                            }
+                            merged[idx] = existing.copy(
+                                companyName = if (existing.companyName.isBlank()) cloudSup.companyName else existing.companyName,
+                                companyChinese = if (existing.companyChinese.isBlank()) cloudSup.companyChinese else existing.companyChinese,
+                                stand = if (existing.stand.isBlank()) cloudSup.stand else existing.stand,
+                                contactName = if (existing.contactName.isBlank()) cloudSup.contactName else existing.contactName,
+                                contactPosition = if (existing.contactPosition.isBlank()) cloudSup.contactPosition else existing.contactPosition,
+                                contactWeChat = if (existing.contactWeChat.isBlank()) cloudSup.contactWeChat else existing.contactWeChat,
+                                contactPhone = if (existing.contactPhone.isBlank()) cloudSup.contactPhone else existing.contactPhone,
+                                contactEmail = if (existing.contactEmail.isBlank()) cloudSup.contactEmail else existing.contactEmail,
+                                articles = combinedArticles
+                            )
+                        } else {
+                            merged.add(cloudSup)
+                        }
+                    }
+                    savedSuppliers.clear()
+                    savedSuppliers.addAll(merged)
+                    LocalPersistenceManager.saveSuppliers(context, savedSuppliers)
+                }
+
+                savedSuppliers.forEach { sup ->
+                    FirestoreManager.syncSupplierToFirestore(sup)
+                }
+
+                isSyncingCloud = false
+                lastSyncTime = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date())
+                Toast.makeText(context, "☁️ Sincronizado con Firestore (${savedSuppliers.size} proveedores)", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
 
     // Permisos Runtime
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -559,6 +889,12 @@ fun MainAppFlow() {
     }
 
     LaunchedEffect(Unit) {
+        val loadedSuppliers = LocalPersistenceManager.loadSuppliers(context)
+        if (loadedSuppliers.isNotEmpty()) {
+            savedSuppliers.clear()
+            savedSuppliers.addAll(loadedSuppliers)
+        }
+        syncWithCloud()
         permissionLauncher.launch(
             arrayOf(
                 Manifest.permission.CAMERA,
@@ -583,6 +919,8 @@ fun MainAppFlow() {
                 OptInAppBar(
                     title = "PERREN & CÍA. - CANTON FAIR 2026",
                     subtitle = if (activeSupplier != null) "Editando: ${activeSupplier?.companyName}" else "Sesión Activa (7 Días)",
+                    isSyncing = isSyncingCloud,
+                    onSyncClick = syncWithCloud,
                     onLogout = {
                         prefs.edit().putBoolean("remember_me", false).apply()
                         isLoggedIn = false
@@ -654,9 +992,10 @@ fun MainAppFlow() {
                                 }
                                 activeSupplier = updatedSup
 
+                                LocalPersistenceManager.saveSuppliers(context, savedSuppliers)
                                 FirestoreManager.syncSupplierToFirestore(updatedSup) { success -> }
 
-                                Toast.makeText(context, " REGISTRO GUARDADO EN EL CELULAR Y FIRESTORE", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, " REGISTRO GUARDADO PERMANENTEMENTE EN EL CELULAR", Toast.LENGTH_SHORT).show()
                             },
                             onCloseWorkspace = {
                                 activeSupplier = null
@@ -667,6 +1006,9 @@ fun MainAppFlow() {
                     currentScreen == "dashboard" -> {
                         DashboardScreen(
                             suppliers = savedSuppliers,
+                            isSyncing = isSyncingCloud,
+                            lastSyncTime = lastSyncTime,
+                            onSyncClick = syncWithCloud,
                             onNewSupplierClick = {
                                 val newCode = "CF26-P-${String.format("%04d", savedSuppliers.size + 1)}"
                                 activeSupplier = LocalSupplier(
@@ -790,6 +1132,9 @@ fun LoginScreen(onLoginSuccess: (rememberMe: Boolean) -> Unit) {
 @Composable
 fun DashboardScreen(
     suppliers: List<LocalSupplier>,
+    isSyncing: Boolean,
+    lastSyncTime: String,
+    onSyncClick: () -> Unit,
     onNewSupplierClick: () -> Unit,
     onSelectSupplier: (LocalSupplier) -> Unit
 ) {
@@ -803,7 +1148,27 @@ fun DashboardScreen(
             .padding(16.dp)
             .verticalScroll(scrollState)
     ) {
-        Text("RESUMEN DE RELEVAMIENTO (FIRESTORE CONECTADO)", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text("RESUMEN DE RELEVAMIENTO (MULTI-TELÉFONO)", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
+                if (lastSyncTime.isNotBlank()) {
+                    Text("Última sincro nube: $lastSyncTime hs", fontSize = 10.sp, color = Color(0xFF1976D2), fontWeight = FontWeight.Bold)
+                }
+            }
+            OutlinedButton(
+                onClick = onSyncClick,
+                modifier = Modifier.height(36.dp),
+                shape = RoundedCornerShape(8.dp),
+                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
+            ) {
+                Text(if (isSyncing) "⏳ Sincronizando..." else "🔄 Sincronizar Nube", fontSize = 10.sp, fontWeight = FontWeight.Bold)
+            }
+        }
+
         Spacer(modifier = Modifier.height(8.dp))
 
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -1128,17 +1493,20 @@ fun SupplierWorkspaceScreen(
 
                 OutlinedTextField(
                     value = companyName, onValueChange = { companyName = it },
-                    label = { Text("Empresa (Nombre en Inglés)") }, modifier = Modifier.fillMaxWidth()
+                    label = { Text("Empresa (Nombre en Inglés)") }, modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
                 )
                 Spacer(modifier = Modifier.height(6.dp))
                 OutlinedTextField(
                     value = companyChinese, onValueChange = { companyChinese = it },
-                    label = { Text("Nombre Original en Chino") }, modifier = Modifier.fillMaxWidth()
+                    label = { Text("Nombre Original en Chino") }, modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
                 )
                 Spacer(modifier = Modifier.height(6.dp))
                 OutlinedTextField(
                     value = stand, onValueChange = { stand = it },
-                    label = { Text("Número de Stand (ej: 10.1 B23)") }, modifier = Modifier.fillMaxWidth()
+                    label = { Text("Número de Stand (ej: 10.1 B23)") }, modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
                 )
 
                 Spacer(modifier = Modifier.height(6.dp))
@@ -1195,29 +1563,34 @@ fun SupplierWorkspaceScreen(
 
                 OutlinedTextField(
                     value = contactName, onValueChange = { contactName = it },
-                    label = { Text("Nombre y Apellido del Contacto") }, modifier = Modifier.fillMaxWidth()
+                    label = { Text("Nombre y Apellido del Contacto") }, modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
                 )
                 Spacer(modifier = Modifier.height(6.dp))
                 OutlinedTextField(
                     value = contactPosition, onValueChange = { contactPosition = it },
-                    label = { Text("Cargo / Puesto (ej: Sales Manager)") }, modifier = Modifier.fillMaxWidth()
+                    label = { Text("Cargo / Puesto (ej: Sales Manager)") }, modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
                 )
                 Spacer(modifier = Modifier.height(6.dp))
                 Row(modifier = Modifier.fillMaxWidth()) {
                     OutlinedTextField(
                         value = contactWeChat, onValueChange = { contactWeChat = it },
-                        label = { Text("WeChat ID / QR") }, modifier = Modifier.weight(1f)
+                        label = { Text("WeChat ID / QR") }, modifier = Modifier.weight(1f),
+                        singleLine = true
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     OutlinedTextField(
                         value = contactPhone, onValueChange = { contactPhone = it },
-                        label = { Text("Teléfono / Mobile / WhatsApp") }, modifier = Modifier.weight(1f)
+                        label = { Text("Teléfono / Mobile / WhatsApp") }, modifier = Modifier.weight(1f),
+                        singleLine = true
                     )
                 }
                 Spacer(modifier = Modifier.height(6.dp))
                 OutlinedTextField(
                     value = contactEmail, onValueChange = { contactEmail = it },
-                    label = { Text("Email de Contacto") }, modifier = Modifier.fillMaxWidth()
+                    label = { Text("Email de Contacto") }, modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
                 )
             }
         }
@@ -1280,19 +1653,22 @@ fun SupplierWorkspaceScreen(
 
                 OutlinedTextField(
                     value = artName, onValueChange = { artName = it },
-                    label = { Text("Nombre Artículo (ej: Inodoro Rimless A520)") }, modifier = Modifier.fillMaxWidth()
+                    label = { Text("Nombre Artículo (ej: Inodoro Rimless A520)") }, modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
                 )
                 Spacer(modifier = Modifier.height(6.dp))
 
                 Row(modifier = Modifier.fillMaxWidth()) {
                     OutlinedTextField(
                         value = artFobUSD, onValueChange = { artFobUSD = it },
-                        label = { Text("Precio FOB ($ USD)") }, modifier = Modifier.weight(1f)
+                        label = { Text("Precio FOB ($ USD)") }, modifier = Modifier.weight(1f),
+                        singleLine = true
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     OutlinedTextField(
                         value = artMoq, onValueChange = { artMoq = it },
-                        label = { Text("MOQ (Unidades)") }, modifier = Modifier.weight(1f)
+                        label = { Text("MOQ (Unidades)") }, modifier = Modifier.weight(1f),
+                        singleLine = true
                     )
                 }
                 Spacer(modifier = Modifier.height(6.dp))
@@ -1300,12 +1676,14 @@ fun SupplierWorkspaceScreen(
                 Row(modifier = Modifier.fillMaxWidth()) {
                     OutlinedTextField(
                         value = artPort, onValueChange = { artPort = it },
-                        label = { Text("Puerto Origen") }, modifier = Modifier.weight(1f)
+                        label = { Text("Puerto Origen") }, modifier = Modifier.weight(1f),
+                        singleLine = true
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     OutlinedTextField(
                         value = artLeadTime, onValueChange = { artLeadTime = it },
-                        label = { Text("Tiempo Entrega") }, modifier = Modifier.weight(1f)
+                        label = { Text("Tiempo Entrega") }, modifier = Modifier.weight(1f),
+                        singleLine = true
                     )
                 }
 
@@ -1421,43 +1799,91 @@ fun SupplierWorkspaceScreen(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                Button(
-                    onClick = {
-                        if (artName.isNotBlank() && artFobUSD.isNotBlank()) {
-                            val artCode = editingArticleCode ?: "${supplier?.supplierCode ?: "CF26-P-0001"}-A${String.format("%02d", (supplier?.articles?.size ?: 0) + 1)}"
-                            val newArt = ArticleItem(
-                                code = artCode,
-                                name = artName,
-                                fobPriceUSD = artFobUSD.toDoubleOrNull() ?: 0.0,
-                                moq = artMoq.toIntOrNull() ?: 100,
-                                port = artPort,
-                                leadTime = artLeadTime,
-                                note = artNote,
-                                audioPath = artAudioPath,
-                                photos = artPhotos.toList(),
-                                photoBitmap = artPhotos.firstOrNull()
-                            )
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    Button(
+                        onClick = {
+                            if (artName.isNotBlank() && artFobUSD.isNotBlank()) {
+                                val currentArticles = supplier?.articles ?: mutableListOf()
+                                val artCode = editingArticleCode ?: "${supplier?.supplierCode ?: "CF26-P-0001"}-A${String.format("%02d", currentArticles.size + 1)}"
+                                val newArt = ArticleItem(
+                                    code = artCode,
+                                    name = artName,
+                                    fobPriceUSD = artFobUSD.toDoubleOrNull() ?: 0.0,
+                                    moq = artMoq.toIntOrNull() ?: 100,
+                                    port = artPort,
+                                    leadTime = artLeadTime,
+                                    note = artNote,
+                                    audioPath = artAudioPath,
+                                    photos = artPhotos.toList(),
+                                    photoBitmap = artPhotos.firstOrNull()
+                                )
 
-                            if (editingArticleCode != null) {
-                                val idx = supplier?.articles?.indexOfFirst { it.code == editingArticleCode } ?: -1
-                                if (idx >= 0) {
-                                    supplier?.articles?.set(idx, newArt)
-                                    Toast.makeText(context, "✨ Artículo $artCode actualizado", Toast.LENGTH_SHORT).show()
+                                if (editingArticleCode != null) {
+                                    val idx = currentArticles.indexOfFirst { it.code == editingArticleCode }
+                                    if (idx >= 0) {
+                                        currentArticles[idx] = newArt
+                                    }
+                                } else {
+                                    currentArticles.add(newArt)
                                 }
+
+                                val updatedSupplier = (supplier ?: LocalSupplier(
+                                    id = System.currentTimeMillis().toString(),
+                                    supplierCode = "CF26-P-0001",
+                                    companyName = companyName,
+                                    companyChinese = companyChinese,
+                                    stand = stand,
+                                    category = category,
+                                    gpsCoordinates = "GPS: Lat -43.2512, Long -65.3094",
+                                    marqueePhotoBitmap = capturedMarqueeBitmap,
+                                    contactName = contactName,
+                                    contactPosition = contactPosition,
+                                    contactWeChat = contactWeChat,
+                                    contactPhone = contactPhone,
+                                    contactEmail = contactEmail,
+                                    contactCardPhotoBitmap = capturedContactCardBitmap,
+                                    createdAt = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(Date())
+                                )).copy(
+                                    companyName = companyName,
+                                    companyChinese = companyChinese,
+                                    stand = stand,
+                                    marqueePhotoBitmap = capturedMarqueeBitmap,
+                                    contactName = contactName,
+                                    contactPosition = contactPosition,
+                                    contactWeChat = contactWeChat,
+                                    contactPhone = contactPhone,
+                                    contactEmail = contactEmail,
+                                    contactCardPhotoBitmap = capturedContactCardBitmap,
+                                    articles = currentArticles
+                                )
+
+                                onSaveSupplier(updatedSupplier)
+                                Toast.makeText(context, "💾 Artículo $artCode guardado permanentemente", Toast.LENGTH_SHORT).show()
+                                resetArticleForm()
                             } else {
-                                supplier?.articles?.add(newArt)
-                                Toast.makeText(context, "✨ Artículo $artCode agregado al proveedor", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, "Ingresa al menos el Nombre y Precio FOB USD", Toast.LENGTH_SHORT).show()
                             }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = if (editingArticleCode != null) Color(0xFFF57F17) else Color(0xFF1976D2)),
+                        modifier = Modifier.weight(1f).height(48.dp),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text(if (editingArticleCode != null) "💾 ACTUALIZAR ARTÍCULO" else "💾 GUARDAR ARTÍCULO", fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                    }
+
+                    Spacer(modifier = Modifier.width(6.dp))
+
+                    Button(
+                        onClick = {
                             resetArticleForm()
-                        } else {
-                            Toast.makeText(context, "Ingresa al menos el Nombre y Precio FOB USD", Toast.LENGTH_SHORT).show()
-                        }
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = if (editingArticleCode != null) Color(0xFFF57F17) else Color(0xFF1976D2)),
-                    modifier = Modifier.fillMaxWidth().height(48.dp),
-                    shape = RoundedCornerShape(8.dp)
-                ) {
-                    Text(if (editingArticleCode != null) "💾 ACTUALIZAR ARTÍCULO" else "+ AGREGAR ARTÍCULO A ESTE PROVEEDOR", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                            Toast.makeText(context, "📝 Formulario listo para nuevo artículo", Toast.LENGTH_SHORT).show()
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32)),
+                        modifier = Modifier.weight(1f).height(48.dp),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text("➕ AGREGAR NUEVO ARTÍCULO", fontWeight = FontWeight.Bold, fontSize = 10.sp)
+                    }
                 }
 
                 if (editingArticleCode != null) {
@@ -1586,7 +2012,12 @@ fun SupplierWorkspaceScreen(
 
                             OutlinedButton(
                                 onClick = {
-                                    supplier?.articles?.remove(art)
+                                    val currentArticles = supplier?.articles ?: mutableListOf()
+                                    currentArticles.remove(art)
+                                    if (supplier != null) {
+                                        val updatedSupplier = supplier.copy(articles = currentArticles)
+                                        onSaveSupplier(updatedSupplier)
+                                    }
                                     Toast.makeText(context, "🗑️ Artículo eliminado", Toast.LENGTH_SHORT).show()
                                 },
                                 modifier = Modifier.height(34.dp),
@@ -2236,7 +2667,13 @@ fun PostgresSearchScreen(onSelectProductForComparison: ((PerrenPostgresProduct) 
 // MARK: - App Top Bar
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun OptInAppBar(title: String, subtitle: String, onLogout: () -> Unit) {
+fun OptInAppBar(
+    title: String,
+    subtitle: String,
+    isSyncing: Boolean = false,
+    onSyncClick: () -> Unit = {},
+    onLogout: () -> Unit
+) {
     TopAppBar(
         title = {
             Column {
@@ -2245,6 +2682,9 @@ fun OptInAppBar(title: String, subtitle: String, onLogout: () -> Unit) {
             }
         },
         actions = {
+            IconButton(onClick = onSyncClick) {
+                Text(if (isSyncing) "⏳" else "🔄", fontSize = 16.sp)
+            }
             TextButton(onClick = onLogout) {
                 Text("SALIR", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 11.sp)
             }
