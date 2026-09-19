@@ -1,0 +1,57 @@
+Codigo,Descripcion,Marca,Rubro,Subrubro,Categoria,CostoSinIVA,VentaSinIVA,Stock,Unidad
+LADR-HUE-12,"Ladrillo Cerámico Hueco 12x18x33 (6 Agujeros)",Palmar,Construcción,Ladrillos,Materiales Obra Gruesa,480.00,702.48,15000,Unidad
+LADR-HUE-18,"Ladrillo Cerámico Hueco 18x18x33 Portante (9 Agujeros)",Palmar,Construcción,Ladrillos,Materiales Obra Gruesa,720.00,1033.06,12000,Unidad
+LADR-COM-01,"Ladrillo Común de Campo 1ª Calidad",El Palmar,Construcción,Ladrillos,Materiales Obra Gruesa,180.00,264.46,35000,Unidad
+LADR-RET-10,"Ladrillo Retak HCCA 10x25x50cm Concreto Celular",Retak,Construcción,Ladrillos,Materiales Obra Gruesa,2900.00,4214.88,3400,Unidad
+LADR-REF-01,"Ladrillo Refractario 22.9x11.4x6.3cm para Parrilla",Refractarios BI,Construcción,Ladrillos,Materiales Obra Gruesa,1450.00,2148.76,2800,Unidad
+LN-CEM-50,"Bolsa de Cemento Loma Negra 50kg Estándar",Loma Negra,Construcción,Cementos y Cales,Materiales Obra Gruesa,7850.00,11404.96,2400,Bolsa
+LN-CEM-25,"Bolsa de Cemento Loma Negra 25kg Rapidito",Loma Negra,Construcción,Cementos y Cales,Materiales Obra Gruesa,4200.00,6115.70,1150,Bolsa
+LN-CAL-25,"Cal Hidratada Loma Negra Calsid 25kg",Loma Negra,Construcción,Cementos y Cales,Materiales Obra Gruesa,3100.00,4545.45,890,Bolsa
+LN-MAS-30,"Pastina Loma Negra Plastocor 30kg",Loma Negra,Construcción,Cementos y Cales,Materiales Obra Gruesa,5200.00,7520.66,620,Bolsa
+TUY-YES-30,"Bolsa de Yeso Tuyango Tradicional 30kg",Tuyango,Construcción,Cementos y Cales,Materiales Obra Gruesa,6400.00,9256.20,450,Bolsa
+ESP-BOT-5070,"Espejo Botiquín Biselado Flotante 50x70cm para Baño",Ferrum,Sanitarios,Espejos y Accesorios,Equipamiento Baño,32000.00,46280.99,140,Unidad
+ESP-LED-6080,"Espejo Touch con Luz LED Marco de Aluminio 60x80cm",Ferrum,Sanitarios,Espejos y Accesorios,Equipamiento Baño,58000.00,84297.52,95,Unidad
+VENT-ALU-120,"Ventana de Aluminio Blanco Modena 120x100cm Vidrio Entero",Modena,Aberturas,Ventanas,Aberturas Aluminio,95000.00,138842.98,85,Unidad
+VENT-GUI-60,"Ventana Guillotina 60x100cm Aluminio Anodizado",Modena,Aberturas,Ventanas,Aberturas Aluminio,68000.00,99173.55,120,Unidad
+PUE-INY-80200,"Puerta Exterior Inyectada Oblak 80x200cm con Barral",Oblak,Aberturas,Puertas,Aberturas Exterior,142000.00,204958.68,60,Unidad
+FERRUM-BARI-INO,"Inodoro Blanco De Pie Ferrum Bari Short",Ferrum,Sanitarios,Loza Sanitaria,Equipamiento Baño,55000.00,80165.29,320,Unidad
+FERRUM-BARI-MOC,"Mochila Depósito Apoyo Ferrum Bari Dual 3/6L",Ferrum,Sanitarios,Loza Sanitaria,Equipamiento Baño,28000.00,40495.87,280,Unidad
+FERRUM-BARI-TAP,"Tapa Asiento Inodoro Ferrum Bari Cierre Suave",Ferrum,Sanitarios,Loza Sanitaria,Equipamiento Baño,15000.00,21900.83,450,Unidad
+FERRUM-VEN-INO,"Inodoro Blanco Largo Ferrum Venezia Premium",Ferrum,Sanitarios,Loza Sanitaria,Equipamiento Baño,89000.00,128925.62,110,Unidad
+FERRUM-MAYO-BID,"Bidé 1 Agujero Ferrum Mayo Blanco",Ferrum,Sanitarios,Loza Sanitaria,Equipamiento Baño,38000.00,55371.90,190,Unidad
+TER-ELE-85L,"Termotanque Eléctrico Señorial 85 Litros Alta Recuperación",Señorial,Plomería y Agua,Termotanques,Instalaciones Agua,135000.00,196694.21,75,Unidad
+TER-GAS-120L,"Termotanque a Gas Rheem 120 Litros Pie",Rheem,Plomería y Agua,Termotanques,Instalaciones Agua,215000.00,312396.69,40,Unidad
+FV-GRIF-LAV-01,"Monocomando Lavatorio FV Arizona Cromo",FV,Grifería,Griferías Baño,Griferías Monocomando,42000.00,61157.02,530,Unidad
+FV-GRIF-COC-02,"Monocomando Cocina Pico Alto FV Swing Cromo",FV,Grifería,Griferías Cocina,Griferías Monocomando,64000.00,92561.98,210,Unidad
+FV-GRIF-DUCH-03,"Juego de Ducha con Transferencia FV Temple",FV,Grifería,Griferías Ducha,Griferías Monocomando,95000.00,137190.08,140,Unidad
+TF-COD-90-20,"Codo 90° Termofusión 20mm Agua Fría / Caliente",Aqua System,Plomería y Agua,Cañerías y Conexiones,Instalaciones Termofusión,1250.00,1818.18,1800,Unidad
+TF-COD-90-25,"Codo 90° Termofusión 25mm Agua Fría / Caliente",Aqua System,Plomería y Agua,Cañerías y Conexiones,Instalaciones Termofusión,1680.00,2438.02,1400,Unidad
+PVC-COD-90-110,"Codo 90° PVC Sanitarios 110mm Roscado / Pegar",Tigre,Plomería y Agua,Cañerías Cloacales,Instalaciones Sanitarias,3450.00,5041.32,950,Unidad
+BRO-COD-12,"Codo de Bronce 1/2 H-H Rosca IPS",IPS,Plomería y Agua,Cañerías y Conexiones,Instalaciones Bronce,2900.00,4214.88,620,Unidad
+TF-CAN-20,"Caño Termofusión 20mm PN20 x 4 Metros",Aqua System,Plomería y Agua,Cañerías y Conexiones,Instalaciones Termofusión,4800.00,6983.47,2100,Tira
+PVC-CAN-110,"Caño PVC Cloacal 110mm x 4 Metros Sanitarios",Tigre,Plomería y Agua,Cañerías Cloacales,Instalaciones Sanitarias,9800.00,14214.88,820,Tira
+VALV-ESF-12,"Válvula de Esfera de Bronce 1/2 Paso Total",FV,Plomería y Agua,Válvulas y Llaves,Instalaciones Bronce,8500.00,12314.05,740,Unidad
+FLEX-INOX-12,"Flexible Acero Inoxidable 1/2 x 35cm M-H",FV,Plomería y Agua,Flexibles y Conexiones,Instalaciones Agua,3200.00,4628.10,1100,Unidad
+SIG-COD-110,"Codo 90° con Acometida Awaduct / Duratop 110mm",Awaduct,Plomería y Agua,Cañerías Cloacales,Instalaciones Sanitarias,5600.00,8140.50,530,Unidad
+IPS-TE-34,"Tee 90° Rosca 3/4 IPS Bronce Inserto",IPS,Plomería y Agua,Cañerías y Conexiones,Instalaciones Bronce,3890.00,5661.16,410,Unidad
+CHA-GAL-C27,"Chapa Galvanizada Acanalada C-27 1.10x6m",Ternium,Metalúrgica,Chapas,Techado y Estructura,24500.00,35537.19,620,Hoja
+CHA-CIN-T101,"Chapa Cincalum Trapezoidal T-101 C-25 1.10x6m",Ternium,Metalúrgica,Chapas,Techado y Estructura,31200.00,45289.26,480,Hoja
+CHA-PRE-NEG,"Chapa Prepintada Negra C-25 1.10x6m",Ternium,Metalúrgica,Chapas,Techado y Estructura,38900.00,56528.93,310,Hoja
+PER-C-100,"Perfil C Galvanizado 100x50x2mm x 6 metros",Acindar,Metalúrgica,Perfiles,Techado y Estructura,28900.00,41983.47,850,Tira
+HIE-ALE-8MM,"Hierro Aletado Acindar 8mm x 12 metros",Acindar,Metalúrgica,Hierros y Mallas,Materiales Estructurales,9500.00,13801.65,1400,Varilla
+HIE-ALE-10MM,"Hierro Aletado Acindar 10mm x 12 metros",Acindar,Metalúrgica,Hierros y Mallas,Materiales Estructurales,14800.00,21487.60,1100,Varilla
+MAL-SIM-15,"Malla Sima 15x15 5mm Panel 2.00x3.00m",Acindar,Metalúrgica,Hierros y Mallas,Materiales Estructurales,22400.00,32561.98,520,Panel
+TAN-ROT-1000,"Tanque de Agua Rotoplas Multicapa 1000 Litros",Rotoplas,Tanques y Bombas,Tanques,Almacenamiento Agua,115000.00,166942.15,120,Unidad
+BOM-CZ-05HP,"Bomba Periférica Czerweny 1/2 HP Agua Elevación",Czerweny,Tanques y Bombas,Bombas,Bombeo y Elevación,48000.00,69834.71,230,Unidad
+ALB-LAT-20L,"Pintura Látex Interior Exterior Alba Albalatex 20L",Alba,Pinturas,Látex Interior Exterior,Acabados y Pintura,62000.00,90082.64,340,Balde
+MEM-ORM-4MM,"Membrana Asfáltica Ormiflex 40kg 4mm Aluminio 10m2",Ormiflex,Aislaciones,Membranas Techos,Impermeabilizantes,42000.00,61074.38,410,Rollo
+WEBER-COL-IMP,"Adhesivo Weber Impermeable para Cerámicos 30kg",Weber,Adhesivos,Pegamentos Cerámicos,Adhesivos y Pastinas,8900.00,12892.56,1600,Bolsa
+WEBER-PAS-BLA,"Pastina Weber Blanco Nieve 2kg Impermeable",Weber,Adhesivos,Pastinas Impermeables,Adhesivos y Pastinas,2300.00,3347.11,940,Unidad
+KLAU-ADH-POR,"Pegamento Klaukol Porcellanato Fluido 30kg",Klaukol,Adhesivos,Pegamentos Porcellanato,Adhesivos y Pastinas,14500.00,21074.38,780,Bolsa
+KLAU-ADH-STD,"Klaukol Tradicional Bolsa 30kg",Klaukol,Adhesivos,Pegamentos Cerámicos,Adhesivos y Pastinas,9800.00,14214.88,1200,Bolsa
+SP-PORC-60X60,"Porcellanato San Pietro Marmi Carrara 60x60 M2",San Pietro,Revestimientos,Porcellanatos,Pisos y Revestimientos,18500.00,26859.50,3200,m²
+SP-PORC-80X80,"Porcellanato San Pietro Concrete Grey 80x80 M2",San Pietro,Revestimientos,Porcellanatos,Pisos y Revestimientos,24900.00,36198.35,1850,m²
+CN-PORC-60X60,"Porcellanato Cerro Negro Madera Roble 60x60 M2",Cerro Negro,Revestimientos,Porcellanatos,Pisos y Revestimientos,16800.00,24380.17,2100,m²
+CORT-CER-40X40,"Cerámica Cortines Piedra Beige 40x40 M2",Cortines,Revestimientos,Cerámicas,Pisos y Revestimientos,9200.00,13388.43,4500,m²
+DURL-PLA-125,"Placa de Yeso Durlock Estándar 12.5mm 1.20x2.40",Durlock,Construcción en Seco,Placas de Yeso,Cielorrasos y Tabiques,11500.00,16694.21,1400,Unidad
+ISOV-LAN-50,"Lana de Vidrio Isover Rolac Plata 50mm 12m2",Isover,Aislaciones,Aislación Térmica,Aislaciones Techo,28500.00,41322.31,480,Rollo

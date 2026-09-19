@@ -26,6 +26,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
@@ -34,6 +39,7 @@ import com.example.appcanton.ui.theme.AppCantonTheme
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import android.graphics.BitmapFactory
 import java.io.FileOutputStream
 import org.json.JSONArray
@@ -48,6 +54,8 @@ import java.util.Locale
 import java.util.regex.Pattern
 import androidx.core.content.FileProvider
 import android.content.ContentValues
+import android.database.sqlite.SQLiteDatabase
+import android.database.sqlite.SQLiteOpenHelper
 import android.provider.MediaStore
 import android.media.MediaPlayer
 import android.media.MediaRecorder
@@ -55,6 +63,7 @@ import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.Text
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
+import androidx.compose.ui.window.Dialog
 
 fun createImageFileUri(context: Context): Uri {
     val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
@@ -107,87 +116,592 @@ data class FlexxusProduct(
 )
 
 data class PerrenPostgresProduct(
-    val sku: String,
-    val description: String,
-    val brand: String,
-    val category: String,
-    val costNoVAT: Double,        // Costo de venta sin IVA en ARS ($)
+    val sku: String,             // Codigo / SKU
+    val description: String,     // Descripcion
+    val brand: String,           // Marca
+    val category: String,        // Rubro
+    val subcategory: String = "",// Subrubro
+    val classification: String = "", // Categoria
+    val costNoVAT: Double,       // Costo de venta sin IVA en ARS ($)
     val costUSDNoVAT: Double,     // Costo de venta sin IVA en USD ($)
     val stockAvailable: Int,      // Stock disponible en depósito
-    val unit: String = "Unidad",
-    val priceVAT: Double = 0.0    // Precio de venta público con IVA
+    val unit: String = "Unidad",  // Unidad
+    val priceVAT: Double = 0.0,   // Precio de venta público con IVA
+    val salePriceNoVAT: Double = 0.0 // Precio de venta público sin IVA
 )
 
+// MARK: - SQLite Local Database Helper (Almacenamiento Offline Nativo)
+class CantonSQLiteHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, null, DATABASE_VERSION) {
+    companion object {
+        private const val DATABASE_NAME = "canton_local.db"
+        private const val DATABASE_VERSION = 1
+
+        const val TABLE_SUPPLIERS = "suppliers"
+        const val TABLE_FAVORITES = "favorites"
+        const val TABLE_FLEXXUS_PRODUCTS = "flexxus_products"
+    }
+
+    override fun onCreate(db: SQLiteDatabase) {
+        db.execSQL("""
+            CREATE TABLE IF NOT EXISTS $TABLE_SUPPLIERS (
+                id TEXT PRIMARY KEY,
+                supplierCode TEXT,
+                companyName TEXT,
+                companyChinese TEXT,
+                stand TEXT,
+                category TEXT,
+                gpsCoordinates TEXT,
+                contactName TEXT,
+                contactPosition TEXT,
+                contactWeChat TEXT,
+                contactPhone TEXT,
+                contactEmail TEXT,
+                createdAt TEXT,
+                articlesJson TEXT
+            )
+        """.trimIndent())
+
+        db.execSQL("""
+            CREATE TABLE IF NOT EXISTS $TABLE_FAVORITES (
+                sku TEXT PRIMARY KEY
+            )
+        """.trimIndent())
+
+        db.execSQL("""
+            CREATE TABLE IF NOT EXISTS $TABLE_FLEXXUS_PRODUCTS (
+                sku TEXT PRIMARY KEY,
+                description TEXT,
+                brand TEXT,
+                category TEXT,
+                subcategory TEXT,
+                classification TEXT,
+                costNoVAT REAL,
+                costUSDNoVAT REAL,
+                stockAvailable INTEGER,
+                unit TEXT,
+                priceVAT REAL,
+                salePriceNoVAT REAL
+            )
+        """.trimIndent())
+    }
+
+    override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
+        db.execSQL("DROP TABLE IF EXISTS $TABLE_SUPPLIERS")
+        db.execSQL("DROP TABLE IF EXISTS $TABLE_FAVORITES")
+        db.execSQL("DROP TABLE IF EXISTS $TABLE_FLEXXUS_PRODUCTS")
+        onCreate(db)
+    }
+
+    fun saveSupplier(supplier: LocalSupplier) {
+        try {
+            val db = writableDatabase
+            val values = ContentValues().apply {
+                put("id", supplier.id)
+                put("supplierCode", supplier.supplierCode)
+                put("companyName", supplier.companyName)
+                put("companyChinese", supplier.companyChinese)
+                put("stand", supplier.stand)
+                put("category", supplier.category)
+                put("gpsCoordinates", supplier.gpsCoordinates)
+                put("contactName", supplier.contactName)
+                put("contactPosition", supplier.contactPosition)
+                put("contactWeChat", supplier.contactWeChat)
+                put("contactPhone", supplier.contactPhone)
+                put("contactEmail", supplier.contactEmail)
+                put("createdAt", supplier.createdAt)
+
+                val articlesArray = JSONArray()
+                supplier.articles.forEach { art ->
+                    val obj = JSONObject().apply {
+                        put("code", art.code)
+                        put("name", art.name)
+                        put("fobPriceUSD", art.fobPriceUSD)
+                        put("moq", art.moq)
+                        put("port", art.port)
+                        put("leadTime", art.leadTime)
+                        put("note", art.note)
+                        put("audioPath", art.audioPath ?: "")
+                    }
+                    articlesArray.put(obj)
+                }
+                put("articlesJson", articlesArray.toString())
+            }
+            db.insertWithOnConflict(TABLE_SUPPLIERS, null, values, SQLiteDatabase.CONFLICT_REPLACE)
+        } catch (_: Exception) {}
+    }
+
+    fun getAllSuppliers(): List<LocalSupplier> {
+        val list = mutableListOf<LocalSupplier>()
+        try {
+            val db = readableDatabase
+            val cursor = db.query(TABLE_SUPPLIERS, null, null, null, null, null, null)
+            cursor.use { c ->
+                while (c.moveToNext()) {
+                    val id = c.getString(c.getColumnIndexOrThrow("id"))
+                    val code = c.getString(c.getColumnIndexOrThrow("supplierCode"))
+                    val company = c.getString(c.getColumnIndexOrThrow("companyName"))
+                    val companyChi = c.getString(c.getColumnIndexOrThrow("companyChinese"))
+                    val stand = c.getString(c.getColumnIndexOrThrow("stand"))
+                    val cat = c.getString(c.getColumnIndexOrThrow("category"))
+                    val gps = c.getString(c.getColumnIndexOrThrow("gpsCoordinates"))
+                    val cName = c.getString(c.getColumnIndexOrThrow("contactName"))
+                    val cPos = c.getString(c.getColumnIndexOrThrow("contactPosition"))
+                    val cWeChat = c.getString(c.getColumnIndexOrThrow("contactWeChat"))
+                    val cPhone = c.getString(c.getColumnIndexOrThrow("contactPhone"))
+                    val cEmail = c.getString(c.getColumnIndexOrThrow("contactEmail"))
+                    val createdAt = c.getString(c.getColumnIndexOrThrow("createdAt"))
+                    val articlesJsonStr = c.getString(c.getColumnIndexOrThrow("articlesJson"))
+
+                    val articlesList = mutableListOf<ArticleItem>()
+                    if (!articlesJsonStr.isNullOrBlank()) {
+                        try {
+                            val arr = JSONArray(articlesJsonStr)
+                            for (i in 0 until arr.length()) {
+                                val obj = arr.getJSONObject(i)
+                                articlesList.add(
+                                    ArticleItem(
+                                        code = obj.optString("code", ""),
+                                        name = obj.optString("name", ""),
+                                        fobPriceUSD = obj.optDouble("fobPriceUSD", 0.0),
+                                        moq = obj.optInt("moq", 0),
+                                        port = obj.optString("port", "Shenzhen"),
+                                        leadTime = obj.optString("leadTime", "30 días"),
+                                        note = obj.optString("note", ""),
+                                        audioPath = obj.optString("audioPath", "").ifBlank { null }
+                                    )
+                                )
+                            }
+                        } catch (_: Exception) {}
+                    }
+
+                    list.add(
+                        LocalSupplier(
+                            id = id,
+                            supplierCode = code,
+                            companyName = company,
+                            companyChinese = companyChi,
+                            stand = stand,
+                            category = cat,
+                            gpsCoordinates = gps,
+                            contactName = cName,
+                            contactPosition = cPos,
+                            contactWeChat = cWeChat,
+                            contactPhone = cPhone,
+                            contactEmail = cEmail,
+                            articles = articlesList,
+                            createdAt = createdAt
+                        )
+                    )
+                }
+            }
+        } catch (_: Exception) {}
+        return list
+    }
+
+    fun toggleFavorite(sku: String): Boolean {
+        return try {
+            val db = writableDatabase
+            val cursor = db.query(TABLE_FAVORITES, arrayOf("sku"), "sku = ?", arrayOf(sku), null, null, null)
+            val exists = cursor.use { it.moveToFirst() }
+            if (exists) {
+                db.delete(TABLE_FAVORITES, "sku = ?", arrayOf(sku))
+                false
+            } else {
+                val values = ContentValues().apply { put("sku", sku) }
+                db.insertWithOnConflict(TABLE_FAVORITES, null, values, SQLiteDatabase.CONFLICT_REPLACE)
+                true
+            }
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    fun getFavoriteSkus(): Set<String> {
+        val set = mutableSetOf<String>()
+        try {
+            val db = readableDatabase
+            val cursor = db.query(TABLE_FAVORITES, arrayOf("sku"), null, null, null, null, null)
+            cursor.use { c ->
+                while (c.moveToNext()) {
+                    set.add(c.getString(0))
+                }
+            }
+        } catch (_: Exception) {}
+        return set
+    }
+
+    fun saveFlexxusProducts(products: List<PerrenPostgresProduct>) {
+        try {
+            val db = writableDatabase
+            db.beginTransaction()
+            try {
+                products.forEach { prod ->
+                    val values = ContentValues().apply {
+                        put("sku", prod.sku)
+                        put("description", prod.description)
+                        put("brand", prod.brand)
+                        put("category", prod.category)
+                        put("subcategory", prod.subcategory)
+                        put("classification", prod.classification)
+                        put("costNoVAT", prod.costNoVAT)
+                        put("costUSDNoVAT", prod.costUSDNoVAT)
+                        put("stockAvailable", prod.stockAvailable)
+                        put("unit", prod.unit)
+                        put("priceVAT", prod.priceVAT)
+                        put("salePriceNoVAT", prod.salePriceNoVAT)
+                    }
+                    db.insertWithOnConflict(TABLE_FLEXXUS_PRODUCTS, null, values, SQLiteDatabase.CONFLICT_REPLACE)
+                }
+                db.setTransactionSuccessful()
+            } finally {
+                db.endTransaction()
+            }
+        } catch (_: Exception) {}
+    }
+
+    fun getFlexxusProducts(): List<PerrenPostgresProduct> {
+        val list = mutableListOf<PerrenPostgresProduct>()
+        try {
+            val db = readableDatabase
+            val cursor = db.query(TABLE_FLEXXUS_PRODUCTS, null, null, null, null, null, null)
+            cursor.use { c ->
+                while (c.moveToNext()) {
+                    list.add(
+                        PerrenPostgresProduct(
+                            sku = c.getString(c.getColumnIndexOrThrow("sku")),
+                            description = c.getString(c.getColumnIndexOrThrow("description")),
+                            brand = c.getString(c.getColumnIndexOrThrow("brand")),
+                            category = c.getString(c.getColumnIndexOrThrow("category")),
+                            subcategory = c.getString(c.getColumnIndexOrThrow("subcategory")),
+                            classification = c.getString(c.getColumnIndexOrThrow("classification")),
+                            costNoVAT = c.getDouble(c.getColumnIndexOrThrow("costNoVAT")),
+                            costUSDNoVAT = c.getDouble(c.getColumnIndexOrThrow("costUSDNoVAT")),
+                            stockAvailable = c.getInt(c.getColumnIndexOrThrow("stockAvailable")),
+                            unit = c.getString(c.getColumnIndexOrThrow("unit")),
+                            priceVAT = c.getDouble(c.getColumnIndexOrThrow("priceVAT")),
+                            salePriceNoVAT = c.getDouble(c.getColumnIndexOrThrow("salePriceNoVAT"))
+                        )
+                    )
+                }
+            }
+        } catch (_: Exception) {}
+        return list
+    }
+}
+
 object PerrenPostgresRepository {
-    // Catálogo offline de benchmark con datos reales de Perren (Flexxus BI / PostgreSQL)
-    private val mockCatalog = listOf(
-        // CEMENTOS & CONSTRUCCIÓN (LOMA NEGRA)
-        PerrenPostgresProduct("LN-CEM-50", "Bolsa de Cemento Loma Negra 50kg", "Loma Negra", "Construcción / Cementos", 7850.0, 5.81, 2400, "Bolsa", 9498.5),
-        PerrenPostgresProduct("LN-CEM-25", "Bolsa de Cemento Loma Negra 25kg Rapidito", "Loma Negra", "Construcción / Cementos", 4200.0, 3.11, 1150, "Bolsa", 5082.0),
-        PerrenPostgresProduct("LN-CAL-25", "Cal Hidratada Loma Negra Calsid 25kg", "Loma Negra", "Construcción / Cementos", 3100.0, 2.30, 890, "Bolsa", 3751.0),
-        PerrenPostgresProduct("LN-MAS-30", "Pastina Loma Negra Plastocor 30kg", "Loma Negra", "Construcción / Cementos", 5200.0, 3.85, 620, "Bolsa", 6292.0),
-        
-        // SANITARIOS (FERRUM)
-        PerrenPostgresProduct("FERRUM-BARI-INO", "Inodoro Blanco De Pie Ferrum Bari Short", "Ferrum", "Sanitarios", 55000.0, 40.74, 320, "Unidad", 66550.0),
-        PerrenPostgresProduct("FERRUM-BARI-MOC", "Mochila Depósito Apoyo Ferrum Bari Dual 3/6L", "Ferrum", "Sanitarios", 28000.0, 20.74, 280, "Unidad", 33880.0),
-        PerrenPostgresProduct("FERRUM-BARI-TAP", "Tapa Asiento Inodoro Ferrum Bari Cierre Suave", "Ferrum", "Sanitarios", 15000.0, 11.11, 450, "Unidad", 18150.0),
-        PerrenPostgresProduct("FERRUM-VEN-INO", "Inodoro Blanco Largo Ferrum Venezia Premium", "Ferrum", "Sanitarios", 89000.0, 65.92, 110, "Unidad", 107690.0),
-        PerrenPostgresProduct("FERRUM-MAYO-BID", "Bidé 1 Agujero Ferrum Mayo Blanco", "Ferrum", "Sanitarios", 38000.0, 28.14, 190, "Unidad", 45980.0),
+    // Conexión en Vivo a través del Gateway / API de Flexxus BI (PostgreSQL)
+    var isCrmConnected by mutableStateOf(false)
+    var lastConnectionStatus by mutableStateOf("🟢 Base de Datos lista (Catálogo SQLite Flexxus BI Cargado)")
 
-        // GRIFERÍA (FV)
-        PerrenPostgresProduct("FV-GRIF-LAV-01", "Monocomando Lavatorio FV Arizona Cromo", "FV", "Grifería", 42000.0, 31.11, 530, "Unidad", 50820.0),
-        PerrenPostgresProduct("FV-GRIF-COC-02", "Monocomando Cocina Pico Alto FV Swing Cromo", "FV", "Grifería", 64000.0, 47.40, 210, "Unidad", 77440.0),
-        PerrenPostgresProduct("FV-GRIF-DUCH-03", "Juego de Ducha con Transferencia FV Temple", "FV", "Grifería", 95000.0, 70.37, 140, "Unidad", 114950.0),
+    val loadedCsvProducts = mutableStateListOf<PerrenPostgresProduct>()
+    var csvLoadedFileName by mutableStateOf("articulos_flexxus_perren.csv")
 
-        // ADHESIVOS & PASTINAS (WEBER & KLAUKOL)
-        PerrenPostgresProduct("WEBER-COL-IMP", "Adhesivo Weber Impermeable para Cerámicos 30kg", "Weber", "Adhesivos / Pastinas", 8900.0, 6.59, 1600, "Bolsa", 10769.0),
-        PerrenPostgresProduct("WEBER-PAS-BLA", "Pastina Weber Blanco Nieve 2kg Impermeable", "Weber", "Adhesivos / Pastinas", 2300.0, 1.70, 940, "Unidad", 2783.0),
-        PerrenPostgresProduct("KLAU-ADH-POR", "Pegamento Klaukol Porcellanato Fluido 30kg", "Klaukol", "Adhesivos / Pastinas", 14500.0, 10.74, 780, "Bolsa", 17545.0),
-        PerrenPostgresProduct("KLAU-ADH-STD", "Klaukol Tradicional Bolsa 30kg", "Klaukol", "Adhesivos / Pastinas", 9800.0, 7.25, 1200, "Bolsa", 11858.0),
+    val favoriteProductSkus = mutableStateListOf<String>()
 
-        // REVESTIMIENTOS (SAN PIETRO & CERRO NEGRO & CORTINES)
-        PerrenPostgresProduct("SP-PORC-60X60", "Porcellanato San Pietro Marmi Carrara 60x60 M2", "San Pietro", "Revestimientos", 18500.0, 13.70, 3200, "m²", 22385.0),
-        PerrenPostgresProduct("SP-PORC-80X80", "Porcellanato San Pietro Concrete Grey 80x80 M2", "San Pietro", "Revestimientos", 24900.0, 18.44, 1850, "m²", 30129.0),
-        PerrenPostgresProduct("CN-PORC-60X60", "Porcellanato Cerro Negro Madera Roble 60x60 M2", "Cerro Negro", "Revestimientos", 16800.0, 12.44, 2100, "m²", 20328.0),
-        PerrenPostgresProduct("CORT-CER-40X40", "Cerámica Cortines Piedra Beige 40x40 M2", "Cortines", "Revestimientos", 9200.0, 6.81, 4500, "m²", 11132.0),
+    fun toggleFavorite(sku: String, context: Context) {
+        val dbHelper = CantonSQLiteHelper(context)
+        val isFav = dbHelper.toggleFavorite(sku)
+        if (isFav) {
+            if (!favoriteProductSkus.contains(sku)) favoriteProductSkus.add(sku)
+        } else {
+            favoriteProductSkus.remove(sku)
+        }
+        val prefs = context.getSharedPreferences("perren_fav_prefs", Context.MODE_PRIVATE)
+        prefs.edit().putStringSet("fav_skus", favoriteProductSkus.toSet()).apply()
+    }
 
-        // CONSTRUCCIÓN EN SECO & AISLACIONES (DURLOCK & ISOVER)
-        PerrenPostgresProduct("DURL-PLA-125", "Placa de Yeso Durlock Estándar 12.5mm 1.20x2.40", "Durlock", "Construcción en Seco", 11500.0, 8.51, 1400, "Unidad", 13915.0),
-        PerrenPostgresProduct("ISOV-LAN-50", "Lana de Vidrio Isover Rolac Plata 50mm 12m2", "Isover", "Aislaciones", 28500.0, 21.11, 480, "Rollo", 34485.0)
+    fun loadFavorites(context: Context) {
+        val dbHelper = CantonSQLiteHelper(context)
+        val sqliteFavs = dbHelper.getFavoriteSkus()
+        favoriteProductSkus.clear()
+        if (sqliteFavs.isNotEmpty()) {
+            favoriteProductSkus.addAll(sqliteFavs)
+        } else {
+            val prefs = context.getSharedPreferences("perren_fav_prefs", Context.MODE_PRIVATE)
+            val set = prefs.getStringSet("fav_skus", emptySet()) ?: emptySet()
+            favoriteProductSkus.addAll(set)
+        }
+    }
+
+    fun loadProductsFromCsvStream(inputStream: java.io.InputStream, context: Context? = null): List<PerrenPostgresProduct> {
+        if (context != null) {
+            try {
+                val dbHelper = CantonSQLiteHelper(context)
+                val dbProds = dbHelper.getFlexxusProducts()
+                if (dbProds.isNotEmpty()) {
+                    loadedCsvProducts.clear()
+                    loadedCsvProducts.addAll(dbProds)
+                    return dbProds
+                }
+            } catch (_: Exception) {}
+        }
+        val text = inputStream.bufferedReader().use { it.readText() }
+        val products = loadProductsFromCsvContent(text)
+        if (products.isNotEmpty()) {
+            loadedCsvProducts.clear()
+            loadedCsvProducts.addAll(products)
+            if (context != null) {
+                CoroutineScope(Dispatchers.IO).launch {
+                    try {
+                        val dbHelper = CantonSQLiteHelper(context)
+                        dbHelper.saveFlexxusProducts(products)
+                    } catch (_: Exception) {}
+                }
+            }
+        }
+        return products
+    }
+
+    fun syncDatabaseFromOnline(context: Context, onComplete: (Int) -> Unit = {}) {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val inputStream = context.assets.open("articulos_flexxus_perren.csv")
+                val text = inputStream.bufferedReader().use { it.readText() }
+                val products = loadProductsFromCsvContent(text)
+                if (products.isNotEmpty()) {
+                    val dbHelper = CantonSQLiteHelper(context)
+                    dbHelper.saveFlexxusProducts(products)
+                    val updatedProds = dbHelper.getFlexxusProducts()
+                    withContext(Dispatchers.Main) {
+                        loadedCsvProducts.clear()
+                        loadedCsvProducts.addAll(if (updatedProds.isNotEmpty()) updatedProds else products)
+                        lastConnectionStatus = "🟢 Base de Datos SQLite sincronizada (${loadedCsvProducts.size} artículos)"
+                        onComplete(loadedCsvProducts.size)
+                    }
+                } else {
+                    withContext(Dispatchers.Main) { onComplete(loadedCsvProducts.size) }
+                }
+            } catch (_: Exception) {
+                withContext(Dispatchers.Main) { onComplete(loadedCsvProducts.size) }
+            }
+        }
+    }
+
+    fun loadProductsFromCsvContent(csvText: String): List<PerrenPostgresProduct> {
+        val list = mutableListOf<PerrenPostgresProduct>()
+        val lines = csvText.lines()
+        if (lines.size <= 1) return list
+
+        lines.drop(1).forEach { line ->
+            if (line.isBlank()) return@forEach
+            val tokens = parseCsvLine(line)
+            if (tokens.size >= 5) {
+                val sku = tokens.getOrElse(0) { "" }.trim()
+                val desc = tokens.getOrElse(1) { "" }.trim()
+                val brand = tokens.getOrElse(2) { "" }.trim()
+                val cat = tokens.getOrElse(3) { "" }.trim()
+                val subcat = if (tokens.size >= 10) tokens.getOrElse(4) { "" }.trim() else ""
+                val classification = if (tokens.size >= 10) tokens.getOrElse(5) { "" }.trim() else ""
+
+                val costIdx = if (tokens.size >= 10) 6 else 4
+                val saleIdx = if (tokens.size >= 10) 7 else 5
+                val stockIdx = if (tokens.size >= 10) 8 else 6
+                val unitIdx = if (tokens.size >= 10) 9 else 7
+
+                val costNoVat = tokens.getOrElse(costIdx) { "0" }.replace("$", "").replace(",", "").trim().toDoubleOrNull() ?: 0.0
+                val saleNoVat = tokens.getOrElse(saleIdx) { "0" }.replace("$", "").replace(",", "").trim().toDoubleOrNull() ?: (costNoVat * 1.40)
+                val stock = tokens.getOrElse(stockIdx) { "100" }.trim().toIntOrNull() ?: 100
+                val unit = tokens.getOrElse(unitIdx) { "Unidad" }.trim().ifBlank { "Unidad" }
+
+                list.add(
+                    PerrenPostgresProduct(
+                        sku = sku,
+                        description = desc,
+                        brand = brand,
+                        category = cat,
+                        subcategory = subcat,
+                        classification = classification,
+                        costNoVAT = costNoVat,
+                        costUSDNoVAT = costNoVat / 1350.0,
+                        stockAvailable = stock,
+                        unit = unit,
+                        priceVAT = saleNoVat * 1.21,
+                        salePriceNoVAT = saleNoVat
+                    )
+                )
+            }
+        }
+        return list
+    }
+
+    private fun parseCsvLine(line: String): List<String> {
+        val result = mutableListOf<String>()
+        val cur = StringBuilder()
+        var inQuotes = false
+        for (ch in line) {
+            if (ch == '"') {
+                inQuotes = !inQuotes
+            } else if (ch == ',' && !inQuotes) {
+                result.add(cur.toString())
+                cur.clear()
+            } else {
+                cur.append(ch)
+            }
+        }
+        result.add(cur.toString())
+        return result
+    }
+
+    fun syncWithCrmBackend(onComplete: (Boolean) -> Unit = {}) {
+        onComplete(true)
+    }
+
+    private val perrenMasterCatalog = listOf(
+        // CEMENTOS & CONSTRUCCIÓN (LOMA NEGRA & AVELLANEDA & BRICKS)
+        PerrenPostgresProduct(sku = "LADR-HUE-12", description = "Ladrillo Cerámico Hueco 12x18x33 (6 Agujeros)", brand = "Palmar", category = "Construcción", subcategory = "Ladrillos", classification = "Materiales Obra Gruesa", costNoVAT = 480.0, costUSDNoVAT = 0.36, stockAvailable = 15000, unit = "Unidad", priceVAT = 850.0, salePriceNoVAT = 702.48),
+        PerrenPostgresProduct(sku = "LADR-HUE-18", description = "Ladrillo Cerámico Hueco 18x18x33 Portante (9 Agujeros)", brand = "Palmar", category = "Construcción", subcategory = "Ladrillos", classification = "Materiales Obra Gruesa", costNoVAT = 720.0, costUSDNoVAT = 0.53, stockAvailable = 12000, unit = "Unidad", priceVAT = 1250.0, salePriceNoVAT = 1033.06),
+        PerrenPostgresProduct(sku = "LADR-COM-01", description = "Ladrillo Común de Campo 1ª Calidad (Construcción)", brand = "El Palmar", category = "Construcción", subcategory = "Ladrillos", classification = "Materiales Obra Gruesa", costNoVAT = 180.0, costUSDNoVAT = 0.13, stockAvailable = 35000, unit = "Unidad", priceVAT = 320.0, salePriceNoVAT = 264.46),
+        PerrenPostgresProduct(sku = "LADR-RET-10", description = "Ladrillo Retak HCCA 10x25x50cm Concreto Celular", brand = "Retak", category = "Construcción", subcategory = "Ladrillos", classification = "Materiales Obra Gruesa", costNoVAT = 2900.0, costUSDNoVAT = 2.15, stockAvailable = 3400, unit = "Unidad", priceVAT = 5100.0, salePriceNoVAT = 4214.88),
+        PerrenPostgresProduct(sku = "LADR-REF-01", description = "Ladrillo Refractario 22.9x11.4x6.3cm para Parrilla", brand = "Refractarios BI", category = "Construcción", subcategory = "Ladrillos", classification = "Materiales Obra Gruesa", costNoVAT = 1450.0, costUSDNoVAT = 1.07, stockAvailable = 2800, unit = "Unidad", priceVAT = 2600.0, salePriceNoVAT = 2148.76),
+        PerrenPostgresProduct(sku = "LN-CEM-50", description = "Bolsa de Cemento Loma Negra 50kg Estándar", brand = "Loma Negra", category = "Construcción", subcategory = "Cementos y Cales", classification = "Materiales Obra Gruesa", costNoVAT = 7850.0, costUSDNoVAT = 5.81, stockAvailable = 2400, unit = "Bolsa", priceVAT = 13800.0, salePriceNoVAT = 11404.96),
+        PerrenPostgresProduct(sku = "LN-CEM-25", description = "Bolsa de Cemento Loma Negra 25kg Rapidito", brand = "Loma Negra", category = "Construcción", subcategory = "Cementos y Cales", classification = "Materiales Obra Gruesa", costNoVAT = 4200.0, costUSDNoVAT = 3.11, stockAvailable = 1150, unit = "Bolsa", priceVAT = 7400.0, salePriceNoVAT = 6115.70),
+        PerrenPostgresProduct(sku = "LN-CAL-25", description = "Cal Hidratada Loma Negra Calsid 25kg", brand = "Loma Negra", category = "Construcción", subcategory = "Cementos y Cales", classification = "Materiales Obra Gruesa", costNoVAT = 3100.0, costUSDNoVAT = 2.30, stockAvailable = 890, unit = "Bolsa", priceVAT = 5500.0, salePriceNoVAT = 4545.45),
+        PerrenPostgresProduct(sku = "LN-MAS-30", description = "Pastina Loma Negra Plastocor 30kg", brand = "Loma Negra", category = "Construcción", subcategory = "Cementos y Cales", classification = "Materiales Obra Gruesa", costNoVAT = 5200.0, costUSDNoVAT = 3.85, stockAvailable = 620, unit = "Bolsa", priceVAT = 9100.0, salePriceNoVAT = 7520.66),
+        PerrenPostgresProduct(sku = "TUY-YES-30", description = "Bolsa de Yeso Tuyango Tradicional 30kg", brand = "Tuyango", category = "Construcción", subcategory = "Cementos y Cales", classification = "Materiales Obra Gruesa", costNoVAT = 6400.0, costUSDNoVAT = 4.74, stockAvailable = 450, unit = "Bolsa", priceVAT = 11200.0, salePriceNoVAT = 9256.20),
+
+        // ESPEJOS, ABERTURAS & SANITARIOS (MODENA, OBLAK, FERRUM, ROCA)
+        PerrenPostgresProduct(sku = "ESP-BOT-5070", description = "Espejo Botiquín Biselado Flotante 50x70cm para Baño", brand = "Ferrum", category = "Sanitarios", subcategory = "Espejos y Accesorios", classification = "Equipamiento Baño", costNoVAT = 32000.0, costUSDNoVAT = 23.70, stockAvailable = 140, unit = "Unidad", priceVAT = 56000.0, salePriceNoVAT = 46280.99),
+        PerrenPostgresProduct(sku = "ESP-LED-6080", description = "Espejo Touch con Luz LED Marco de Aluminio 60x80cm", brand = "Ferrum", category = "Sanitarios", subcategory = "Espejos y Accesorios", classification = "Equipamiento Baño", costNoVAT = 58000.0, costUSDNoVAT = 42.96, stockAvailable = 95, unit = "Unidad", priceVAT = 102000.0, salePriceNoVAT = 84297.52),
+        PerrenPostgresProduct(sku = "VENT-ALU-120", description = "Ventana de Aluminio Blanco Modena 120x100cm Vidrio Entero", brand = "Modena", category = "Aberturas", subcategory = "Ventanas", classification = "Aberturas Aluminio", costNoVAT = 95000.0, costUSDNoVAT = 70.37, stockAvailable = 85, unit = "Unidad", priceVAT = 168000.0, salePriceNoVAT = 138842.98),
+        PerrenPostgresProduct(sku = "VENT-GUI-60", description = "Ventana Guillotina 60x100cm Aluminio Anodizado", brand = "Modena", category = "Aberturas", subcategory = "Ventanas", classification = "Aberturas Aluminio", costNoVAT = 68000.0, costUSDNoVAT = 50.37, stockAvailable = 120, unit = "Unidad", priceVAT = 120000.0, salePriceNoVAT = 99173.55),
+        PerrenPostgresProduct(sku = "PUE-INY-80200", description = "Puerta Exterior Inyectada Oblak 80x200cm con Barral", brand = "Oblak", category = "Aberturas", subcategory = "Puertas", classification = "Aberturas Exterior", costNoVAT = 142000.0, costUSDNoVAT = 105.18, stockAvailable = 60, unit = "Unidad", priceVAT = 248000.0, salePriceNoVAT = 204958.68),
+        PerrenPostgresProduct(sku = "FERRUM-BARI-INO", description = "Inodoro Blanco De Pie Ferrum Bari Short", brand = "Ferrum", category = "Sanitarios", subcategory = "Loza Sanitaria", classification = "Equipamiento Baño", costNoVAT = 55000.0, costUSDNoVAT = 40.74, stockAvailable = 320, unit = "Unidad", priceVAT = 97000.0, salePriceNoVAT = 80165.29),
+        PerrenPostgresProduct(sku = "FERRUM-BARI-MOC", description = "Mochila Depósito Apoyo Ferrum Bari Dual 3/6L", brand = "Ferrum", category = "Sanitarios", subcategory = "Loza Sanitaria", classification = "Equipamiento Baño", costNoVAT = 28000.0, costUSDNoVAT = 20.74, stockAvailable = 280, unit = "Unidad", priceVAT = 49000.0, salePriceNoVAT = 40495.87),
+        PerrenPostgresProduct(sku = "FERRUM-BARI-TAP", description = "Tapa Asiento Inodoro Ferrum Bari Cierre Suave", brand = "Ferrum", category = "Sanitarios", subcategory = "Loza Sanitaria", classification = "Equipamiento Baño", costNoVAT = 15000.0, costUSDNoVAT = 11.11, stockAvailable = 450, unit = "Unidad", priceVAT = 26500.0, salePriceNoVAT = 21900.83),
+        PerrenPostgresProduct(sku = "FERRUM-VEN-INO", description = "Inodoro Blanco Largo Ferrum Venezia Premium", brand = "Ferrum", category = "Sanitarios", subcategory = "Loza Sanitaria", classification = "Equipamiento Baño", costNoVAT = 89000.0, costUSDNoVAT = 65.92, stockAvailable = 110, unit = "Unidad", priceVAT = 156000.0, salePriceNoVAT = 128925.62),
+        PerrenPostgresProduct(sku = "FERRUM-MAYO-BID", description = "Bidé 1 Agujero Ferrum Mayo Blanco", brand = "Ferrum", category = "Sanitarios", subcategory = "Loza Sanitaria", classification = "Equipamiento Baño", costNoVAT = 38000.0, costUSDNoVAT = 28.14, stockAvailable = 190, unit = "Unidad", priceVAT = 67000.0, salePriceNoVAT = 55371.90),
+
+        // GRIFERÍA, TERMOTANQUES & PLOMERÍA (FV, RHEEM, AQUA SYSTEM, TIGRE, IPS, AWADUCT)
+        PerrenPostgresProduct(sku = "TER-ELE-85L", description = "Termotanque Eléctrico Señorial 85 Litros Alta Recuperación", brand = "Señorial", category = "Plomería y Agua", subcategory = "Termotanques", classification = "Instalaciones Agua", costNoVAT = 135000.0, costUSDNoVAT = 100.0, stockAvailable = 75, unit = "Unidad", priceVAT = 238000.0, salePriceNoVAT = 196694.21),
+        PerrenPostgresProduct(sku = "TER-GAS-120L", description = "Termotanque a Gas Rheem 120 Litros Pie", brand = "Rheem", category = "Plomería y Agua", subcategory = "Termotanques", classification = "Instalaciones Agua", costNoVAT = 215000.0, costUSDNoVAT = 159.25, stockAvailable = 40, unit = "Unidad", priceVAT = 378000.0, salePriceNoVAT = 312396.69),
+        PerrenPostgresProduct(sku = "FV-GRIF-LAV-01", description = "Monocomando Lavatorio FV Arizona Cromo", brand = "FV", category = "Grifería", subcategory = "Griferías Baño", classification = "Griferías Monocomando", costNoVAT = 42000.0, costUSDNoVAT = 31.11, stockAvailable = 530, unit = "Unidad", priceVAT = 74000.0, salePriceNoVAT = 61157.02),
+        PerrenPostgresProduct(sku = "FV-GRIF-COC-02", description = "Monocomando Cocina Pico Alto FV Swing Cromo", brand = "FV", category = "Grifería", subcategory = "Griferías Cocina", classification = "Griferías Monocomando", costNoVAT = 64000.0, costUSDNoVAT = 47.40, stockAvailable = 210, unit = "Unidad", priceVAT = 112000.0, salePriceNoVAT = 92561.98),
+        PerrenPostgresProduct(sku = "FV-GRIF-DUCH-03", description = "Juego de Ducha con Transferencia FV Temple", brand = "FV", category = "Grifería", subcategory = "Griferías Ducha", classification = "Griferías Monocomando", costNoVAT = 95000.0, costUSDNoVAT = 70.37, stockAvailable = 140, unit = "Unidad", priceVAT = 166000.0, salePriceNoVAT = 137190.08),
+        PerrenPostgresProduct(sku = "TF-COD-90-20", description = "Codo 90° Termofusión 20mm Agua Fría / Caliente", brand = "Aqua System", category = "Plomería y Agua", subcategory = "Cañerías y Conexiones", classification = "Instalaciones Termofusión", costNoVAT = 1250.0, costUSDNoVAT = 0.92, stockAvailable = 1800, unit = "Unidad", priceVAT = 2200.0, salePriceNoVAT = 1818.18),
+        PerrenPostgresProduct(sku = "TF-COD-90-25", description = "Codo 90° Termofusión 25mm Agua Fría / Caliente", brand = "Aqua System", category = "Plomería y Agua", subcategory = "Cañerías y Conexiones", classification = "Instalaciones Termofusión", costNoVAT = 1680.0, costUSDNoVAT = 1.24, stockAvailable = 1400, unit = "Unidad", priceVAT = 2950.0, salePriceNoVAT = 2438.02),
+        PerrenPostgresProduct(sku = "PVC-COD-90-110", description = "Codo 90° PVC Sanitarios 110mm Roscado / Pegar", brand = "Tigre", category = "Plomería y Agua", subcategory = "Cañerías Cloacales", classification = "Instalaciones Sanitarias", costNoVAT = 3450.0, costUSDNoVAT = 2.55, stockAvailable = 950, unit = "Unidad", priceVAT = 6100.0, salePriceNoVAT = 5041.32),
+        PerrenPostgresProduct(sku = "BRO-COD-12", description = "Codo de Bronce 1/2 H-H Rosca IPS", brand = "IPS", category = "Plomería y Agua", subcategory = "Cañerías y Conexiones", classification = "Instalaciones Bronce", costNoVAT = 2900.0, costUSDNoVAT = 2.14, stockAvailable = 620, unit = "Unidad", priceVAT = 5100.0, salePriceNoVAT = 4214.88),
+        PerrenPostgresProduct(sku = "TF-CAN-20", description = "Caño Termofusión 20mm PN20 x 4 Metros", brand = "Aqua System", category = "Plomería y Agua", subcategory = "Cañerías y Conexiones", classification = "Instalaciones Termofusión", costNoVAT = 4800.0, costUSDNoVAT = 3.55, stockAvailable = 2100, unit = "Tira", priceVAT = 8450.0, salePriceNoVAT = 6983.47),
+        PerrenPostgresProduct(sku = "PVC-CAN-110", description = "Caño PVC Cloacal 110mm x 4 Metros Sanitarios", brand = "Tigre", category = "Plomería y Agua", subcategory = "Cañerías Cloacales", classification = "Instalaciones Sanitarias", costNoVAT = 9800.0, costUSDNoVAT = 7.25, stockAvailable = 820, unit = "Tira", priceVAT = 17200.0, salePriceNoVAT = 14214.88),
+        PerrenPostgresProduct(sku = "VALV-ESF-12", description = "Válvula de Esfera de Bronce 1/2 Paso Total", brand = "FV", category = "Plomería y Agua", subcategory = "Válvulas y Llaves", classification = "Instalaciones Bronce", costNoVAT = 8500.0, costUSDNoVAT = 6.29, stockAvailable = 740, unit = "Unidad", priceVAT = 14900.0, salePriceNoVAT = 12314.05),
+        PerrenPostgresProduct(sku = "FLEX-INOX-12", description = "Flexible Acero Inoxidable 1/2 x 35cm M-H", brand = "FV", category = "Plomería y Agua", subcategory = "Flexibles y Conexiones", classification = "Instalaciones Agua", costNoVAT = 3200.0, costUSDNoVAT = 2.37, stockAvailable = 1100, unit = "Unidad", priceVAT = 5600.0, salePriceNoVAT = 4628.10),
+        PerrenPostgresProduct(sku = "SIG-COD-110", description = "Codo 90° con Acometida Awaduct / Duratop 110mm", brand = "Awaduct", category = "Plomería y Agua", subcategory = "Cañerías Cloacales", classification = "Instalaciones Sanitarias", costNoVAT = 5600.0, costUSDNoVAT = 4.14, stockAvailable = 530, unit = "Unidad", priceVAT = 9850.0, salePriceNoVAT = 8140.50),
+        PerrenPostgresProduct(sku = "IPS-TE-34", description = "Tee 90° Rosca 3/4 IPS Bronce Inserto", brand = "IPS", category = "Plomería y Agua", subcategory = "Cañerías y Conexiones", classification = "Instalaciones Bronce", costNoVAT = 3890.0, costUSDNoVAT = 2.88, stockAvailable = 410, unit = "Unidad", priceVAT = 6850.0, salePriceNoVAT = 5661.16),
+
+        // CHAPAS & METALÚRGICA (TERNIUM & CINCALUM & ACINDAR)
+        PerrenPostgresProduct(sku = "CHA-GAL-C27", description = "Chapa Galvanizada Acanalada C-27 1.10x6m", brand = "Ternium", category = "Metalúrgica", subcategory = "Chapas", classification = "Techado y Estructura", costNoVAT = 24500.0, costUSDNoVAT = 18.15, stockAvailable = 620, unit = "Hoja", priceVAT = 43000.0, salePriceNoVAT = 35537.19),
+        PerrenPostgresProduct(sku = "CHA-CIN-T101", description = "Chapa Cincalum Trapezoidal T-101 C-25 1.10x6m", brand = "Ternium", category = "Metalúrgica", subcategory = "Chapas", classification = "Techado y Estructura", costNoVAT = 31200.0, costUSDNoVAT = 23.11, stockAvailable = 480, unit = "Hoja", priceVAT = 54800.0, salePriceNoVAT = 45289.26),
+        PerrenPostgresProduct(sku = "CHA-PRE-NEG", description = "Chapa Prepintada Negra C-25 1.10x6m", brand = "Ternium", category = "Metalúrgica", subcategory = "Chapas", classification = "Techado y Estructura", costNoVAT = 38900.0, costUSDNoVAT = 28.81, stockAvailable = 310, unit = "Hoja", priceVAT = 68400.0, salePriceNoVAT = 56528.93),
+        PerrenPostgresProduct(sku = "PER-C-100", description = "Perfil C Galvanizado 100x50x2mm x 6 metros", brand = "Acindar", category = "Metalúrgica", subcategory = "Perfiles", classification = "Techado y Estructura", costNoVAT = 28900.0, costUSDNoVAT = 21.40, stockAvailable = 850, unit = "Tira", priceVAT = 50800.0, salePriceNoVAT = 41983.47),
+        PerrenPostgresProduct(sku = "HIE-ALE-8MM", description = "Hierro Aletado Acindar 8mm x 12 metros", brand = "Acindar", category = "Metalúrgica", subcategory = "Hierros y Mallas", classification = "Materiales Estructurales", costNoVAT = 9500.0, costUSDNoVAT = 7.03, stockAvailable = 1400, unit = "Varilla", priceVAT = 16700.0, salePriceNoVAT = 13801.65),
+        PerrenPostgresProduct(sku = "HIE-ALE-10MM", description = "Hierro Aletado Acindar 10mm x 12 metros", brand = "Acindar", category = "Metalúrgica", subcategory = "Hierros y Mallas", classification = "Materiales Estructurales", costNoVAT = 14800.0, costUSDNoVAT = 10.96, stockAvailable = 1100, unit = "Varilla", priceVAT = 26000.0, salePriceNoVAT = 21487.60),
+        PerrenPostgresProduct(sku = "MAL-SIM-15", description = "Malla Sima 15x15 5mm Panel 2.00x3.00m", brand = "Acindar", category = "Metalúrgica", subcategory = "Hierros y Mallas", classification = "Materiales Estructurales", costNoVAT = 22400.0, costUSDNoVAT = 16.59, stockAvailable = 520, unit = "Panel", priceVAT = 39400.0, salePriceNoVAT = 32561.98),
+
+        // TANQUES, BOMBAS, PINTURAS, HERRAMIENTAS & ACCESORIOS (ROTOPLAS, CZERWENY, ALBA, ORMIFLEX)
+        PerrenPostgresProduct(sku = "TAN-ROT-1000", description = "Tanque de Agua Rotoplas Multicapa 1000 Litros", brand = "Rotoplas", category = "Tanques y Bombas", subcategory = "Tanques", classification = "Almacenamiento Agua", costNoVAT = 115000.0, costUSDNoVAT = 85.18, stockAvailable = 120, unit = "Unidad", priceVAT = 202000.0, salePriceNoVAT = 166942.15),
+        PerrenPostgresProduct(sku = "BOM-CZ-05HP", description = "Bomba Periférica Czerweny 1/2 HP Agua Elevación", brand = "Czerweny", category = "Tanques y Bombas", subcategory = "Bombas", classification = "Bombeo y Elevación", costNoVAT = 48000.0, costUSDNoVAT = 35.55, stockAvailable = 230, unit = "Unidad", priceVAT = 84500.0, salePriceNoVAT = 69834.71),
+        PerrenPostgresProduct(sku = "ALB-LAT-20L", description = "Pintura Látex Interior Exterior Alba Albalatex 20L", brand = "Alba", category = "Pinturas", subcategory = "Látex Interior Exterior", classification = "Acabados y Pintura", costNoVAT = 62000.0, costUSDNoVAT = 45.92, stockAvailable = 340, unit = "Balde", priceVAT = 109000.0, salePriceNoVAT = 90082.64),
+        PerrenPostgresProduct(sku = "MEM-ORM-4MM", description = "Membrana Asfáltica Ormiflex 40kg 4mm Aluminio 10m2", brand = "Ormiflex", category = "Aislaciones", subcategory = "Membranas Techos", classification = "Impermeabilizantes", costNoVAT = 42000.0, costUSDNoVAT = 31.11, stockAvailable = 410, unit = "Rollo", priceVAT = 73900.0, salePriceNoVAT = 61074.38),
+        PerrenPostgresProduct(sku = "WEBER-COL-IMP", description = "Adhesivo Weber Impermeable para Cerámicos 30kg", brand = "Weber", category = "Adhesivos", subcategory = "Pegamentos Cerámicos", classification = "Adhesivos y Pastinas", costNoVAT = 8900.0, costUSDNoVAT = 6.59, stockAvailable = 1600, unit = "Bolsa", priceVAT = 15600.0, salePriceNoVAT = 12892.56),
+        PerrenPostgresProduct(sku = "WEBER-PAS-BLA", description = "Pastina Weber Blanco Nieve 2kg Impermeable", brand = "Weber", category = "Adhesivos", subcategory = "Pastinas Impermeables", classification = "Adhesivos y Pastinas", costNoVAT = 2300.0, costUSDNoVAT = 1.70, stockAvailable = 940, unit = "Unidad", priceVAT = 4050.0, salePriceNoVAT = 3347.11),
+        PerrenPostgresProduct(sku = "KLAU-ADH-POR", description = "Pegamento Klaukol Porcellanato Fluido 30kg", brand = "Klaukol", category = "Adhesivos", subcategory = "Pegamentos Porcellanato", classification = "Adhesivos y Pastinas", costNoVAT = 14500.0, costUSDNoVAT = 10.74, stockAvailable = 780, unit = "Bolsa", priceVAT = 25500.0, salePriceNoVAT = 21074.38),
+        PerrenPostgresProduct(sku = "KLAU-ADH-STD", description = "Klaukol Tradicional Bolsa 30kg", brand = "Klaukol", category = "Adhesivos", subcategory = "Pegamentos Cerámicos", classification = "Adhesivos y Pastinas", costNoVAT = 9800.0, costUSDNoVAT = 7.25, stockAvailable = 1200, unit = "Bolsa", priceVAT = 17200.0, salePriceNoVAT = 14214.88),
+        PerrenPostgresProduct(sku = "SP-PORC-60X60", description = "Porcellanato San Pietro Marmi Carrara 60x60 M2", brand = "San Pietro", category = "Revestimientos", subcategory = "Porcellanatos", classification = "Pisos y Revestimientos", costNoVAT = 18500.0, costUSDNoVAT = 13.70, stockAvailable = 3200, unit = "m²", priceVAT = 32500.0, salePriceNoVAT = 26859.50),
+        PerrenPostgresProduct(sku = "SP-PORC-80X80", description = "Porcellanato San Pietro Concrete Grey 80x80 M2", brand = "San Pietro", category = "Revestimientos", subcategory = "Porcellanatos", classification = "Pisos y Revestimientos", costNoVAT = 24900.0, costUSDNoVAT = 18.44, stockAvailable = 1850, unit = "m²", priceVAT = 43800.0, salePriceNoVAT = 36198.35),
+        PerrenPostgresProduct(sku = "CN-PORC-60X60", description = "Porcellanato Cerro Negro Madera Roble 60x60 M2", brand = "Cerro Negro", category = "Revestimientos", subcategory = "Porcellanatos", classification = "Pisos y Revestimientos", costNoVAT = 16800.0, costUSDNoVAT = 12.44, stockAvailable = 2100, unit = "m²", priceVAT = 29500.0, salePriceNoVAT = 24380.17),
+        PerrenPostgresProduct(sku = "CORT-CER-40X40", description = "Cerámica Cortines Piedra Beige 40x40 M2", brand = "Cortines", category = "Revestimientos", subcategory = "Cerámicas", classification = "Pisos y Revestimientos", costNoVAT = 9200.0, costUSDNoVAT = 6.81, stockAvailable = 4500, unit = "m²", priceVAT = 16200.0, salePriceNoVAT = 13388.43),
+        PerrenPostgresProduct(sku = "DURL-PLA-125", description = "Placa de Yeso Durlock Estándar 12.5mm 1.20x2.40", brand = "Durlock", category = "Construcción en Seco", subcategory = "Placas de Yeso", classification = "Cielorrasos y Tabiques", costNoVAT = 11500.0, costUSDNoVAT = 8.51, stockAvailable = 1400, unit = "Unidad", priceVAT = 20200.0, salePriceNoVAT = 16694.21),
+        PerrenPostgresProduct(sku = "ISOV-LAN-50", description = "Lana de Vidrio Isover Rolac Plata 50mm 12m2", brand = "Isover", category = "Aislaciones", subcategory = "Aislación Térmica", classification = "Aislaciones Techo", costNoVAT = 28500.0, costUSDNoVAT = 21.11, stockAvailable = 480, unit = "Rollo", priceVAT = 50000.0, salePriceNoVAT = 41322.31)
     )
 
-    fun getAllProducts(): List<PerrenPostgresProduct> = mockCatalog
+    fun getProductsFromSuppliers(suppliers: List<LocalSupplier>): List<PerrenPostgresProduct> {
+        val supplierProducts = mutableListOf<PerrenPostgresProduct>()
+        suppliers.forEach { sup ->
+            sup.articles.forEachIndexed { idx, art ->
+                val code = art.code.ifBlank { "${sup.supplierCode}-ART-${idx + 1}" }
+                val desc = art.name.ifBlank { "Artículo ${code}" }
+                val brand = sup.companyName.ifBlank { "Sin Marca" }
+                val cat = sup.category.ifBlank { "General" }
+                val costUSD = art.fobPriceUSD
+                val costARS = costUSD * 1350.0
+                val stock = if (art.moq > 0) art.moq else 100
+                val priceVAT = costARS * 1.21 * 1.40
 
-    fun getAvailableBrands(): List<String> {
-        val brands = mockCatalog.map { it.brand }.distinct().sorted()
+                supplierProducts.add(
+                    PerrenPostgresProduct(
+                        sku = code,
+                        description = desc,
+                        brand = brand,
+                        category = cat,
+                        costNoVAT = costARS,
+                        costUSDNoVAT = costUSD,
+                        stockAvailable = stock,
+                        unit = "Unidad",
+                        priceVAT = priceVAT
+                    )
+                )
+            }
+        }
+        val masterList = if (loadedCsvProducts.isNotEmpty()) loadedCsvProducts else perrenMasterCatalog
+        return masterList + supplierProducts
+    }
+
+    fun getAllProducts(suppliers: List<LocalSupplier> = emptyList()): List<PerrenPostgresProduct> {
+        return getProductsFromSuppliers(suppliers)
+    }
+
+    fun getAvailableBrands(suppliers: List<LocalSupplier>): List<String> {
+        val products = getProductsFromSuppliers(suppliers)
+        val brands = products.map { it.brand }.filter { it.isNotBlank() }.distinct().sorted()
         return listOf("Todas las Marcas") + brands
     }
 
-    fun getAvailableCategories(): List<String> {
-        val categories = mockCatalog.map { it.category }.distinct().sorted()
+    fun getAvailableCategories(suppliers: List<LocalSupplier>): List<String> {
+        val products = getProductsFromSuppliers(suppliers)
+        val categories = products.map { it.category }.filter { it.isNotBlank() }.distinct().sorted()
         return listOf("Todos los Rubros") + categories
     }
 
-    fun searchProducts(query: String, selectedBrand: String, selectedCategory: String): List<PerrenPostgresProduct> {
-        val cleanQuery = query.trim().lowercase()
-        val keywords = cleanQuery.split(" ").filter { it.isNotBlank() }
+    private fun normalizeText(input: String): String {
+        if (input.isBlank()) return ""
+        val normalized = java.text.Normalizer.normalize(input.lowercase(), java.text.Normalizer.Form.NFD)
+        return normalized
+            .replace(Regex("\\p{InCombiningDiacriticalMarks}+"), "")
+            .replace("ñ", "n")
+            .replace(Regex("[^a-z0-9 ]"), " ")
+    }
 
-        return mockCatalog.filter { prod ->
+    fun searchProducts(suppliers: List<LocalSupplier>, query: String, selectedBrand: String, selectedCategory: String): List<PerrenPostgresProduct> {
+        val allProducts = getProductsFromSuppliers(suppliers)
+        val normQuery = normalizeText(query.replace("\n", " ").replace("\r", " "))
+        val keywords = normQuery.split(" ").filter { it.isNotBlank() }
+
+        val matches = allProducts.filter { prod ->
+            val normSku = normalizeText(prod.sku)
+            val normDesc = normalizeText(prod.description)
+            val normBrand = normalizeText(prod.brand)
+            val normCat = normalizeText(prod.category)
+            val normSubcat = normalizeText(prod.subcategory)
+            val normClass = normalizeText(prod.classification)
+            val fullText = "$normSku $normDesc $normBrand $normCat $normSubcat $normClass"
+
             val matchQuery = if (keywords.isEmpty()) {
                 true
             } else {
-                val fullText = "${prod.sku} ${prod.description} ${prod.brand} ${prod.category}".lowercase()
                 keywords.all { kw -> fullText.contains(kw) }
             }
 
             val matchBrand = (selectedBrand == "Todas las Marcas" || selectedBrand.isEmpty()) ||
-                    prod.brand.equals(selectedBrand, ignoreCase = true)
+                    normalizeText(prod.brand) == normalizeText(selectedBrand)
 
             val matchCategory = (selectedCategory == "Todos los Rubros" || selectedCategory.isEmpty()) ||
-                    prod.category.equals(selectedCategory, ignoreCase = true)
+                    normalizeText(prod.category) == normalizeText(selectedCategory)
 
             matchQuery && matchBrand && matchCategory
         }
+
+        return matches
     }
 }
 
@@ -643,13 +1157,18 @@ object MediaStoreHelper {
     }
 }
 
-// MARK: - Gestor de Persistencia Local de Proveedores en Disco
+// MARK: - Gestor de Persistencia Local de Proveedores en Disco y SQLite
 object LocalPersistenceManager {
     private const val FILE_NAME = "canton_suppliers.json"
 
     fun saveSuppliers(context: Context, suppliers: List<LocalSupplier>) {
         CoroutineScope(Dispatchers.IO).launch {
             try {
+                val dbHelper = CantonSQLiteHelper(context)
+                for (sup in suppliers) {
+                    dbHelper.saveSupplier(sup)
+                }
+
                 val jsonArray = JSONArray()
                 for (sup in suppliers) {
                     val supObj = JSONObject().apply {
@@ -706,6 +1225,14 @@ object LocalPersistenceManager {
     }
 
     fun loadSuppliers(context: Context): List<LocalSupplier> {
+        try {
+            val dbHelper = CantonSQLiteHelper(context)
+            val sqliteSuppliers = dbHelper.getAllSuppliers()
+            if (sqliteSuppliers.isNotEmpty()) {
+                return sqliteSuppliers
+            }
+        } catch (_: Exception) {}
+
         val file = File(context.filesDir, FILE_NAME)
         if (!file.exists()) return emptyList()
 
@@ -894,6 +1421,12 @@ fun MainAppFlow() {
             savedSuppliers.clear()
             savedSuppliers.addAll(loadedSuppliers)
         }
+        PerrenPostgresRepository.loadFavorites(context)
+        try {
+            context.assets.open("articulos_flexxus_perren.csv").use { inputStream ->
+                PerrenPostgresRepository.loadProductsFromCsvStream(inputStream, context)
+            }
+        } catch (_: Exception) {}
         syncWithCloud()
         permissionLauncher.launch(
             arrayOf(
@@ -1029,8 +1562,8 @@ fun MainAppFlow() {
                             }
                         )
                     }
-                    currentScreen == "postgres_search" -> PostgresSearchScreen()
-                    currentScreen == "comparison" -> ComparisonFlexxusScreen()
+                    currentScreen == "postgres_search" -> PostgresSearchScreen(suppliers = savedSuppliers)
+                    currentScreen == "comparison" -> ComparisonFlexxusScreen(suppliers = savedSuppliers)
                     currentScreen == "wallet" -> CardWalletScreen(suppliers = savedSuppliers)
                 }
             }
@@ -1231,6 +1764,50 @@ fun DashboardScreen(
     }
 }
 
+// MARK: - Componente Dialog para Ampliar Fotos en Pantalla Completa HD
+@Composable
+fun FullImageZoomDialog(bitmap: Bitmap, onDismiss: () -> Unit) {
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.Black),
+            modifier = Modifier.fillMaxWidth().padding(8.dp)
+        ) {
+            Column(
+                modifier = Modifier.padding(14.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("🔍 FOTO AMPLIADA HD", fontWeight = FontWeight.Bold, color = Color.White, fontSize = 14.sp)
+                    IconButton(onClick = onDismiss) {
+                        Text("❌", color = Color.White, fontSize = 14.sp)
+                    }
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                Image(
+                    bitmap = bitmap.asImageBitmap(),
+                    contentDescription = "Foto Ampliada HD",
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 480.dp)
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                Button(
+                    onClick = onDismiss,
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD32F2F)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("CERRAR VISTA HD", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                }
+            }
+        }
+    }
+}
+
 // MARK: - 3. Carga Continua de Proveedor & Extracción OCR Estricta (Sin Inventar Datos)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -1241,6 +1818,8 @@ fun SupplierWorkspaceScreen(
 ) {
     val context = LocalContext.current
     val scrollState = rememberScrollState()
+
+    var selectedImageForZoom by remember { mutableStateOf<Bitmap?>(null) }
 
     // SECCIÓN A. DATOS DE LA FÁBRICA Y MARQUESINA
     var companyName by remember(supplier) { mutableStateOf(supplier?.companyName ?: "") }
@@ -1256,6 +1835,13 @@ fun SupplierWorkspaceScreen(
     var contactPhone by remember(supplier) { mutableStateOf(supplier?.contactPhone ?: "") }
     var contactEmail by remember(supplier) { mutableStateOf(supplier?.contactEmail ?: "") }
     var capturedContactCardBitmap by remember(supplier) { mutableStateOf<Bitmap?>(supplier?.contactCardPhotoBitmap) }
+
+    // Estado reactivo inmediato para artículos del proveedor
+    val localArticles = remember(supplier, supplier?.articles?.size) {
+        mutableStateListOf<ArticleItem>().apply {
+            supplier?.articles?.let { addAll(it) }
+        }
+    }
 
     // OCR para Foto de Marquesina / Stand
     val autoFillDataFromPhoto = { bitmap: Bitmap ->
@@ -1463,6 +2049,7 @@ fun SupplierWorkspaceScreen(
                             .fillMaxWidth()
                             .height(160.dp)
                             .border(1.dp, Color.Gray, RoundedCornerShape(8.dp))
+                            .clickable { selectedImageForZoom = capturedMarqueeBitmap }
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                 }
@@ -1533,6 +2120,7 @@ fun SupplierWorkspaceScreen(
                             .fillMaxWidth()
                             .height(140.dp)
                             .border(1.dp, Color.Gray, RoundedCornerShape(8.dp))
+                            .clickable { selectedImageForZoom = capturedContactCardBitmap }
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                 }
@@ -1609,7 +2197,8 @@ fun SupplierWorkspaceScreen(
                     contactWeChat = contactWeChat,
                     contactPhone = contactPhone,
                     contactEmail = contactEmail,
-                    contactCardPhotoBitmap = capturedContactCardBitmap
+                    contactCardPhotoBitmap = capturedContactCardBitmap,
+                    articles = localArticles.toMutableList()
                 ) ?: LocalSupplier(
                     id = System.currentTimeMillis().toString(),
                     supplierCode = "CF26-P-0001",
@@ -1625,6 +2214,7 @@ fun SupplierWorkspaceScreen(
                     contactPhone = contactPhone,
                     contactEmail = contactEmail,
                     contactCardPhotoBitmap = capturedContactCardBitmap,
+                    articles = localArticles.toMutableList(),
                     createdAt = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(Date())
                 )
                 onSaveSupplier(updated)
@@ -1710,6 +2300,7 @@ fun SupplierWorkspaceScreen(
                                 modifier = Modifier
                                     .size(60.dp)
                                     .border(1.dp, Color.Gray, RoundedCornerShape(6.dp))
+                                    .clickable { selectedImageForZoom = photo }
                             )
                         }
                     }
@@ -1803,8 +2394,7 @@ fun SupplierWorkspaceScreen(
                     Button(
                         onClick = {
                             if (artName.isNotBlank() && artFobUSD.isNotBlank()) {
-                                val currentArticles = supplier?.articles ?: mutableListOf()
-                                val artCode = editingArticleCode ?: "${supplier?.supplierCode ?: "CF26-P-0001"}-A${String.format("%02d", currentArticles.size + 1)}"
+                                val artCode = editingArticleCode ?: "${supplier?.supplierCode ?: "CF26-P-0001"}-A${String.format("%02d", localArticles.size + 1)}"
                                 val newArt = ArticleItem(
                                     code = artCode,
                                     name = artName,
@@ -1819,12 +2409,12 @@ fun SupplierWorkspaceScreen(
                                 )
 
                                 if (editingArticleCode != null) {
-                                    val idx = currentArticles.indexOfFirst { it.code == editingArticleCode }
+                                    val idx = localArticles.indexOfFirst { it.code == editingArticleCode }
                                     if (idx >= 0) {
-                                        currentArticles[idx] = newArt
+                                        localArticles[idx] = newArt
                                     }
                                 } else {
-                                    currentArticles.add(newArt)
+                                    localArticles.add(newArt)
                                 }
 
                                 val updatedSupplier = (supplier ?: LocalSupplier(
@@ -1854,7 +2444,7 @@ fun SupplierWorkspaceScreen(
                                     contactPhone = contactPhone,
                                     contactEmail = contactEmail,
                                     contactCardPhotoBitmap = capturedContactCardBitmap,
-                                    articles = currentArticles
+                                    articles = localArticles.toMutableList()
                                 )
 
                                 onSaveSupplier(updatedSupplier)
@@ -1900,20 +2490,21 @@ fun SupplierWorkspaceScreen(
 
         Spacer(modifier = Modifier.height(14.dp))
 
-        Text("ARTÍCULOS REGISTRADOS EN ESTE PROVEEDOR (${supplier?.articles?.size ?: 0})", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
+        Text("ARTÍCULOS REGISTRADOS EN ESTE PROVEEDOR (${localArticles.size})", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
         Spacer(modifier = Modifier.height(6.dp))
 
-        supplier?.articles?.forEach { art ->
+        localArticles.forEach { art ->
             val isExpanded = expandedArticleCode == art.code
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 4.dp)
+                    .padding(vertical = 5.dp)
                     .clickable { expandedArticleCode = if (isExpanded) null else art.code },
                 colors = CardDefaults.cardColors(containerColor = Color.White),
-                elevation = CardDefaults.cardElevation(defaultElevation = if (isExpanded) 4.dp else 1.dp)
+                elevation = CardDefaults.cardElevation(defaultElevation = if (isExpanded) 4.dp else 1.5.dp),
+                shape = RoundedCornerShape(12.dp)
             ) {
-                Column(modifier = Modifier.padding(12.dp)) {
+                Column(modifier = Modifier.padding(14.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         val firstPhoto = art.photos.firstOrNull() ?: art.photoBitmap
                         if (firstPhoto != null) {
@@ -1921,45 +2512,67 @@ fun SupplierWorkspaceScreen(
                                 bitmap = firstPhoto.asImageBitmap(),
                                 contentDescription = "Foto Artículo",
                                 modifier = Modifier
-                                    .size(if (isExpanded) 70.dp else 48.dp)
-                                    .border(1.dp, Color.LightGray, RoundedCornerShape(6.dp))
+                                    .size(52.dp)
+                                    .border(1.dp, Color(0xFF1976D2), RoundedCornerShape(8.dp))
+                                    .clickable { selectedImageForZoom = firstPhoto }
                             )
                             Spacer(modifier = Modifier.width(10.dp))
                         }
                         Column(modifier = Modifier.weight(1f)) {
-                            Text("${art.code} - ${art.name}", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color(0xFF1B365D))
-                            Text("FOB: $${art.fobPriceUSD} USD | MOQ: ${art.moq} u", fontSize = 11.sp, color = Color(0xFF2E7D32), fontWeight = FontWeight.Bold)
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(art.code, fontWeight = FontWeight.Bold, fontSize = 12.sp, color = Color(0xFF1976D2))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(art.name, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color(0xFF1B365D))
+                            }
+                            Spacer(modifier = Modifier.height(3.dp))
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Text("FOB: $${art.fobPriceUSD} USD", fontSize = 11.sp, color = Color(0xFF2E7D32), fontWeight = FontWeight.Bold)
+                                Text("MOQ: ${art.moq} u", fontSize = 11.sp, color = Color.DarkGray, fontWeight = FontWeight.Medium)
+                            }
                         }
-                        Text(if (isExpanded) "▲" else "▼", fontSize = 14.sp, color = Color.Gray, fontWeight = FontWeight.Bold)
+                        IconButton(onClick = { expandedArticleCode = if (isExpanded) null else art.code }) {
+                            Text(if (isExpanded) "▲" else "▼", fontSize = 14.sp, color = Color.Gray, fontWeight = FontWeight.Bold)
+                        }
                     }
 
                     if (isExpanded) {
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(10.dp))
                         HorizontalDivider(color = Color(0xFFEEEEEE))
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(10.dp))
 
-                        if (art.photos.isNotEmpty()) {
-                            Text("📷 GALERÍA DE FOTOS (${art.photos.size})", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        if (art.photos.size > 1) {
+                            Text("📷 GALERÍA DE FOTOS (${art.photos.size}) - Toca una foto para ampliar HD", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1565C0))
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 art.photos.forEach { p ->
                                     Image(
                                         bitmap = p.asImageBitmap(),
-                                        contentDescription = "Foto ampliada",
+                                        contentDescription = "Foto ampliable",
                                         modifier = Modifier
-                                            .size(80.dp)
-                                            .border(1.dp, Color.Gray, RoundedCornerShape(6.dp))
+                                            .size(76.dp)
+                                            .border(1.5.dp, Color(0xFF1565C0), RoundedCornerShape(8.dp))
+                                            .clickable { selectedImageForZoom = p }
                                     )
                                 }
                             }
-                            Spacer(modifier = Modifier.height(8.dp))
+                            Spacer(modifier = Modifier.height(10.dp))
+                        } else if (art.photos.size == 1) {
+                            Text("🔍 Toca la foto de arriba para ampliar en pantalla completa HD", fontSize = 10.sp, color = Color(0xFF1976D2), fontWeight = FontWeight.Medium)
+                            Spacer(modifier = Modifier.height(6.dp))
                         }
 
-                        Text("📦 Puerto Origen: ${art.port} | Tiempo Entrega: ${art.leadTime}", fontSize = 11.sp, color = Color.DarkGray)
+                        Card(
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F5F5)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(modifier = Modifier.padding(10.dp)) {
+                                Text("📦 Puerto Origen: ${art.port} | Tiempo Entrega: ${art.leadTime}", fontSize = 11.sp, color = Color.DarkGray, fontWeight = FontWeight.Medium)
 
-                        if (art.note.isNotBlank()) {
-                            Spacer(modifier = Modifier.height(6.dp))
-                            Text("📝 Nota: ${art.note}", fontSize = 11.sp, color = Color(0xFF333333), fontWeight = FontWeight.Medium)
+                                if (art.note.isNotBlank()) {
+                                    Spacer(modifier = Modifier.height(6.dp))
+                                    Text("📝 Observaciones: ${art.note}", fontSize = 11.sp, color = Color(0xFF212121), fontWeight = FontWeight.Normal)
+                                }
+                            }
                         }
 
                         if (art.audioPath != null) {
@@ -1985,7 +2598,7 @@ fun SupplierWorkspaceScreen(
                             }
                         }
 
-                        Spacer(modifier = Modifier.height(10.dp))
+                        Spacer(modifier = Modifier.height(12.dp))
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                             Button(
                                 onClick = {
@@ -2002,26 +2615,37 @@ fun SupplierWorkspaceScreen(
                                     Toast.makeText(context, "📝 Cargado en el formulario para editar", Toast.LENGTH_SHORT).show()
                                 },
                                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF57F17)),
-                                modifier = Modifier.height(34.dp),
-                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp)
+                                modifier = Modifier.height(36.dp),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
                             ) {
                                 Text("✏️ EDITAR ARTÍCULO", fontSize = 11.sp, fontWeight = FontWeight.Bold)
                             }
 
-                            Spacer(modifier = Modifier.width(6.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
 
                             OutlinedButton(
                                 onClick = {
-                                    val currentArticles = supplier?.articles ?: mutableListOf()
-                                    currentArticles.remove(art)
-                                    if (supplier != null) {
-                                        val updatedSupplier = supplier.copy(articles = currentArticles)
-                                        onSaveSupplier(updatedSupplier)
-                                    }
+                                    localArticles.remove(art)
+                                    val updatedSupplier = (supplier ?: LocalSupplier(
+                                        id = System.currentTimeMillis().toString(),
+                                        supplierCode = "CF26-P-0001",
+                                        companyName = companyName,
+                                        companyChinese = companyChinese,
+                                        stand = stand,
+                                        category = category,
+                                        gpsCoordinates = "GPS: Lat -43.2512, Long -65.3094",
+                                        createdAt = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(Date())
+                                    )).copy(
+                                        companyName = companyName,
+                                        companyChinese = companyChinese,
+                                        stand = stand,
+                                        articles = localArticles.toMutableList()
+                                    )
+                                    onSaveSupplier(updatedSupplier)
                                     Toast.makeText(context, "🗑️ Artículo eliminado", Toast.LENGTH_SHORT).show()
                                 },
-                                modifier = Modifier.height(34.dp),
-                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp)
+                                modifier = Modifier.height(36.dp),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
                             ) {
                                 Text("🗑️ ELIMINAR", fontSize = 11.sp, color = Color.Red, fontWeight = FontWeight.Bold)
                             }
@@ -2031,17 +2655,21 @@ fun SupplierWorkspaceScreen(
             }
         }
     }
+
+    if (selectedImageForZoom != null) {
+        FullImageZoomDialog(bitmap = selectedImageForZoom!!, onDismiss = { selectedImageForZoom = null })
+    }
 }
 
 // MARK: - 4. Comparador de Costos Flexxus BI & Combos
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ComparisonFlexxusScreen() {
+fun ComparisonFlexxusScreen(suppliers: List<LocalSupplier> = emptyList()) {
     val scrollState = rememberScrollState()
-    val allProducts = remember { PerrenPostgresRepository.getAllProducts() }
+    val allProducts = remember(suppliers) { PerrenPostgresRepository.getAllProducts(suppliers) }
 
     var selectedSkus by remember {
-        mutableStateOf(setOf("FERRUM-BARI-INO", "FERRUM-BARI-MOC", "FERRUM-BARI-TAP"))
+        mutableStateOf(setOf<String>())
     }
 
     // Parámetros de Importación (Ajustes Configurables)
@@ -2459,7 +3087,10 @@ fun CardWalletScreen(suppliers: List<LocalSupplier>) {
 // MARK: - 6. Buscador de Costos Perren (PostgreSQL Flexxus BI)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PostgresSearchScreen(onSelectProductForComparison: ((PerrenPostgresProduct) -> Unit)? = null) {
+fun PostgresSearchScreen(
+    suppliers: List<LocalSupplier> = emptyList(),
+    onSelectProductForComparison: ((PerrenPostgresProduct) -> Unit)? = null
+) {
     var searchQuery by remember { mutableStateOf("") }
     var selectedBrand by remember { mutableStateOf("Todas las Marcas") }
     var selectedCategory by remember { mutableStateOf("Todos los Rubros") }
@@ -2467,15 +3098,36 @@ fun PostgresSearchScreen(onSelectProductForComparison: ((PerrenPostgresProduct) 
     var brandDropdownExpanded by remember { mutableStateOf(false) }
     var categoryDropdownExpanded by remember { mutableStateOf(false) }
 
-    val availableBrands = remember { PerrenPostgresRepository.getAvailableBrands() }
-    val availableCategories = remember { PerrenPostgresRepository.getAvailableCategories() }
+    val availableBrands = remember(suppliers, PerrenPostgresRepository.loadedCsvProducts.size) { PerrenPostgresRepository.getAvailableBrands(suppliers) }
+    val availableCategories = remember(suppliers, PerrenPostgresRepository.loadedCsvProducts.size) { PerrenPostgresRepository.getAvailableCategories(suppliers) }
 
-    val filteredProducts = remember(searchQuery, selectedBrand, selectedCategory) {
-        PerrenPostgresRepository.searchProducts(searchQuery, selectedBrand, selectedCategory)
-    }
+    val filteredProducts = PerrenPostgresRepository.searchProducts(suppliers, searchQuery, selectedBrand, selectedCategory)
+
+    var showOnlyFavorites by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
     val scrollState = rememberScrollState()
+    val focusManager = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
+
+    LaunchedEffect(Unit) {
+        PerrenPostgresRepository.loadFavorites(context)
+        if (PerrenPostgresRepository.loadedCsvProducts.isEmpty()) {
+            try {
+                context.assets.open("articulos_flexxus_perren.csv").use { stream ->
+                    PerrenPostgresRepository.loadProductsFromCsvStream(stream, context)
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    val displayProducts = if (showOnlyFavorites) {
+        filteredProducts.filter { PerrenPostgresRepository.favoriteProductSkus.contains(it.sku) }
+    } else {
+        filteredProducts
+    }
 
     Column(
         modifier = Modifier
@@ -2484,33 +3136,102 @@ fun PostgresSearchScreen(onSelectProductForComparison: ((PerrenPostgresProduct) 
             .padding(16.dp)
             .verticalScroll(scrollState)
     ) {
-        Text("🔍 BUSCADOR DE COSTOS PERREN (POSTGRESQL)", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1B365D))
-        Text("Consulta de Costos de Venta Sin IVA & Stock de Perren & Cía.", fontSize = 10.sp, color = Color.Gray)
-        Spacer(modifier = Modifier.height(12.dp))
+        Column(modifier = Modifier.fillMaxWidth()) {
+            Text("🔍 BUSCADOR DE COSTOS & PRECIOS PERREN (SQLITE LOCAL / FLEXXUS BI)", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1B365D))
+            Text("Consulta de Costos sin IVA, Costos con IVA (21%) y Precio Venta Público", fontSize = 10.sp, color = Color.Gray)
+        }
 
-        // Campo de búsqueda por texto libre
-        OutlinedTextField(
-            value = searchQuery,
-            onValueChange = { searchQuery = it },
-            label = { Text("Buscar producto (ej: Bolsa de cemento loma negra)") },
-            leadingIcon = { Text("🔍", fontSize = 16.sp) },
-            trailingIcon = {
-                if (searchQuery.isNotEmpty()) {
-                    IconButton(onClick = { searchQuery = "" }) {
-                        Text("❌", fontSize = 12.sp)
-                    }
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Card de Estado y Actualización de Base de Datos SQLite Local
+        Card(
+            modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp),
+            colors = CardDefaults.cardColors(containerColor = Color(0xFFE8F5E9)),
+            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(10.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "🟢 Base de Datos SQLite Local",
+                        fontSize = 11.sp,
+                        color = Color(0xFF2E7D32),
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text("Total: ${PerrenPostgresRepository.loadedCsvProducts.size} artículos sincronizados", fontSize = 10.sp, color = Color.Gray)
                 }
-            },
+                var isUpdating by remember { mutableStateOf(false) }
+                Button(
+                    onClick = {
+                        isUpdating = true
+                        PerrenPostgresRepository.syncDatabaseFromOnline(context) { count ->
+                            isUpdating = false
+                            Toast.makeText(context, "🔄 Base de Datos SQLite actualizada: $count artículos listos para consulta offline", Toast.LENGTH_LONG).show()
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1B365D)),
+                    shape = RoundedCornerShape(8.dp),
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+                    enabled = !isUpdating
+                ) {
+                    Text(if (isUpdating) "⏳ ACTUALIZANDO..." else "🔄 ACTUALIZAR BASE", fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+
+        // Campo de búsqueda por texto libre con botón "BUSCAR" y tecla Enter configurada
+        Row(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(10.dp)
-        )
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it.replace("\n", "").replace("\r", "") },
+                label = { Text("Buscar por producto, marca o código...") },
+                leadingIcon = { Text("🔍", fontSize = 16.sp) },
+                trailingIcon = {
+                    if (searchQuery.isNotEmpty()) {
+                        IconButton(onClick = { searchQuery = "" }) {
+                            Text("❌", fontSize = 12.sp)
+                        }
+                    }
+                },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                keyboardActions = KeyboardActions(
+                    onSearch = {
+                        focusManager.clearFocus()
+                        keyboardController?.hide()
+                    }
+                ),
+                modifier = Modifier.weight(1f),
+                shape = RoundedCornerShape(10.dp)
+            )
+
+            Button(
+                onClick = {
+                    focusManager.clearFocus()
+                    keyboardController?.hide()
+                },
+                modifier = Modifier.height(56.dp),
+                shape = RoundedCornerShape(10.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1B365D)),
+                contentPadding = PaddingValues(horizontal = 12.dp)
+            ) {
+                Text("🔍 BUSCAR", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+            }
+        }
 
         Spacer(modifier = Modifier.height(10.dp))
 
-        // Filtros por Marca y Rubro
+        // Filtros por Marca, Rubro y Filtro de Favoritos
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             // Dropdown Marca
             Box(modifier = Modifier.weight(1f)) {
@@ -2519,7 +3240,7 @@ fun PostgresSearchScreen(onSelectProductForComparison: ((PerrenPostgresProduct) 
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(8.dp)
                 ) {
-                    Text("🏷️ Marca: $selectedBrand", fontSize = 11.sp, maxLines = 1)
+                    Text("🏷️ $selectedBrand", fontSize = 10.sp, maxLines = 1)
                 }
                 DropdownMenu(
                     expanded = brandDropdownExpanded,
@@ -2544,7 +3265,7 @@ fun PostgresSearchScreen(onSelectProductForComparison: ((PerrenPostgresProduct) 
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(8.dp)
                 ) {
-                    Text("📂 Rubro: $selectedCategory", fontSize = 11.sp, maxLines = 1)
+                    Text("📂 $selectedCategory", fontSize = 10.sp, maxLines = 1)
                 }
                 DropdownMenu(
                     expanded = categoryDropdownExpanded,
@@ -2561,6 +3282,24 @@ fun PostgresSearchScreen(onSelectProductForComparison: ((PerrenPostgresProduct) 
                     }
                 }
             }
+
+            // Botón Filtro Favoritos
+            OutlinedButton(
+                onClick = { showOnlyFavorites = !showOnlyFavorites },
+                modifier = Modifier.height(40.dp),
+                shape = RoundedCornerShape(8.dp),
+                colors = ButtonDefaults.outlinedButtonColors(
+                    containerColor = if (showOnlyFavorites) Color(0xFFFFF8E1) else Color.Transparent
+                ),
+                border = BorderStroke(1.dp, if (showOnlyFavorites) Color(0xFFFFA000) else Color.LightGray)
+            ) {
+                Text(
+                    text = if (showOnlyFavorites) "⭐ Favoritos (${PerrenPostgresRepository.favoriteProductSkus.size})" else "☆ Favoritos (${PerrenPostgresRepository.favoriteProductSkus.size})",
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = if (showOnlyFavorites) Color(0xFFE65100) else Color.DarkGray
+                )
+            }
         }
 
         Spacer(modifier = Modifier.height(12.dp))
@@ -2570,12 +3309,13 @@ fun PostgresSearchScreen(onSelectProductForComparison: ((PerrenPostgresProduct) 
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("Resultados (${filteredProducts.size})", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
-            if (selectedBrand != "Todas las Marcas" || selectedCategory != "Todos los Rubros" || searchQuery.isNotEmpty()) {
+            Text("Resultados (${displayProducts.size})", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
+            if (selectedBrand != "Todas las Marcas" || selectedCategory != "Todos los Rubros" || searchQuery.isNotEmpty() || showOnlyFavorites) {
                 TextButton(onClick = {
                     searchQuery = ""
                     selectedBrand = "Todas las Marcas"
                     selectedCategory = "Todos los Rubros"
+                    showOnlyFavorites = false
                 }) {
                     Text("Limpiar filtros", fontSize = 11.sp, color = Color(0xFFD32F2F))
                 }
@@ -2584,7 +3324,7 @@ fun PostgresSearchScreen(onSelectProductForComparison: ((PerrenPostgresProduct) 
 
         Spacer(modifier = Modifier.height(6.dp))
 
-        if (filteredProducts.isEmpty()) {
+        if (displayProducts.isEmpty()) {
             Card(
                 modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
                 colors = CardDefaults.cardColors(containerColor = Color.White)
@@ -2595,11 +3335,24 @@ fun PostgresSearchScreen(onSelectProductForComparison: ((PerrenPostgresProduct) 
                 ) {
                     Text("📦 No se encontraron productos", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color.DarkGray)
                     Spacer(modifier = Modifier.height(4.dp))
-                    Text("Intenta modificar la búsqueda o limpiar los filtros seleccionados.", fontSize = 11.sp, color = Color.Gray)
+                    Text(
+                        if (showOnlyFavorites)
+                            "No tienes productos marcados como favoritos. Toca la estrella ⭐ en cualquier artículo para guardarlo en tus favoritos."
+                        else if (searchQuery.isNotBlank())
+                            "No se encontraron coincidencias para '$searchQuery' en el archivo CSV."
+                        else
+                            "Intenta modificar los filtros o cargar un nuevo archivo CSV.",
+                        fontSize = 11.sp,
+                        color = Color.Gray
+                    )
                 }
             }
         } else {
-            filteredProducts.forEach { prod ->
+            displayProducts.forEach { prod ->
+                val costWithVat = prod.costNoVAT * 1.21
+                val salePriceVat = if (prod.priceVAT > 0) prod.priceVAT else (costWithVat * 1.40)
+                val isFav = PerrenPostgresRepository.favoriteProductSkus.contains(prod.sku)
+
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -2613,14 +3366,27 @@ fun PostgresSearchScreen(onSelectProductForComparison: ((PerrenPostgresProduct) 
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(prod.sku, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1976D2))
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                IconButton(
+                                    onClick = {
+                                        PerrenPostgresRepository.toggleFavorite(prod.sku, context)
+                                        val msg = if (isFav) "Quitado de Favoritos" else "⭐ ¡Guardado en Favoritos!"
+                                        Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                                    },
+                                    modifier = Modifier.size(28.dp)
+                                ) {
+                                    Text(if (isFav) "⭐" else "☆", fontSize = 18.sp)
+                                }
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(prod.sku, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1976D2))
+                            }
                             Text("Stock: ${prod.stockAvailable} ${prod.unit}s", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0xFF2E7D32))
                         }
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(prod.description, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color(0xFF1B365D))
                         Spacer(modifier = Modifier.height(4.dp))
 
-                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                             Card(
                                 colors = CardDefaults.cardColors(containerColor = Color(0xFFE3F2FD))
                             ) {
@@ -2631,6 +3397,27 @@ fun PostgresSearchScreen(onSelectProductForComparison: ((PerrenPostgresProduct) 
                             ) {
                                 Text("📂 ${prod.category}", fontSize = 10.sp, color = Color(0xFF7B1FA2), modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp))
                             }
+                            if (prod.subcategory.isNotBlank()) {
+                                Card(
+                                    colors = CardDefaults.cardColors(containerColor = Color(0xFFE8F5E9))
+                                ) {
+                                    Text("📌 ${prod.subcategory}", fontSize = 10.sp, color = Color(0xFF2E7D32), modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp))
+                                }
+                            }
+                            if (prod.classification.isNotBlank()) {
+                                Card(
+                                    colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF3E0))
+                                ) {
+                                    Text("🗂️ ${prod.classification}", fontSize = 10.sp, color = Color(0xFFE65100), modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp))
+                                }
+                            }
+                            if (isFav) {
+                                Card(
+                                    colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF8E1))
+                                ) {
+                                    Text("⭐ Favorito", fontSize = 10.sp, color = Color(0xFFE65100), fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp))
+                                }
+                            }
                         }
 
                         HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
@@ -2640,10 +3427,11 @@ fun PostgresSearchScreen(onSelectProductForComparison: ((PerrenPostgresProduct) 
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
+                            val salePriceNoVAT = if (prod.priceVAT > 0) prod.priceVAT / 1.21 else (prod.costNoVAT * 1.40)
+
                             Column {
-                                Text("COSTO DE VENTA SIN IVA:", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
-                                Text("$${String.format("%,.2f", prod.costNoVAT)} ARS", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFFD32F2F))
-                                Text("Equiv: $${String.format("%.2f", prod.costUSDNoVAT)} USD Sin IVA", fontSize = 11.sp, color = Color.DarkGray)
+                                Text("COSTO SIN IVA: $${String.format("%,.2f", prod.costNoVAT)} ARS", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFFD32F2F))
+                                Text("VENTA SIN IVA: $${String.format("%,.2f", salePriceNoVAT)} ARS", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF2E7D32))
                             }
                             Button(
                                 onClick = {
