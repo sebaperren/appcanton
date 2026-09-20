@@ -458,8 +458,12 @@ class CantonSQLiteHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_
                 args.add(letter)
             }
 
-            val selection = if (selectionClauses.isNotEmpty()) selectionClauses.joinToString(" AND ") else null
-            val selectionArgs = if (args.isNotEmpty()) args.toTypedArray() else null
+            if (selectionClauses.isEmpty()) {
+                return emptyList()
+            }
+
+            val selection = selectionClauses.joinToString(" AND ")
+            val selectionArgs = args.toTypedArray()
 
             val cursor = db.query(TABLE_FLEXXUS_PRODUCTS, null, selection, selectionArgs, null, null, null, limit.toString())
             cursor.use { c ->
@@ -813,6 +817,15 @@ object PerrenPostgresRepository {
     }
 
     fun searchProducts(suppliers: List<LocalSupplier>, query: String, selectedBrand: String, selectedCategory: String, selectedAbc: String = "Todas las Clases"): List<PerrenPostgresProduct> {
+        val hasQuery = query.trim().isNotBlank()
+        val hasBrand = selectedBrand.isNotBlank() && selectedBrand != "Todas las Marcas"
+        val hasCategory = selectedCategory.isNotBlank() && selectedCategory != "Todos los Rubros"
+        val hasAbc = selectedAbc.isNotBlank() && selectedAbc != "Todas las Clases"
+
+        if (!hasQuery && !hasBrand && !hasCategory && !hasAbc) {
+            return emptyList()
+        }
+
         val allProducts = getProductsFromSuppliers(suppliers)
         val normQuery = normalizeText(query.replace("\n", " ").replace("\r", " "))
         val keywords = normQuery.split(" ").filter { it.isNotBlank() }
