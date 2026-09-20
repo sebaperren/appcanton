@@ -3322,6 +3322,12 @@ fun PostgresSearchScreen(
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
 
+    val hasActiveFilter = searchQuery.trim().isNotBlank() ||
+            (selectedBrand.isNotBlank() && selectedBrand != "Todas las Marcas") ||
+            (selectedCategory.isNotBlank() && selectedCategory != "Todos los Rubros") ||
+            (selectedAbc.isNotBlank() && selectedAbc != "Todas las Clases") ||
+            showOnlyFavorites
+
     LaunchedEffect(Unit) {
         PerrenPostgresRepository.loadFavorites(context)
         withContext(Dispatchers.IO) {
@@ -3332,6 +3338,11 @@ fun PostgresSearchScreen(
     }
 
     LaunchedEffect(searchQuery, selectedBrand, selectedCategory, selectedAbc, itemsPerPage, showOnlyFavorites, PerrenPostgresRepository.favoriteProductSkus.size, PerrenPostgresRepository.totalProductCount, PerrenPostgresRepository.isSyncingProducts) {
+        if (!hasActiveFilter) {
+            displayProducts = emptyList()
+            isSearching = false
+            return@LaunchedEffect
+        }
         isSearching = true
         kotlinx.coroutines.delay(150)
         val results = withContext(Dispatchers.IO) {
@@ -3585,7 +3596,7 @@ fun PostgresSearchScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text("Resultados (${displayProducts.size})", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
-            if (selectedBrand != "Todas las Marcas" || selectedCategory != "Todos los Rubros" || selectedAbc != "Todas las Clases" || itemsPerPage != 50 || searchQuery.isNotEmpty() || showOnlyFavorites) {
+            if (hasActiveFilter) {
                 TextButton(onClick = {
                     searchQuery = ""
                     selectedBrand = "Todas las Marcas"
@@ -3610,18 +3621,30 @@ fun PostgresSearchScreen(
                     modifier = Modifier.padding(20.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Text("📦 No se encontraron productos", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color.DarkGray)
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        if (showOnlyFavorites)
-                            "No tienes productos marcados como favoritos. Toca la estrella ⭐ en cualquier artículo para guardarlo en tus favoritos."
-                        else if (searchQuery.isNotBlank())
-                            "No se encontraron coincidencias para '$searchQuery' en la base de datos."
-                        else
-                            "Intenta modificar los filtros de marca, rubro o clase ABC.",
-                        fontSize = 11.sp,
-                        color = Color.Gray
-                    )
+                    if (!hasActiveFilter) {
+                        Text("🔍 Consulta de Costos Flexxus", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color(0xFF1B365D))
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            "Escribe un término en el buscador arriba o selecciona una Marca, Rubro o Clase ABC para ver los resultados.",
+                            fontSize = 11.sp,
+                            color = Color.Gray,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                    } else {
+                        Text("📦 No se encontraron productos", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color.DarkGray)
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            if (showOnlyFavorites)
+                                "No tienes productos marcados como favoritos. Toca la estrella ⭐ en cualquier artículo para guardarlo en tus favoritos."
+                            else if (searchQuery.isNotBlank())
+                                "No se encontraron coincidencias para '$searchQuery' en la base de datos."
+                            else
+                                "Intenta modificar los filtros aplicados.",
+                            fontSize = 11.sp,
+                            color = Color.Gray,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                    }
                 }
             }
         } else {
