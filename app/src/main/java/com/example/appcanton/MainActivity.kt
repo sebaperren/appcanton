@@ -3216,6 +3216,7 @@ fun ComparisonFlexxusScreen(
 
     // Búsqueda en catálogo de guardados (Tab 2)
     var cantonCatalogQuery by remember { mutableStateOf("") }
+    var expandedArticleCodes by remember { mutableStateOf(setOf<String>()) }
 
     // Parse variables
     val tc = dolarTCSetting.toDoubleOrNull() ?: 1350.0
@@ -3476,62 +3477,126 @@ fun ComparisonFlexxusScreen(
                             filteredArticles.forEach { (sup, art) ->
                                 val artFob = art.fobPriceUSD
                                 val artMoq = if (art.moq > 0) art.moq else 1000
+                                val isExpanded = expandedArticleCodes.contains(art.code)
 
                                 Card(
-                                    modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 6.dp)
+                                        .clickable {
+                                            expandedArticleCodes = if (isExpanded) {
+                                                expandedArticleCodes - art.code
+                                            } else {
+                                                expandedArticleCodes + art.code
+                                            }
+                                        },
                                     colors = CardDefaults.cardColors(containerColor = Color.White),
-                                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                                    border = BorderStroke(1.dp, if (isExpanded) Color(0xFF1976D2) else Color(0xFFE0E0E0))
                                 ) {
                                     Column(modifier = Modifier.padding(12.dp)) {
-                                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                            Text(art.name, fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color(0xFF1B365D))
-                                            Text("MOQ: $artMoq u", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0xFF2E7D32))
-                                        }
-                                        Text("Proveedor: ${sup.companyName} | Código: ${art.code} | Puerto: ${art.port}", fontSize = 10.sp, color = Color.Gray)
-                                        Spacer(modifier = Modifier.height(8.dp))
-
-                                        // DESGLOSE COMPLETO EN TAB 2 PARA CADA ARTÍCULO GUARDADO
-                                        ImportBreakdownTableComposable(
-                                            fobUnit = artFob,
-                                            containerQty = artMoq,
-                                            fleteUSD = flete,
-                                            seguroPct = seguroPct,
-                                            arancelPct = arancel,
-                                            tasaEstadPct = tasaEstad,
-                                            ivaPct = ivaPct,
-                                            ivaAdicPct = ivaAdicPct,
-                                            gananciasPct = gananciasPct,
-                                            iibbPct = iibb,
-                                            despachantePct = despachante,
-                                            tc = tc,
-                                            incFlete = incFlete,
-                                            incSeguro = incSeguro,
-                                            incArancel = incArancel,
-                                            incTasaEstad = incTasaEstad,
-                                            incIVA = incIVA,
-                                            incIVAAdic = incIVAAdic,
-                                            incGanancias = incGanancias,
-                                            incIIBB = incIIBB,
-                                            incDespachante = incDespachante,
-                                            weightModeEnabled = weightModeEnabled,
-                                            itemWeightKg = itemWeightKgInput.toDoubleOrNull() ?: 0.0,
-                                            containerMaxWeightKg = containerMaxWeightInput.toDoubleOrNull() ?: 26000.0,
-                                            titleSuffix = "(${sup.companyName})"
-                                        )
-
-                                        Spacer(modifier = Modifier.height(8.dp))
-                                        Button(
-                                            onClick = {
-                                                selectedCantonArticle = art
-                                                selectedCantonSupplierName = sup.companyName
-                                                selectedSubTab = 2
-                                            },
+                                        Row(
                                             modifier = Modifier.fillMaxWidth(),
-                                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32)),
-                                            shape = RoundedCornerShape(8.dp),
-                                            contentPadding = PaddingValues(vertical = 6.dp)
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
                                         ) {
-                                            Text("📊 COMPARAR ESTE ARTÍCULO EN TAB 3", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Text(art.name, fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color(0xFF1B365D))
+                                                Text("Proveedor: ${sup.companyName} | Código: ${art.code}", fontSize = 10.sp, color = Color.Gray)
+                                            }
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Surface(
+                                                color = Color(0xFFE3F2FD),
+                                                shape = RoundedCornerShape(6.dp)
+                                            ) {
+                                                Text(
+                                                    "FOB: $${String.format(Locale.US, "%.2f", artFob)} USD",
+                                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                                    fontWeight = FontWeight.Bold,
+                                                    fontSize = 11.sp,
+                                                    color = Color(0xFF1565C0)
+                                                )
+                                            }
+                                        }
+
+                                        Spacer(modifier = Modifier.height(6.dp))
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text("Puerto: ${art.port} | MOQ: $artMoq u", fontSize = 10.sp, color = Color.DarkGray)
+                                            Text(
+                                                if (isExpanded) "🔼 Ocultar Desglose" else "🔽 Ver Desglose Landed",
+                                                fontSize = 10.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = Color(0xFF1976D2)
+                                            )
+                                        }
+
+                                        if (isExpanded) {
+                                            Spacer(modifier = Modifier.height(8.dp))
+                                            HorizontalDivider()
+                                            Spacer(modifier = Modifier.height(8.dp))
+
+                                            // DESGLOSE COMPLETO AL EXPANDIR LA TARJETA
+                                            ImportBreakdownTableComposable(
+                                                fobUnit = artFob,
+                                                containerQty = artMoq,
+                                                fleteUSD = flete,
+                                                seguroPct = seguroPct,
+                                                arancelPct = arancel,
+                                                tasaEstadPct = tasaEstad,
+                                                ivaPct = ivaPct,
+                                                ivaAdicPct = ivaAdicPct,
+                                                gananciasPct = gananciasPct,
+                                                iibbPct = iibb,
+                                                despachantePct = despachante,
+                                                tc = tc,
+                                                incFlete = incFlete,
+                                                incSeguro = incSeguro,
+                                                incArancel = incArancel,
+                                                incTasaEstad = incTasaEstad,
+                                                incIVA = incIVA,
+                                                incIVAAdic = incIVAAdic,
+                                                incGanancias = incGanancias,
+                                                incIIBB = incIIBB,
+                                                incDespachante = incDespachante,
+                                                weightModeEnabled = weightModeEnabled,
+                                                itemWeightKg = itemWeightKgInput.toDoubleOrNull() ?: 0.0,
+                                                containerMaxWeightKg = containerMaxWeightInput.toDoubleOrNull() ?: 26000.0,
+                                                titleSuffix = "(${sup.companyName})"
+                                            )
+
+                                            Spacer(modifier = Modifier.height(8.dp))
+                                            Button(
+                                                onClick = {
+                                                    selectedCantonArticle = art
+                                                    selectedCantonSupplierName = sup.companyName
+                                                    selectedSubTab = 2
+                                                },
+                                                modifier = Modifier.fillMaxWidth(),
+                                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32)),
+                                                shape = RoundedCornerShape(8.dp),
+                                                contentPadding = PaddingValues(vertical = 6.dp)
+                                            ) {
+                                                Text("📊 COMPARAR ESTE ARTÍCULO EN TAB 3", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                            }
+                                        } else {
+                                            Spacer(modifier = Modifier.height(6.dp))
+                                            OutlinedButton(
+                                                onClick = {
+                                                    selectedCantonArticle = art
+                                                    selectedCantonSupplierName = sup.companyName
+                                                    selectedSubTab = 2
+                                                },
+                                                modifier = Modifier.fillMaxWidth(),
+                                                border = BorderStroke(1.dp, Color(0xFF2E7D32)),
+                                                shape = RoundedCornerShape(8.dp),
+                                                contentPadding = PaddingValues(vertical = 4.dp)
+                                            ) {
+                                                Text("📊 COMPARAR ESTE ARTÍCULO EN TAB 3", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0xFF2E7D32))
+                                            }
                                         }
                                     }
                                 }
