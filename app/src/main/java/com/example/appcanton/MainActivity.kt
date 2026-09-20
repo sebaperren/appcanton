@@ -2915,20 +2915,52 @@ fun ImportBreakdownTableComposable(
     iibbPct: Double,
     despachantePct: Double,
     tc: Double,
+    incFlete: Boolean = true,
+    incSeguro: Boolean = true,
+    incArancel: Boolean = true,
+    incTasaEstad: Boolean = true,
+    incIVA: Boolean = true,
+    incIVAAdic: Boolean = true,
+    incGanancias: Boolean = true,
+    incIIBB: Boolean = true,
+    incDespachante: Boolean = true,
+    weightModeEnabled: Boolean = false,
+    itemWeightKg: Double = 0.0,
+    containerMaxWeightKg: Double = 26000.0,
     titleSuffix: String = ""
 ) {
     val qty = if (containerQty > 0) containerQty else 1
     val fobTotal = fobUnit * qty
-    val seguroTotal = fobTotal * (seguroPct / 100.0)
-    val cifTotal = fobTotal + fleteUSD + seguroTotal
-    val derechosTotal = cifTotal * (arancelPct / 100.0)
-    val tasaEstadTotal = cifTotal * (tasaEstadPct / 100.0)
+
+    // Flete Efectivo según Toggles y Prorrateo por Peso
+    val baseFlete = if (incFlete) fleteUSD else 0.0
+    val effectiveFlete = if (incFlete && weightModeEnabled && itemWeightKg > 0 && containerMaxWeightKg > 0) {
+        val totalLotWeightKg = itemWeightKg * qty
+        val weightRatio = (totalLotWeightKg / containerMaxWeightKg).coerceAtMost(1.0)
+        baseFlete * weightRatio
+    } else {
+        baseFlete
+    }
+
+    val effSeguroPct = if (incSeguro) seguroPct else 0.0
+    val effArancelPct = if (incArancel) arancelPct else 0.0
+    val effTasaEstadPct = if (incTasaEstad) tasaEstadPct else 0.0
+    val effIvaPct = if (incIVA) ivaPct else 0.0
+    val effIvaAdicPct = if (incIVAAdic) ivaAdicPct else 0.0
+    val effGananciasPct = if (incGanancias) gananciasPct else 0.0
+    val effIibbPct = if (incIIBB) iibbPct else 0.0
+    val effDespachantePct = if (incDespachante) despachantePct else 0.0
+
+    val seguroTotal = fobTotal * (effSeguroPct / 100.0)
+    val cifTotal = fobTotal + effectiveFlete + seguroTotal
+    val derechosTotal = cifTotal * (effArancelPct / 100.0)
+    val tasaEstadTotal = cifTotal * (effTasaEstadPct / 100.0)
     val baseImponible = cifTotal + derechosTotal + tasaEstadTotal
-    val ivaTotal = baseImponible * (ivaPct / 100.0)
-    val ivaAdicTotal = baseImponible * (ivaAdicPct / 100.0)
-    val gananciasTotal = baseImponible * (gananciasPct / 100.0)
-    val iibbTotal = baseImponible * (iibbPct / 100.0)
-    val gastosDespachante = baseImponible * (despachantePct / 100.0)
+    val ivaTotal = baseImponible * (effIvaPct / 100.0)
+    val ivaAdicTotal = baseImponible * (effIvaAdicPct / 100.0)
+    val gananciasTotal = baseImponible * (effGananciasPct / 100.0)
+    val iibbTotal = baseImponible * (effIibbPct / 100.0)
+    val gastosDespachante = baseImponible * (effDespachantePct / 100.0)
 
     val costoRealIncididoUSD = baseImponible + iibbTotal + gastosDespachante
     val unitCostoIncididoUSD = costoRealIncididoUSD / qty
@@ -2957,15 +2989,30 @@ fun ImportBreakdownTableComposable(
                 Text("Lote: $qty u", fontWeight = FontWeight.Bold, fontSize = 10.sp, color = Color(0xFF2E7D32))
             }
 
-            if (qty <= 1) {
+            if (qty <= 1 && !weightModeEnabled) {
                 Spacer(modifier = Modifier.height(4.dp))
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF3E0))
                 ) {
                     Text(
-                        "⚠️ Al colocar 1 sola unidad, el flete entero del contenedor ($${String.format(Locale.US, "%,.0f", fleteUSD)} USD) se asigna a esta unidad. Ingresa el MOQ del lote (ej: 1.000 u) para distribuir el flete adecuadamente entre todas las unidades.",
+                        "⚠️ Al colocar 1 sola unidad, el flete entero del contenedor ($${String.format(Locale.US, "%,.0f", fleteUSD)} USD) se asigna a esta unidad. Ingresa el MOQ del lote (ej: 1.000 u) o activa el prorrateo por peso para distribuir el flete adecuadamente.",
                         fontSize = 9.sp, color = Color(0xFFE65100), modifier = Modifier.padding(6.dp)
+                    )
+                }
+            }
+
+            if (weightModeEnabled && itemWeightKg > 0) {
+                val totalLotWeight = itemWeightKg * qty
+                val pctCap = (totalLotWeight / containerMaxWeightKg) * 100.0
+                Spacer(modifier = Modifier.height(4.dp))
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFE8F5E9))
+                ) {
+                    Text(
+                        "⚖️ Prorrateo por Peso Activado: Peso Lote = ${String.format(Locale.US, "%.1f", totalLotWeight)} kg (${String.format(Locale.US, "%.1f", pctCap)}% del contenedor de ${containerMaxWeightKg.toInt()} kg). Flete asignado: $${String.format(Locale.US, "%,.2f", effectiveFlete)} USD.",
+                        fontSize = 9.sp, color = Color(0xFF2E7D32), modifier = Modifier.padding(6.dp)
                     )
                 }
             }
@@ -2988,19 +3035,21 @@ fun ImportBreakdownTableComposable(
             }
             HorizontalDivider()
 
+            val fletePctLabel = if (!incFlete) "OFF" else if (weightModeEnabled) "${String.format(Locale.US, "%.1f", (itemWeightKg * qty / containerMaxWeightKg) * 100)}%" else ""
+
             val rows = listOf(
                 ImportRow("Valor FOB", "", fobUnit, fobTotal),
-                ImportRow("Flete Marítimo", "", fleteUSD / qty, fleteUSD),
-                ImportRow("Seguro", "${String.format(Locale.US, "%.1f", seguroPct)}%", seguroTotal / qty, seguroTotal),
+                ImportRow(if (weightModeEnabled) "Flete (Prorr. Peso)" else "Flete Marítimo", fletePctLabel, effectiveFlete / qty, effectiveFlete),
+                ImportRow("Seguro", if (incSeguro) "${String.format(Locale.US, "%.1f", seguroPct)}%" else "OFF", seguroTotal / qty, seguroTotal),
                 ImportRow("CIF", "", cifTotal / qty, cifTotal, isHeaderOrSubtotal = true),
-                ImportRow("Derecho Impo", "${arancelPct.toInt()}%", derechosTotal / qty, derechosTotal),
-                ImportRow("Tasa Estadística", "${tasaEstadPct.toInt()}%", tasaEstadTotal / qty, tasaEstadTotal),
+                ImportRow("Derecho Impo", if (incArancel) "${arancelPct.toInt()}%" else "OFF", derechosTotal / qty, derechosTotal),
+                ImportRow("Tasa Estadística", if (incTasaEstad) "${tasaEstadPct.toInt()}%" else "OFF", tasaEstadTotal / qty, tasaEstadTotal),
                 ImportRow("Base Imponible", "", baseImponible / qty, baseImponible, isHeaderOrSubtotal = true),
-                ImportRow("IVA", "${ivaPct.toInt()}%", ivaTotal / qty, ivaTotal),
-                ImportRow("IVA Adicional", "${ivaAdicPct.toInt()}%", ivaAdicTotal / qty, ivaAdicTotal),
-                ImportRow("Ganancias", "${gananciasPct.toInt()}%", gananciasTotal / qty, gananciasTotal),
-                ImportRow("II.BB", "${String.format(Locale.US, "%.1f", iibbPct)}%", iibbTotal / qty, iibbTotal),
-                ImportRow("Gastos Desp/Forw", "${despachantePct.toInt()}%", gastosDespachante / qty, gastosDespachante),
+                ImportRow("IVA", if (incIVA) "${ivaPct.toInt()}%" else "OFF", ivaTotal / qty, ivaTotal),
+                ImportRow("IVA Adicional", if (incIVAAdic) "${ivaAdicPct.toInt()}%" else "OFF", ivaAdicTotal / qty, ivaAdicTotal),
+                ImportRow("Ganancias", if (incGanancias) "${gananciasPct.toInt()}%" else "OFF", gananciasTotal / qty, gananciasTotal),
+                ImportRow("II.BB", if (incIIBB) "${String.format(Locale.US, "%.1f", iibbPct)}%" else "OFF", iibbTotal / qty, iibbTotal),
+                ImportRow("Gastos Desp/Forw", if (incDespachante) "${despachantePct.toInt()}%" else "OFF", gastosDespachante / qty, gastosDespachante),
                 ImportRow("COSTO INCIDIDO NETO", "", unitCostoIncididoUSD, costoRealIncididoUSD, isHeaderOrSubtotal = true, isCostIncidido = true),
                 ImportRow("TOTAL DESEMBOLSO LOTE", "", unitLandedUSD, totalLandedUSD, isHeaderOrSubtotal = true, isTotal = true)
             )
@@ -3128,6 +3177,22 @@ fun ComparisonFlexxusScreen(
     var gananciasPercentSetting by remember { mutableStateOf("6.0") }
     var iibbPercentSetting by remember { mutableStateOf("2.5") }
     var despachantePercentSetting by remember { mutableStateOf("8.0") }
+
+    // Toggles de Inclusión / Exclusión de Renglones
+    var incFlete by remember { mutableStateOf(true) }
+    var incSeguro by remember { mutableStateOf(true) }
+    var incArancel by remember { mutableStateOf(true) }
+    var incTasaEstad by remember { mutableStateOf(true) }
+    var incIVA by remember { mutableStateOf(true) }
+    var incIVAAdic by remember { mutableStateOf(true) }
+    var incGanancias by remember { mutableStateOf(true) }
+    var incIIBB by remember { mutableStateOf(true) }
+    var incDespachante by remember { mutableStateOf(true) }
+
+    // Prorrateo por Peso (kg)
+    var weightModeEnabled by remember { mutableStateOf(false) }
+    var itemWeightKgInput by remember { mutableStateOf("2.5") }
+    var containerMaxWeightInput by remember { mutableStateOf("26000") }
 
     // Cotización China Manual (Tab 1)
     var manualArtName by remember { mutableStateOf("Artículo Importado") }
@@ -3275,13 +3340,33 @@ fun ComparisonFlexxusScreen(
                             }
                             Spacer(modifier = Modifier.height(8.dp))
 
-                            OutlinedTextField(
-                                value = manualPortInput,
-                                onValueChange = { manualPortInput = it },
-                                label = { Text("Puerto de Embarque (ej: Shenzhen, Ningbo)") },
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                OutlinedTextField(
+                                    value = manualPortInput,
+                                    onValueChange = { manualPortInput = it },
+                                    label = { Text("Puerto de Embarque") },
+                                    modifier = Modifier.weight(1f),
+                                    singleLine = true
+                                )
+                                OutlinedTextField(
+                                    value = itemWeightKgInput,
+                                    onValueChange = { itemWeightKgInput = it },
+                                    label = { Text("Peso Unit. (kg)") },
+                                    modifier = Modifier.weight(1f),
+                                    singleLine = true
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Row(
                                 modifier = Modifier.fillMaxWidth(),
-                                singleLine = true
-                            )
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                FilterChip(
+                                    selected = weightModeEnabled,
+                                    onClick = { weightModeEnabled = !weightModeEnabled },
+                                    label = { Text(if (weightModeEnabled) "⚖️ Prorratear Flete por Peso (ACTIVADO)" else "⚖️ Prorratear Flete por Peso (DESACTIVADO)", fontSize = 10.sp) }
+                                )
+                            }
                         }
                     }
 
@@ -3301,6 +3386,18 @@ fun ComparisonFlexxusScreen(
                         iibbPct = iibb,
                         despachantePct = despachante,
                         tc = tc,
+                        incFlete = incFlete,
+                        incSeguro = incSeguro,
+                        incArancel = incArancel,
+                        incTasaEstad = incTasaEstad,
+                        incIVA = incIVA,
+                        incIVAAdic = incIVAAdic,
+                        incGanancias = incGanancias,
+                        incIIBB = incIIBB,
+                        incDespachante = incDespachante,
+                        weightModeEnabled = weightModeEnabled,
+                        itemWeightKg = itemWeightKgInput.toDoubleOrNull() ?: 0.0,
+                        containerMaxWeightKg = containerMaxWeightInput.toDoubleOrNull() ?: 26000.0,
                         titleSuffix = "(TAB 1 MANUAL)"
                     )
 
@@ -3393,6 +3490,18 @@ fun ComparisonFlexxusScreen(
                                             iibbPct = iibb,
                                             despachantePct = despachante,
                                             tc = tc,
+                                            incFlete = incFlete,
+                                            incSeguro = incSeguro,
+                                            incArancel = incArancel,
+                                            incTasaEstad = incTasaEstad,
+                                            incIVA = incIVA,
+                                            incIVAAdic = incIVAAdic,
+                                            incGanancias = incGanancias,
+                                            incIIBB = incIIBB,
+                                            incDespachante = incDespachante,
+                                            weightModeEnabled = weightModeEnabled,
+                                            itemWeightKg = itemWeightKgInput.toDoubleOrNull() ?: 0.0,
+                                            containerMaxWeightKg = containerMaxWeightInput.toDoubleOrNull() ?: 26000.0,
                                             titleSuffix = "(${sup.companyName})"
                                         )
 
@@ -3548,6 +3657,66 @@ fun ComparisonFlexxusScreen(
                                         label = { Text("Seguro %") }, modifier = Modifier.weight(1f)
                                     )
                                 }
+                                Spacer(modifier = Modifier.height(10.dp))
+
+                                HorizontalDivider()
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text("☑️ SELECCIONAR RENGLONES A CALCULAR", fontWeight = FontWeight.Bold, fontSize = 11.sp, color = Color(0xFFE65100))
+                                Text("Tilda o destilda los casilleros para incluir o excluir del cálculo landed:", fontSize = 9.sp, color = Color.Gray)
+                                Spacer(modifier = Modifier.height(6.dp))
+
+                                FlowRow(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    FilterChip(selected = incFlete, onClick = { incFlete = !incFlete }, label = { Text("Flete", fontSize = 9.sp) })
+                                    FilterChip(selected = incSeguro, onClick = { incSeguro = !incSeguro }, label = { Text("Seguro", fontSize = 9.sp) })
+                                    FilterChip(selected = incArancel, onClick = { incArancel = !incArancel }, label = { Text("Arancel", fontSize = 9.sp) })
+                                    FilterChip(selected = incTasaEstad, onClick = { incTasaEstad = !incTasaEstad }, label = { Text("Tasa Estad", fontSize = 9.sp) })
+                                    FilterChip(selected = incIVA, onClick = { incIVA = !incIVA }, label = { Text("IVA 21%", fontSize = 9.sp) })
+                                    FilterChip(selected = incIVAAdic, onClick = { incIVAAdic = !incIVAAdic }, label = { Text("IVA Adic 20%", fontSize = 9.sp) })
+                                    FilterChip(selected = incGanancias, onClick = { incGanancias = !incGanancias }, label = { Text("Ganancias 6%", fontSize = 9.sp) })
+                                    FilterChip(selected = incIIBB, onClick = { incIIBB = !incIIBB }, label = { Text("II.BB 2.5%", fontSize = 9.sp) })
+                                    FilterChip(selected = incDespachante, onClick = { incDespachante = !incDespachante }, label = { Text("Despachante 8%", fontSize = 9.sp) })
+                                }
+
+                                Spacer(modifier = Modifier.height(10.dp))
+                                HorizontalDivider()
+                                Spacer(modifier = Modifier.height(8.dp))
+
+                                Text("⚖️ PRORRATEO POR PESO (KG) EN CONTENEDOR", fontWeight = FontWeight.Bold, fontSize = 11.sp, color = Color(0xFFE65100))
+                                FilterChip(
+                                    selected = weightModeEnabled,
+                                    onClick = { weightModeEnabled = !weightModeEnabled },
+                                    label = { Text(if (weightModeEnabled) "✅ Prorratear Flete por Peso Activado" else "❌ Prorratear Flete por Unidades (Estándar)", fontSize = 9.5.sp) }
+                                )
+
+                                if (weightModeEnabled) {
+                                    Spacer(modifier = Modifier.height(6.dp))
+                                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                        OutlinedTextField(
+                                            value = itemWeightKgInput, onValueChange = { itemWeightKgInput = it },
+                                            label = { Text("Peso Unitario (kg / u)") }, modifier = Modifier.weight(1f)
+                                        )
+                                        OutlinedTextField(
+                                            value = containerMaxWeightInput, onValueChange = { containerMaxWeightInput = it },
+                                            label = { Text("Capacidad Contenedor (kg)") }, modifier = Modifier.weight(1f)
+                                        )
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Card(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF3E0))
+                                ) {
+                                    Column(modifier = Modifier.padding(8.dp)) {
+                                        Text("ℹ️ Capacidad Máxima de Carga de Contenedores en Aduana Argentina:", fontWeight = FontWeight.Bold, fontSize = 9.sp, color = Color(0xFFE65100))
+                                        Text("• Contenedor 20ft (20 pies): 21.700 kg a 24.000 kg (Volumen ~33 m³).", fontSize = 8.5.sp, color = Color.DarkGray)
+                                        Text("• Contenedor 40ft HQ (40 High Cube): 26.000 kg a 28.000 kg (Límite legal balanza puerto Argentina: 26.000 kg netos).", fontSize = 8.5.sp, color = Color.DarkGray)
+                                    }
+                                }
                             }
                         }
                         Spacer(modifier = Modifier.height(10.dp))
@@ -3661,6 +3830,18 @@ fun ComparisonFlexxusScreen(
                         iibbPct = iibb,
                         despachantePct = despachante,
                         tc = tc,
+                        incFlete = incFlete,
+                        incSeguro = incSeguro,
+                        incArancel = incArancel,
+                        incTasaEstad = incTasaEstad,
+                        incIVA = incIVA,
+                        incIVAAdic = incIVAAdic,
+                        incGanancias = incGanancias,
+                        incIIBB = incIIBB,
+                        incDespachante = incDespachante,
+                        weightModeEnabled = weightModeEnabled,
+                        itemWeightKg = itemWeightKgInput.toDoubleOrNull() ?: 0.0,
+                        containerMaxWeightKg = containerMaxWeightInput.toDoubleOrNull() ?: 26000.0,
                         titleSuffix = if (selectedCantonArticle != null) "(${selectedCantonArticle!!.name})" else "(TAB 3 COMPARA)"
                     )
 
