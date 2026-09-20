@@ -3370,6 +3370,139 @@ fun ComparisonFlexxusScreen(
                 .padding(16.dp)
                 .verticalScroll(scrollState)
         ) {
+            // PANEL DE AJUSTES & PARÁMETROS CONFIGURABLES
+            if (showSettingsModal) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF8E1)),
+                    border = BorderStroke(1.dp, Color(0xFFFFA000))
+                ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Text("⚙️ PARÁMETROS DE IMPORTACIÓN & TIPO DE CAMBIO", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = Color(0xFFE65100))
+                        Text("Modifica las tasas para actualizar los costos landed en tiempo real.", fontSize = 9.sp, color = Color.Gray)
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            OutlinedTextField(
+                                value = dolarTCSetting, onValueChange = { dolarTCSetting = it },
+                                label = { Text("Dólar TC ($ ARS)") }, modifier = Modifier.weight(1f)
+                            )
+                            OutlinedTextField(
+                                value = fleteUSDSetting, onValueChange = { fleteUSDSetting = it },
+                                label = { Text("Flete Marítimo ($ USD)") }, modifier = Modifier.weight(1f)
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            OutlinedTextField(
+                                value = arancelPercentSetting, onValueChange = { arancelPercentSetting = it },
+                                label = { Text("Arancel / Derechos %") }, modifier = Modifier.weight(1f)
+                            )
+                            OutlinedTextField(
+                                value = tasaEstadPercentSetting, onValueChange = { tasaEstadPercentSetting = it },
+                                label = { Text("Tasa Estadística %") }, modifier = Modifier.weight(1f)
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            OutlinedTextField(
+                                value = ivaPercentSetting, onValueChange = { ivaPercentSetting = it },
+                                label = { Text("IVA %") }, modifier = Modifier.weight(1f)
+                            )
+                            OutlinedTextField(
+                                value = ivaAdicPercentSetting, onValueChange = { ivaAdicPercentSetting = it },
+                                label = { Text("IVA Adicional %") }, modifier = Modifier.weight(1f)
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            OutlinedTextField(
+                                value = gananciasPercentSetting, onValueChange = { gananciasPercentSetting = it },
+                                label = { Text("Ganancias %") }, modifier = Modifier.weight(1f)
+                            )
+                            OutlinedTextField(
+                                value = iibbPercentSetting, onValueChange = { iibbPercentSetting = it },
+                                label = { Text("II.BB %") }, modifier = Modifier.weight(1f)
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            OutlinedTextField(
+                                value = despachantePercentSetting, onValueChange = { despachantePercentSetting = it },
+                                label = { Text("Despachante & Puerto %") }, modifier = Modifier.weight(1f)
+                            )
+                            OutlinedTextField(
+                                value = seguroPercentSetting, onValueChange = { seguroPercentSetting = it },
+                                label = { Text("Seguro %") }, modifier = Modifier.weight(1f)
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        HorizontalDivider()
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text("☑️ SELECCIONAR RENGLONES A CALCULAR", fontWeight = FontWeight.Bold, fontSize = 11.sp, color = Color(0xFFE65100))
+                        Text("Tilda o destilda los casilleros para incluir o excluir del cálculo landed:", fontSize = 9.sp, color = Color.Gray)
+                        Spacer(modifier = Modifier.height(6.dp))
+
+                        FlowRow(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            FilterChip(selected = incFlete, onClick = { incFlete = !incFlete }, label = { Text("Flete", fontSize = 9.sp) })
+                            FilterChip(selected = incSeguro, onClick = { incSeguro = !incSeguro }, label = { Text("Seguro", fontSize = 9.sp) })
+                            FilterChip(selected = incArancel, onClick = { incArancel = !incArancel }, label = { Text("Arancel", fontSize = 9.sp) })
+                            FilterChip(selected = incTasaEstad, onClick = { incTasaEstad = !incTasaEstad }, label = { Text("Tasa Estad", fontSize = 9.sp) })
+                            FilterChip(selected = incIVA, onClick = { incIVA = !incIVA }, label = { Text("IVA 21%", fontSize = 9.sp) })
+                            FilterChip(selected = incIVAAdic, onClick = { incIVAAdic = !incIVAAdic }, label = { Text("IVA Adic 20%", fontSize = 9.sp) })
+                            FilterChip(selected = incGanancias, onClick = { incGanancias = !incGanancias }, label = { Text("Ganancias 6%", fontSize = 9.sp) })
+                            FilterChip(selected = incIIBB, onClick = { incIIBB = !incIIBB }, label = { Text("II.BB 2.5%", fontSize = 9.sp) })
+                            FilterChip(selected = incDespachante, onClick = { incDespachante = !incDespachante }, label = { Text("Despachante 8%", fontSize = 9.sp) })
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+                        HorizontalDivider()
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Text("⚖️ PRORRATEO POR PESO (KG) EN CONTENEDOR", fontWeight = FontWeight.Bold, fontSize = 11.sp, color = Color(0xFFE65100))
+                        FilterChip(
+                            selected = weightModeEnabled,
+                            onClick = { weightModeEnabled = !weightModeEnabled },
+                            label = { Text(if (weightModeEnabled) "✅ Prorratear Flete por Peso Activado" else "❌ Prorratear Flete por Unidades (Estándar)", fontSize = 9.5.sp) }
+                        )
+
+                        if (weightModeEnabled) {
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                OutlinedTextField(
+                                    value = itemWeightKgInput, onValueChange = { itemWeightKgInput = it },
+                                    label = { Text("Peso Unitario (kg / u)") }, modifier = Modifier.weight(1f)
+                                )
+                                OutlinedTextField(
+                                    value = containerMaxWeightInput, onValueChange = { containerMaxWeightInput = it },
+                                    label = { Text("Capacidad Contenedor (kg)") }, modifier = Modifier.weight(1f)
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF3E0))
+                        ) {
+                            Column(modifier = Modifier.padding(8.dp)) {
+                                Text("ℹ️ Capacidad Estructural & Carga Útil por Tipo de Contenedor:", fontWeight = FontWeight.Bold, fontSize = 9.sp, color = Color(0xFFE65100))
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text("• 20' DV (20 pies): Carga útil de 27 a 28 Tn (27.000-28.000 kg). Peso bruto max total ~30,4 Tn incl. tara.", fontSize = 8.5.sp, color = Color.DarkGray)
+                                Text("• 40' DV / HC (40 pies): Carga útil de 26 a 29 Tn (26.000-29.000 kg) por resistencia estructural del piso.", fontSize = 8.5.sp, color = Color.DarkGray)
+                                Text("• Límite Balanza Puerto AR: 26.000 kg netos recomendados sin sobretasa vial.", fontSize = 8.5.sp, color = Color(0xFFD84315), fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(10.dp))
+            }
+
             when (selectedSubTab) {
                 // ==================== TAB 1: CARGA MANUAL DEL ARTÍCULO ====================
                 0 -> {
@@ -3669,139 +3802,6 @@ fun ComparisonFlexxusScreen(
                     Text("Selecciona un producto Perren y un artículo de proveedor para evaluar diferencias:", fontSize = 10.sp, color = Color.Gray)
 
                     Spacer(modifier = Modifier.height(10.dp))
-
-                    // PANEL DE AJUSTES & PARÁMETROS CONFIGURABLES
-                    if (showSettingsModal) {
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF8E1)),
-                            border = BorderStroke(1.dp, Color(0xFFFFA000))
-                        ) {
-                            Column(modifier = Modifier.padding(12.dp)) {
-                                Text("⚙️ PARÁMETROS DE IMPORTACIÓN & TIPO DE CAMBIO", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = Color(0xFFE65100))
-                                Text("Modifica las tasas para actualizar los costos landed en tiempo real.", fontSize = 9.sp, color = Color.Gray)
-                                Spacer(modifier = Modifier.height(8.dp))
-
-                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                    OutlinedTextField(
-                                        value = dolarTCSetting, onValueChange = { dolarTCSetting = it },
-                                        label = { Text("Dólar TC ($ ARS)") }, modifier = Modifier.weight(1f)
-                                    )
-                                    OutlinedTextField(
-                                        value = fleteUSDSetting, onValueChange = { fleteUSDSetting = it },
-                                        label = { Text("Flete Marítimo ($ USD)") }, modifier = Modifier.weight(1f)
-                                    )
-                                }
-                                Spacer(modifier = Modifier.height(6.dp))
-                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                    OutlinedTextField(
-                                        value = arancelPercentSetting, onValueChange = { arancelPercentSetting = it },
-                                        label = { Text("Arancel / Derechos %") }, modifier = Modifier.weight(1f)
-                                    )
-                                    OutlinedTextField(
-                                        value = tasaEstadPercentSetting, onValueChange = { tasaEstadPercentSetting = it },
-                                        label = { Text("Tasa Estadística %") }, modifier = Modifier.weight(1f)
-                                    )
-                                }
-                                Spacer(modifier = Modifier.height(6.dp))
-                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                    OutlinedTextField(
-                                        value = ivaPercentSetting, onValueChange = { ivaPercentSetting = it },
-                                        label = { Text("IVA %") }, modifier = Modifier.weight(1f)
-                                    )
-                                    OutlinedTextField(
-                                        value = ivaAdicPercentSetting, onValueChange = { ivaAdicPercentSetting = it },
-                                        label = { Text("IVA Adicional %") }, modifier = Modifier.weight(1f)
-                                    )
-                                }
-                                Spacer(modifier = Modifier.height(6.dp))
-                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                    OutlinedTextField(
-                                        value = gananciasPercentSetting, onValueChange = { gananciasPercentSetting = it },
-                                        label = { Text("Ganancias %") }, modifier = Modifier.weight(1f)
-                                    )
-                                    OutlinedTextField(
-                                        value = iibbPercentSetting, onValueChange = { iibbPercentSetting = it },
-                                        label = { Text("II.BB %") }, modifier = Modifier.weight(1f)
-                                    )
-                                }
-                                Spacer(modifier = Modifier.height(6.dp))
-                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                    OutlinedTextField(
-                                        value = despachantePercentSetting, onValueChange = { despachantePercentSetting = it },
-                                        label = { Text("Despachante & Puerto %") }, modifier = Modifier.weight(1f)
-                                    )
-                                    OutlinedTextField(
-                                        value = seguroPercentSetting, onValueChange = { seguroPercentSetting = it },
-                                        label = { Text("Seguro %") }, modifier = Modifier.weight(1f)
-                                    )
-                                }
-                                Spacer(modifier = Modifier.height(10.dp))
-
-                                HorizontalDivider()
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Text("☑️ SELECCIONAR RENGLONES A CALCULAR", fontWeight = FontWeight.Bold, fontSize = 11.sp, color = Color(0xFFE65100))
-                                Text("Tilda o destilda los casilleros para incluir o excluir del cálculo landed:", fontSize = 9.sp, color = Color.Gray)
-                                Spacer(modifier = Modifier.height(6.dp))
-
-                                FlowRow(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                                ) {
-                                    FilterChip(selected = incFlete, onClick = { incFlete = !incFlete }, label = { Text("Flete", fontSize = 9.sp) })
-                                    FilterChip(selected = incSeguro, onClick = { incSeguro = !incSeguro }, label = { Text("Seguro", fontSize = 9.sp) })
-                                    FilterChip(selected = incArancel, onClick = { incArancel = !incArancel }, label = { Text("Arancel", fontSize = 9.sp) })
-                                    FilterChip(selected = incTasaEstad, onClick = { incTasaEstad = !incTasaEstad }, label = { Text("Tasa Estad", fontSize = 9.sp) })
-                                    FilterChip(selected = incIVA, onClick = { incIVA = !incIVA }, label = { Text("IVA 21%", fontSize = 9.sp) })
-                                    FilterChip(selected = incIVAAdic, onClick = { incIVAAdic = !incIVAAdic }, label = { Text("IVA Adic 20%", fontSize = 9.sp) })
-                                    FilterChip(selected = incGanancias, onClick = { incGanancias = !incGanancias }, label = { Text("Ganancias 6%", fontSize = 9.sp) })
-                                    FilterChip(selected = incIIBB, onClick = { incIIBB = !incIIBB }, label = { Text("II.BB 2.5%", fontSize = 9.sp) })
-                                    FilterChip(selected = incDespachante, onClick = { incDespachante = !incDespachante }, label = { Text("Despachante 8%", fontSize = 9.sp) })
-                                }
-
-                                Spacer(modifier = Modifier.height(10.dp))
-                                HorizontalDivider()
-                                Spacer(modifier = Modifier.height(8.dp))
-
-                                Text("⚖️ PRORRATEO POR PESO (KG) EN CONTENEDOR", fontWeight = FontWeight.Bold, fontSize = 11.sp, color = Color(0xFFE65100))
-                                FilterChip(
-                                    selected = weightModeEnabled,
-                                    onClick = { weightModeEnabled = !weightModeEnabled },
-                                    label = { Text(if (weightModeEnabled) "✅ Prorratear Flete por Peso Activado" else "❌ Prorratear Flete por Unidades (Estándar)", fontSize = 9.5.sp) }
-                                )
-
-                                if (weightModeEnabled) {
-                                    Spacer(modifier = Modifier.height(6.dp))
-                                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                        OutlinedTextField(
-                                            value = itemWeightKgInput, onValueChange = { itemWeightKgInput = it },
-                                            label = { Text("Peso Unitario (kg / u)") }, modifier = Modifier.weight(1f)
-                                        )
-                                        OutlinedTextField(
-                                            value = containerMaxWeightInput, onValueChange = { containerMaxWeightInput = it },
-                                            label = { Text("Capacidad Contenedor (kg)") }, modifier = Modifier.weight(1f)
-                                        )
-                                    }
-                                }
-
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Card(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF3E0))
-                                ) {
-                                    Column(modifier = Modifier.padding(8.dp)) {
-                                        Text("ℹ️ Capacidad Estructural & Carga Útil por Tipo de Contenedor:", fontWeight = FontWeight.Bold, fontSize = 9.sp, color = Color(0xFFE65100))
-                                        Spacer(modifier = Modifier.height(2.dp))
-                                        Text("• 20' DV (20 pies): Carga útil de 27 a 28 Tn (27.000-28.000 kg). Peso bruto max total ~30,4 Tn incl. tara.", fontSize = 8.5.sp, color = Color.DarkGray)
-                                        Text("• 40' DV / HC (40 pies): Carga útil de 26 a 29 Tn (26.000-29.000 kg) por resistencia estructural del piso.", fontSize = 8.5.sp, color = Color.DarkGray)
-                                        Text("• Límite Balanza Puerto AR: 26.000 kg netos recomendados sin sobretasa vial.", fontSize = 8.5.sp, color = Color(0xFFD84315), fontWeight = FontWeight.Bold)
-                                    }
-                                }
-                            }
-                        }
-                        Spacer(modifier = Modifier.height(10.dp))
-                    }
 
                     // SELECCIÓN PERREN (SQLITE)
                     Card(
