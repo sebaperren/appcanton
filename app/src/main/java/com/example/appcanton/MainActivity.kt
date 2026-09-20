@@ -333,28 +333,30 @@ class CantonSQLiteHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_
     fun saveFlexxusProducts(products: List<PerrenPostgresProduct>) {
         try {
             val db = writableDatabase
-            db.beginTransaction()
-            try {
-                products.forEach { prod ->
-                    val values = ContentValues().apply {
-                        put("sku", prod.sku)
-                        put("description", prod.description)
-                        put("brand", prod.brand)
-                        put("category", prod.category)
-                        put("subcategory", prod.subcategory)
-                        put("classification", prod.classification)
-                        put("costNoVAT", prod.costNoVAT)
-                        put("costUSDNoVAT", prod.costUSDNoVAT)
-                        put("stockAvailable", prod.stockAvailable)
-                        put("unit", prod.unit)
-                        put("priceVAT", prod.priceVAT)
-                        put("salePriceNoVAT", prod.salePriceNoVAT)
+            products.chunked(500).forEach { chunk ->
+                db.beginTransaction()
+                try {
+                    chunk.forEach { prod ->
+                        val values = ContentValues().apply {
+                            put("sku", prod.sku)
+                            put("description", prod.description)
+                            put("brand", prod.brand)
+                            put("category", prod.category)
+                            put("subcategory", prod.subcategory)
+                            put("classification", prod.classification)
+                            put("costNoVAT", prod.costNoVAT)
+                            put("costUSDNoVAT", prod.costUSDNoVAT)
+                            put("stockAvailable", prod.stockAvailable)
+                            put("unit", prod.unit)
+                            put("priceVAT", prod.priceVAT)
+                            put("salePriceNoVAT", prod.salePriceNoVAT)
+                        }
+                        db.insertWithOnConflict(TABLE_FLEXXUS_PRODUCTS, null, values, SQLiteDatabase.CONFLICT_REPLACE)
                     }
-                    db.insertWithOnConflict(TABLE_FLEXXUS_PRODUCTS, null, values, SQLiteDatabase.CONFLICT_REPLACE)
+                    db.setTransactionSuccessful()
+                } finally {
+                    db.endTransaction()
                 }
-                db.setTransactionSuccessful()
-            } finally {
-                db.endTransaction()
             }
         } catch (_: Exception) {}
     }
@@ -3123,10 +3125,13 @@ fun PostgresSearchScreen(
         }
     }
 
-    val displayProducts = if (showOnlyFavorites) {
-        filteredProducts.filter { PerrenPostgresRepository.favoriteProductSkus.contains(it.sku) }
-    } else {
-        filteredProducts
+    val displayProducts = remember(filteredProducts, showOnlyFavorites, PerrenPostgresRepository.favoriteProductSkus.size) {
+        val baseList = if (showOnlyFavorites) {
+            filteredProducts.filter { PerrenPostgresRepository.favoriteProductSkus.contains(it.sku) }
+        } else {
+            filteredProducts
+        }
+        baseList.take(60)
     }
 
     Column(
