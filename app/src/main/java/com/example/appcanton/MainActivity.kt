@@ -94,9 +94,11 @@ data class ArticleItem(
 data class ImportRow(
     val concept: String,
     val pctStr: String,
-    val amountUSD: Double,
+    val unitUSD: Double,
+    val totalUSD: Double,
     val isHeaderOrSubtotal: Boolean = false,
-    val isTotal: Boolean = false
+    val isTotal: Boolean = false,
+    val isCostIncidido: Boolean = false
 )
 
 data class LocalSupplier(
@@ -2927,6 +2929,11 @@ fun ImportBreakdownTableComposable(
     val gananciasTotal = baseImponible * (gananciasPct / 100.0)
     val iibbTotal = baseImponible * (iibbPct / 100.0)
     val gastosDespachante = baseImponible * (despachantePct / 100.0)
+
+    val costoRealIncididoUSD = baseImponible + iibbTotal + gastosDespachante
+    val unitCostoIncididoUSD = costoRealIncididoUSD / qty
+    val unitCostoIncididoARS = unitCostoIncididoUSD * tc
+
     val totalLandedUSD = baseImponible + ivaTotal + ivaAdicTotal + gananciasTotal + iibbTotal + gastosDespachante
     val unitLandedUSD = totalLandedUSD / qty
     val unitLandedARS = unitLandedUSD * tc
@@ -2938,12 +2945,34 @@ fun ImportBreakdownTableComposable(
         border = BorderStroke(1.dp, Color(0xFFB0BEC5))
     ) {
         Column(modifier = Modifier.padding(10.dp)) {
-            Text(
-                "📋 DESGLOSE COMPLETO DE IMPORTACIÓN (LANDED) $titleSuffix",
-                fontWeight = FontWeight.Bold, fontSize = 11.sp, color = Color(0xFF1B365D)
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    "📋 DESGLOSE COMPLETO DE IMPORTACIÓN (LANDED) $titleSuffix",
+                    fontWeight = FontWeight.Bold, fontSize = 11.sp, color = Color(0xFF1B365D)
+                )
+                Text("Lote: $qty u", fontWeight = FontWeight.Bold, fontSize = 10.sp, color = Color(0xFF2E7D32))
+            }
+
+            if (qty <= 1) {
+                Spacer(modifier = Modifier.height(4.dp))
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF3E0))
+                ) {
+                    Text(
+                        "⚠️ Al colocar 1 sola unidad, el flete entero del contenedor ($${String.format(Locale.US, "%,.0f", fleteUSD)} USD) se asigna a esta unidad. Ingresa el MOQ del lote (ej: 1.000 u) para distribuir el flete adecuadamente entre todas las unidades.",
+                        fontSize = 9.sp, color = Color(0xFFE65100), modifier = Modifier.padding(6.dp)
+                    )
+                }
+            }
+
             Spacer(modifier = Modifier.height(6.dp))
 
+            // Encabezados de Columna
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -2952,32 +2981,34 @@ fun ImportBreakdownTableComposable(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("CONCEPTO", modifier = Modifier.weight(2.0f), fontWeight = FontWeight.Bold, fontSize = 9.sp, color = Color(0xFF01579B))
-                Text("%", modifier = Modifier.weight(0.7f), fontWeight = FontWeight.Bold, fontSize = 9.sp, color = Color(0xFF01579B), textAlign = TextAlign.Center)
-                Text("USD", modifier = Modifier.weight(1.3f), fontWeight = FontWeight.Bold, fontSize = 9.sp, color = Color(0xFF01579B), textAlign = TextAlign.End)
-                Text("ARS (TC $${String.format(Locale.US, "%.0f", tc)})", modifier = Modifier.weight(1.6f), fontWeight = FontWeight.Bold, fontSize = 9.sp, color = Color(0xFF01579B), textAlign = TextAlign.End)
+                Text("CONCEPTO", modifier = Modifier.weight(2.0f), fontWeight = FontWeight.Bold, fontSize = 8.5.sp, color = Color(0xFF01579B))
+                Text("%", modifier = Modifier.weight(0.6f), fontWeight = FontWeight.Bold, fontSize = 8.5.sp, color = Color(0xFF01579B), textAlign = TextAlign.Center)
+                Text("UNITARIO (USD)", modifier = Modifier.weight(1.5f), fontWeight = FontWeight.Bold, fontSize = 8.5.sp, color = Color(0xFF01579B), textAlign = TextAlign.End)
+                Text("TOTAL LOTE (USD)", modifier = Modifier.weight(1.6f), fontWeight = FontWeight.Bold, fontSize = 8.5.sp, color = Color(0xFF01579B), textAlign = TextAlign.End)
             }
             HorizontalDivider()
 
             val rows = listOf(
-                ImportRow("Valor FOB Total", "", fobTotal),
-                ImportRow("Flete", "", fleteUSD),
-                ImportRow("Seguro", "${String.format(Locale.US, "%.1f", seguroPct)}%", seguroTotal),
-                ImportRow("CIF", "", cifTotal, isHeaderOrSubtotal = true),
-                ImportRow("Derecho Impo", "${arancelPct.toInt()}%", derechosTotal),
-                ImportRow("Tasa Estadística", "${tasaEstadPct.toInt()}%", tasaEstadTotal),
-                ImportRow("Base Imponible", "", baseImponible, isHeaderOrSubtotal = true),
-                ImportRow("IVA", "${ivaPct.toInt()}%", ivaTotal),
-                ImportRow("IVA Adicional", "${ivaAdicPct.toInt()}%", ivaAdicTotal),
-                ImportRow("Ganancias", "${gananciasPct.toInt()}%", gananciasTotal),
-                ImportRow("II.BB", "${String.format(Locale.US, "%.1f", iibbPct)}%", iibbTotal),
-                ImportRow("Gastos Desp/Forw", "${despachantePct.toInt()}%", gastosDespachante),
-                ImportRow("TOTAL CONTENEDOR", "", totalLandedUSD, isHeaderOrSubtotal = true, isTotal = true)
+                ImportRow("Valor FOB", "", fobUnit, fobTotal),
+                ImportRow("Flete Marítimo", "", fleteUSD / qty, fleteUSD),
+                ImportRow("Seguro", "${String.format(Locale.US, "%.1f", seguroPct)}%", seguroTotal / qty, seguroTotal),
+                ImportRow("CIF", "", cifTotal / qty, cifTotal, isHeaderOrSubtotal = true),
+                ImportRow("Derecho Impo", "${arancelPct.toInt()}%", derechosTotal / qty, derechosTotal),
+                ImportRow("Tasa Estadística", "${tasaEstadPct.toInt()}%", tasaEstadTotal / qty, tasaEstadTotal),
+                ImportRow("Base Imponible", "", baseImponible / qty, baseImponible, isHeaderOrSubtotal = true),
+                ImportRow("IVA", "${ivaPct.toInt()}%", ivaTotal / qty, ivaTotal),
+                ImportRow("IVA Adicional", "${ivaAdicPct.toInt()}%", ivaAdicTotal / qty, ivaAdicTotal),
+                ImportRow("Ganancias", "${gananciasPct.toInt()}%", gananciasTotal / qty, gananciasTotal),
+                ImportRow("II.BB", "${String.format(Locale.US, "%.1f", iibbPct)}%", iibbTotal / qty, iibbTotal),
+                ImportRow("Gastos Desp/Forw", "${despachantePct.toInt()}%", gastosDespachante / qty, gastosDespachante),
+                ImportRow("COSTO INCIDIDO NETO", "", unitCostoIncididoUSD, costoRealIncididoUSD, isHeaderOrSubtotal = true, isCostIncidido = true),
+                ImportRow("TOTAL DESEMBOLSO LOTE", "", unitLandedUSD, totalLandedUSD, isHeaderOrSubtotal = true, isTotal = true)
             )
 
             rows.forEach { r ->
                 val bgColor = when {
                     r.isTotal -> Color(0xFFE8F5E9)
+                    r.isCostIncidido -> Color(0xFFE3F2FD)
                     r.isHeaderOrSubtotal -> Color(0xFFFFF8E1)
                     else -> Color.Transparent
                 }
@@ -2992,57 +3023,64 @@ fun ImportBreakdownTableComposable(
                     Text(
                         r.concept,
                         modifier = Modifier.weight(2.0f),
-                        fontWeight = if (r.isHeaderOrSubtotal || r.isTotal) FontWeight.Bold else FontWeight.Normal,
-                        fontSize = 9.5.sp,
-                        color = if (r.isTotal) Color(0xFF2E7D32) else Color.DarkGray
+                        fontWeight = if (r.isHeaderOrSubtotal || r.isTotal || r.isCostIncidido) FontWeight.Bold else FontWeight.Normal,
+                        fontSize = 9.sp,
+                        color = when {
+                            r.isTotal -> Color(0xFF2E7D32)
+                            r.isCostIncidido -> Color(0xFF1565C0)
+                            else -> Color.DarkGray
+                        }
                     )
                     Text(
                         r.pctStr,
-                        modifier = Modifier.weight(0.7f),
-                        fontSize = 9.sp,
+                        modifier = Modifier.weight(0.6f),
+                        fontSize = 8.5.sp,
                         color = Color.Gray,
                         textAlign = TextAlign.Center
                     )
                     Text(
-                        "$${String.format(Locale.US, "%,.2f", r.amountUSD)}",
-                        modifier = Modifier.weight(1.3f),
-                        fontWeight = if (r.isTotal) FontWeight.Bold else FontWeight.Normal,
-                        fontSize = 9.5.sp,
+                        "$${String.format(Locale.US, "%,.2f", r.unitUSD)}",
+                        modifier = Modifier.weight(1.5f),
+                        fontWeight = if (r.isHeaderOrSubtotal || r.isTotal || r.isCostIncidido) FontWeight.Bold else FontWeight.Normal,
+                        fontSize = 9.sp,
                         color = if (r.isTotal) Color(0xFF2E7D32) else Color.Black,
                         textAlign = TextAlign.End
                     )
                     Text(
-                        "$${String.format("%,.2f", r.amountUSD * tc)}",
+                        "$${String.format(Locale.US, "%,.2f", r.totalUSD)}",
                         modifier = Modifier.weight(1.6f),
-                        fontWeight = if (r.isTotal) FontWeight.Bold else FontWeight.Normal,
-                        fontSize = 9.5.sp,
-                        color = if (r.isTotal) Color(0xFF1565C0) else Color.Black,
+                        fontWeight = if (r.isHeaderOrSubtotal || r.isTotal || r.isCostIncidido) FontWeight.Bold else FontWeight.Normal,
+                        fontSize = 9.sp,
+                        color = if (r.isTotal) Color(0xFF2E7D32) else Color.Black,
                         textAlign = TextAlign.End
                     )
                 }
-                if (r.isHeaderOrSubtotal || r.isTotal) HorizontalDivider()
+                if (r.isHeaderOrSubtotal || r.isTotal || r.isCostIncidido) HorizontalDivider()
             }
 
             Spacer(modifier = Modifier.height(6.dp))
 
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFFE3F2FD))
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(8.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+            // Tarjetas de Resumen Unitario Puesto
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Card(
+                    modifier = Modifier.weight(1f),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFE3F2FD))
                 ) {
-                    Column {
-                        Text("COSTO UNITARIO PUESTO (LANDED)", fontWeight = FontWeight.Bold, fontSize = 10.sp, color = Color(0xFF1565C0))
-                        Text("FOB Unit: $${String.format(Locale.US, "%.2f", fobUnit)} USD | MOQ: $qty u", fontSize = 9.sp, color = Color.Gray)
+                    Column(modifier = Modifier.padding(6.dp)) {
+                        Text("COSTO INCIDIDO NETO (Sin IVA/Gan)", fontSize = 8.5.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1565C0))
+                        Text("$${String.format(Locale.US, "%.2f", unitCostoIncididoUSD)} USD / u", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1565C0))
+                        Text("$${String.format("%,.2f", unitCostoIncididoARS)} ARS / u", fontSize = 9.5.sp, color = Color.DarkGray)
                     }
-                    Column(horizontalAlignment = Alignment.End) {
-                        Text("$${String.format(Locale.US, "%.2f", unitLandedUSD)} USD / u", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = Color(0xFF2E7D32))
-                        Text("$${String.format("%,.2f", unitLandedARS)} ARS / u", fontWeight = FontWeight.Bold, fontSize = 11.sp, color = Color(0xFF1565C0))
+                }
+
+                Card(
+                    modifier = Modifier.weight(1f),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFE8F5E9))
+                ) {
+                    Column(modifier = Modifier.padding(6.dp)) {
+                        Text("DESEMBOLSO TOTAL (Con IVA/Gan)", fontSize = 8.5.sp, fontWeight = FontWeight.Bold, color = Color(0xFF2E7D32))
+                        Text("$${String.format(Locale.US, "%.2f", unitLandedUSD)} USD / u", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF2E7D32))
+                        Text("$${String.format("%,.2f", unitLandedARS)} ARS / u", fontSize = 9.5.sp, color = Color.DarkGray)
                     }
                 }
             }
