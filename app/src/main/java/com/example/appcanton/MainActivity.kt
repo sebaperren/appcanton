@@ -427,7 +427,7 @@ class CantonSQLiteHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_
             val selectionClauses = mutableListOf<String>()
             val args = mutableListOf<String>()
 
-            if (query.trim().isNotBlank()) {
+            if (query.trim().length >= 2) {
                 val q = "%${query.trim()}%"
                 selectionClauses.add("(sku LIKE ? OR description LIKE ? OR brand LIKE ? OR category LIKE ? OR subcategory LIKE ?)")
                 args.add(q)
@@ -3335,7 +3335,8 @@ fun PostgresSearchScreen(
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
 
-    val hasActiveFilter = searchQuery.trim().isNotBlank() ||
+    val cleanQuery = searchQuery.trim()
+    val hasActiveFilter = cleanQuery.length >= 2 ||
             (selectedBrand.isNotBlank() && selectedBrand != "Todas las Marcas") ||
             (selectedCategory.isNotBlank() && selectedCategory != "Todos los Rubros") ||
             (selectedAbc.isNotBlank() && selectedAbc != "Todas las Clases") ||
