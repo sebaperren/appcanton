@@ -3360,12 +3360,11 @@ fun PostgresSearchScreen(
         isSearching = true
         kotlinx.coroutines.delay(150)
         val results = withContext(Dispatchers.IO) {
-            val dbResults = dbHelper.searchProductsInDb(searchQuery, selectedBrand, selectedCategory, selectedAbc, itemsPerPage)
-            val list = if (dbResults.isNotEmpty()) dbResults else PerrenPostgresRepository.searchProducts(suppliers, searchQuery, selectedBrand, selectedCategory, selectedAbc)
+            val dbResults = dbHelper.searchProductsInDb(cleanQuery, selectedBrand, selectedCategory, selectedAbc, itemsPerPage)
             if (showOnlyFavorites) {
-                list.filter { PerrenPostgresRepository.favoriteProductSkus.contains(it.sku) }
+                dbResults.filter { PerrenPostgresRepository.favoriteProductSkus.contains(it.sku) }
             } else {
-                list
+                dbResults
             }
         }
         displayProducts = results.take(itemsPerPage)
