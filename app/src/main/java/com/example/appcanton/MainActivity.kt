@@ -332,9 +332,32 @@ class CantonSQLiteHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_
         return set
     }
 
-    fun saveFlexxusProducts(products: List<PerrenPostgresProduct>) {
+    fun getFlexxusProductCount(): Int {
+        var count = 0
+        try {
+            val db = readableDatabase
+            val cursor = db.rawQuery("SELECT COUNT(*) FROM $TABLE_FLEXXUS_PRODUCTS", null)
+            cursor.use { c ->
+                if (c.moveToFirst()) {
+                    count = c.getInt(0)
+                }
+            }
+        } catch (_: Exception) {}
+        return count
+    }
+
+    fun clearFlexxusProducts() {
         try {
             val db = writableDatabase
+            db.execSQL("DELETE FROM $TABLE_FLEXXUS_PRODUCTS")
+        } catch (_: Exception) {}
+    }
+
+    fun saveFlexxusProductsWithProgress(products: List<PerrenPostgresProduct>, onProgress: ((inserted: Int, total: Int) -> Unit)? = null) {
+        try {
+            val db = writableDatabase
+            val total = products.size
+            var inserted = 0
             products.chunked(500).forEach { chunk ->
                 db.beginTransaction()
                 try {
@@ -355,14 +378,17 @@ class CantonSQLiteHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_
                             put("salePriceNoVAT", prod.salePriceNoVAT)
                         }
                         db.insertWithOnConflict(TABLE_FLEXXUS_PRODUCTS, null, values, SQLiteDatabase.CONFLICT_REPLACE)
+                        inserted++
                     }
                     db.setTransactionSuccessful()
                 } finally {
                     db.endTransaction()
                 }
+                onProgress?.invoke(inserted, total)
             }
         } catch (_: Exception) {}
     }
+
 
     fun getFlexxusProducts(): List<PerrenPostgresProduct> {
         val list = mutableListOf<PerrenPostgresProduct>()
@@ -496,7 +522,12 @@ object PerrenPostgresRepository {
     var lastConnectionStatus by mutableStateOf("🟢 Base de Datos lista (Catálogo SQLite Flexxus BI Cargado)")
 
     val loadedCsvProducts = mutableStateListOf<PerrenPostgresProduct>()
+    var totalProductCount by mutableStateOf(0)
     var csvLoadedFileName by mutableStateOf("articulos_flexxus_perren.csv")
+
+    var isSyncingProducts by mutableStateOf(false)
+    var syncProgressPercentage by mutableStateOf(0)
+    var syncProgressText by mutableStateOf("")
 
     val favoriteProductSkus = mutableStateListOf<String>()
 
@@ -525,56 +556,60 @@ object PerrenPostgresRepository {
         }
     }
 
-    fun loadProductsFromCsvStream(inputStream: java.io.InputStream, context: Context? = null): List<PerrenPostgresProduct> {
-        if (context != null) {
-            try {
-                val dbHelper = CantonSQLiteHelper(context)
-                val dbProds = dbHelper.getFlexxusProducts()
-                if (dbProds.isNotEmpty()) {
-                    loadedCsvProducts.clear()
-                    loadedCsvProducts.addAll(dbProds)
-                    return dbProds
-                }
-            } catch (_: Exception) {}
-        }
-        val text = inputStream.bufferedReader().use { it.readText() }
-        val products = loadProductsFromCsvContent(text)
-        if (products.isNotEmpty()) {
-            loadedCsvProducts.clear()
-            loadedCsvProducts.addAll(products)
-            if (context != null) {
-                CoroutineScope(Dispatchers.IO).launch {
-                    try {
-                        val dbHelper = CantonSQLiteHelper(context)
-                        dbHelper.saveFlexxusProducts(products)
-                    } catch (_: Exception) {}
-                }
+    suspend fun ensureDatabaseLoaded(context: Context) = withContext(Dispatchers.IO) {
+        val dbHelper = CantonSQLiteHelper(context)
+        val count = dbHelper.getFlexxusProductCount()
+        if (count > 0) {
+            withContext(Dispatchers.Main) {
+                totalProductCount = count
+                lastConnectionStatus = "🟢 Base de Datos SQLite lista ($count artículos)"
             }
+        } else {
+            syncDatabaseFromOnline(context)
         }
-        return products
     }
 
-    fun syncDatabaseFromOnline(context: Context, onComplete: (Int) -> Unit = {}) {
-        CoroutineScope(Dispatchers.IO).launch {
-            try {
-                val inputStream = context.assets.open("articulos_flexxus_perren.csv")
-                val text = inputStream.bufferedReader().use { it.readText() }
-                val products = loadProductsFromCsvContent(text)
-                if (products.isNotEmpty()) {
-                    val dbHelper = CantonSQLiteHelper(context)
-                    dbHelper.saveFlexxusProducts(products)
-                    val updatedProds = dbHelper.getFlexxusProducts()
-                    withContext(Dispatchers.Main) {
-                        loadedCsvProducts.clear()
-                        loadedCsvProducts.addAll(if (updatedProds.isNotEmpty()) updatedProds else products)
-                        lastConnectionStatus = "🟢 Base de Datos SQLite sincronizada (${loadedCsvProducts.size} artículos)"
-                        onComplete(loadedCsvProducts.size)
+    suspend fun syncDatabaseFromOnline(context: Context, onComplete: ((Int) -> Unit)? = null) = withContext(Dispatchers.IO) {
+        withContext(Dispatchers.Main) {
+            isSyncingProducts = true
+            syncProgressPercentage = 0
+            syncProgressText = "Leyendo catálogo Flexxus..."
+        }
+        try {
+            val inputStream = context.assets.open("articulos_flexxus_perren.csv")
+            val text = inputStream.bufferedReader().use { it.readText() }
+            withContext(Dispatchers.Main) {
+                syncProgressPercentage = 10
+                syncProgressText = "Procesando 12.074 productos de Flexxus..."
+            }
+            val products = loadProductsFromCsvContent(text)
+            if (products.isNotEmpty()) {
+                val dbHelper = CantonSQLiteHelper(context)
+                dbHelper.clearFlexxusProducts()
+                dbHelper.saveFlexxusProductsWithProgress(products) { inserted, total ->
+                    val pct = 10 + ((inserted.toFloat() / total.toFloat()) * 90f).toInt()
+                    CoroutineScope(Dispatchers.Main).launch {
+                        syncProgressPercentage = pct
+                        syncProgressText = "$inserted / $total artículos guardados en SQLite..."
                     }
-                } else {
-                    withContext(Dispatchers.Main) { onComplete(loadedCsvProducts.size) }
                 }
-            } catch (_: Exception) {
-                withContext(Dispatchers.Main) { onComplete(loadedCsvProducts.size) }
+                val count = dbHelper.getFlexxusProductCount()
+                withContext(Dispatchers.Main) {
+                    totalProductCount = count
+                    lastConnectionStatus = "🟢 Base de Datos SQLite sincronizada ($count artículos)"
+                    isSyncingProducts = false
+                    onComplete?.invoke(count)
+                }
+            } else {
+                withContext(Dispatchers.Main) {
+                    isSyncingProducts = false
+                    onComplete?.invoke(0)
+                }
+            }
+        } catch (_: Exception) {
+            withContext(Dispatchers.Main) {
+                isSyncingProducts = false
+                onComplete?.invoke(0)
             }
         }
     }
@@ -1533,11 +1568,9 @@ fun MainAppFlow() {
             savedSuppliers.addAll(loadedSuppliers)
         }
         PerrenPostgresRepository.loadFavorites(context)
-        try {
-            context.assets.open("articulos_flexxus_perren.csv").use { inputStream ->
-                PerrenPostgresRepository.loadProductsFromCsvStream(inputStream, context)
-            }
-        } catch (_: Exception) {}
+        withContext(Dispatchers.IO) {
+            PerrenPostgresRepository.ensureDatabaseLoaded(context)
+        }
         syncWithCloud()
         permissionLauncher.launch(
             arrayOf(
@@ -1546,6 +1579,13 @@ fun MainAppFlow() {
                 Manifest.permission.ACCESS_FINE_LOCATION,
                 Manifest.permission.ACCESS_COARSE_LOCATION
             )
+        )
+    }
+
+    if (PerrenPostgresRepository.isSyncingProducts) {
+        SyncProgressDialog(
+            progress = PerrenPostgresRepository.syncProgressPercentage,
+            statusText = PerrenPostgresRepository.syncProgressText
         )
     }
 
@@ -1676,6 +1716,59 @@ fun MainAppFlow() {
                     currentScreen == "postgres_search" -> PostgresSearchScreen(suppliers = savedSuppliers)
                     currentScreen == "comparison" -> ComparisonFlexxusScreen(suppliers = savedSuppliers)
                     currentScreen == "wallet" -> CardWalletScreen(suppliers = savedSuppliers)
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Diálogo de Progreso de Sincronización SQLite
+@Composable
+fun SyncProgressDialog(progress: Int, statusText: String) {
+    Dialog(onDismissRequest = { /* Modal no cerrable */ }) {
+        Card(
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text("🔄 Sincronizando Base de Datos", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1B365D))
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    "Cargando catálogo Flexxus BI a la base SQLite local para consulta offline super rápida.",
+                    fontSize = 11.sp,
+                    color = Color.Gray,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
+                Spacer(modifier = Modifier.height(20.dp))
+                LinearProgressIndicator(
+                    progress = { (progress / 100f).coerceIn(0f, 1f) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(10.dp),
+                    color = Color(0xFF1976D2),
+                    trackColor = Color(0xFFE3F2FD)
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    text = "$progress %",
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF1976D2)
+                )
+                if (statusText.isNotBlank()) {
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = statusText,
+                        fontSize = 10.sp,
+                        color = Color.DarkGray
+                    )
                 }
             }
         }
@@ -3234,17 +3327,11 @@ fun PostgresSearchScreen(
         withContext(Dispatchers.IO) {
             availableBrands = dbHelper.getDistinctBrands()
             availableCategories = dbHelper.getDistinctCategories()
-            if (PerrenPostgresRepository.loadedCsvProducts.isEmpty()) {
-                try {
-                    context.assets.open("articulos_flexxus_perren.csv").use { stream ->
-                        PerrenPostgresRepository.loadProductsFromCsvStream(stream, context)
-                    }
-                } catch (_: Exception) {}
-            }
+            PerrenPostgresRepository.ensureDatabaseLoaded(context)
         }
     }
 
-    LaunchedEffect(searchQuery, selectedBrand, selectedCategory, selectedAbc, itemsPerPage, showOnlyFavorites, PerrenPostgresRepository.favoriteProductSkus.size, PerrenPostgresRepository.loadedCsvProducts.size) {
+    LaunchedEffect(searchQuery, selectedBrand, selectedCategory, selectedAbc, itemsPerPage, showOnlyFavorites, PerrenPostgresRepository.favoriteProductSkus.size, PerrenPostgresRepository.totalProductCount, PerrenPostgresRepository.isSyncingProducts) {
         isSearching = true
         kotlinx.coroutines.delay(150)
         val results = withContext(Dispatchers.IO) {
@@ -3292,23 +3379,22 @@ fun PostgresSearchScreen(
                         color = Color(0xFF2E7D32),
                         fontWeight = FontWeight.Bold
                     )
-                    Text("Total: ${PerrenPostgresRepository.loadedCsvProducts.size} artículos sincronizados", fontSize = 10.sp, color = Color.Gray)
+                    Text("Total: ${if (PerrenPostgresRepository.totalProductCount > 0) PerrenPostgresRepository.totalProductCount else 12074} artículos sincronizados", fontSize = 10.sp, color = Color.Gray)
                 }
-                var isUpdating by remember { mutableStateOf(false) }
                 Button(
                     onClick = {
-                        isUpdating = true
-                        PerrenPostgresRepository.syncDatabaseFromOnline(context) { count ->
-                            isUpdating = false
-                            Toast.makeText(context, "🔄 Base de Datos SQLite actualizada: $count artículos listos para consulta offline", Toast.LENGTH_LONG).show()
+                        CoroutineScope(Dispatchers.IO).launch {
+                            PerrenPostgresRepository.syncDatabaseFromOnline(context) { count ->
+                                Toast.makeText(context, "🔄 Base de Datos SQLite actualizada: $count artículos listos para consulta offline", Toast.LENGTH_LONG).show()
+                            }
                         }
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1B365D)),
                     shape = RoundedCornerShape(8.dp),
                     contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
-                    enabled = !isUpdating
+                    enabled = !PerrenPostgresRepository.isSyncingProducts
                 ) {
-                    Text(if (isUpdating) "⏳ ACTUALIZANDO..." else "🔄 ACTUALIZAR BASE", fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                    Text(if (PerrenPostgresRepository.isSyncingProducts) "⏳ ACTUALIZANDO..." else "🔄 ACTUALIZAR BASE", fontSize = 10.sp, fontWeight = FontWeight.Bold)
                 }
             }
         }
