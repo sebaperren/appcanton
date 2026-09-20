@@ -34,6 +34,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -88,6 +89,14 @@ data class ArticleItem(
     val audioPath: String? = null,
     val photos: List<Bitmap> = emptyList(),
     val photoBitmap: Bitmap? = null
+)
+
+data class ImportRow(
+    val concept: String,
+    val pctStr: String,
+    val amountUSD: Double,
+    val isHeaderOrSubtotal: Boolean = false,
+    val isTotal: Boolean = false
 )
 
 data class LocalSupplier(
@@ -2890,6 +2899,157 @@ fun SupplierWorkspaceScreen(
     }
 }
 
+@Composable
+fun ImportBreakdownTableComposable(
+    fobUnit: Double,
+    containerQty: Int,
+    fleteUSD: Double,
+    seguroPct: Double,
+    arancelPct: Double,
+    tasaEstadPct: Double,
+    ivaPct: Double,
+    ivaAdicPct: Double,
+    gananciasPct: Double,
+    iibbPct: Double,
+    despachantePct: Double,
+    tc: Double,
+    titleSuffix: String = ""
+) {
+    val qty = if (containerQty > 0) containerQty else 1
+    val fobTotal = fobUnit * qty
+    val seguroTotal = fobTotal * (seguroPct / 100.0)
+    val cifTotal = fobTotal + fleteUSD + seguroTotal
+    val derechosTotal = cifTotal * (arancelPct / 100.0)
+    val tasaEstadTotal = cifTotal * (tasaEstadPct / 100.0)
+    val baseImponible = cifTotal + derechosTotal + tasaEstadTotal
+    val ivaTotal = baseImponible * (ivaPct / 100.0)
+    val ivaAdicTotal = baseImponible * (ivaAdicPct / 100.0)
+    val gananciasTotal = baseImponible * (gananciasPct / 100.0)
+    val iibbTotal = baseImponible * (iibbPct / 100.0)
+    val gastosDespachante = baseImponible * (despachantePct / 100.0)
+    val totalLandedUSD = baseImponible + ivaTotal + ivaAdicTotal + gananciasTotal + iibbTotal + gastosDespachante
+    val unitLandedUSD = totalLandedUSD / qty
+    val unitLandedARS = unitLandedUSD * tc
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        border = BorderStroke(1.dp, Color(0xFFB0BEC5))
+    ) {
+        Column(modifier = Modifier.padding(10.dp)) {
+            Text(
+                "📋 DESGLOSE COMPLETO DE IMPORTACIÓN (LANDED) $titleSuffix",
+                fontWeight = FontWeight.Bold, fontSize = 11.sp, color = Color(0xFF1B365D)
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color(0xFFE1F5FE))
+                    .padding(vertical = 4.dp, horizontal = 6.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("CONCEPTO", modifier = Modifier.weight(2.0f), fontWeight = FontWeight.Bold, fontSize = 9.sp, color = Color(0xFF01579B))
+                Text("%", modifier = Modifier.weight(0.7f), fontWeight = FontWeight.Bold, fontSize = 9.sp, color = Color(0xFF01579B), textAlign = TextAlign.Center)
+                Text("USD", modifier = Modifier.weight(1.3f), fontWeight = FontWeight.Bold, fontSize = 9.sp, color = Color(0xFF01579B), textAlign = TextAlign.End)
+                Text("ARS (TC $${String.format(Locale.US, "%.0f", tc)})", modifier = Modifier.weight(1.6f), fontWeight = FontWeight.Bold, fontSize = 9.sp, color = Color(0xFF01579B), textAlign = TextAlign.End)
+            }
+            HorizontalDivider()
+
+            val rows = listOf(
+                ImportRow("Valor FOB Total", "", fobTotal),
+                ImportRow("Flete", "", fleteUSD),
+                ImportRow("Seguro", "${String.format(Locale.US, "%.1f", seguroPct)}%", seguroTotal),
+                ImportRow("CIF", "", cifTotal, isHeaderOrSubtotal = true),
+                ImportRow("Derecho Impo", "${arancelPct.toInt()}%", derechosTotal),
+                ImportRow("Tasa Estadística", "${tasaEstadPct.toInt()}%", tasaEstadTotal),
+                ImportRow("Base Imponible", "", baseImponible, isHeaderOrSubtotal = true),
+                ImportRow("IVA", "${ivaPct.toInt()}%", ivaTotal),
+                ImportRow("IVA Adicional", "${ivaAdicPct.toInt()}%", ivaAdicTotal),
+                ImportRow("Ganancias", "${gananciasPct.toInt()}%", gananciasTotal),
+                ImportRow("II.BB", "${String.format(Locale.US, "%.1f", iibbPct)}%", iibbTotal),
+                ImportRow("Gastos Desp/Forw", "${despachantePct.toInt()}%", gastosDespachante),
+                ImportRow("TOTAL CONTENEDOR", "", totalLandedUSD, isHeaderOrSubtotal = true, isTotal = true)
+            )
+
+            rows.forEach { r ->
+                val bgColor = when {
+                    r.isTotal -> Color(0xFFE8F5E9)
+                    r.isHeaderOrSubtotal -> Color(0xFFFFF8E1)
+                    else -> Color.Transparent
+                }
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(bgColor)
+                        .padding(vertical = 3.dp, horizontal = 6.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        r.concept,
+                        modifier = Modifier.weight(2.0f),
+                        fontWeight = if (r.isHeaderOrSubtotal || r.isTotal) FontWeight.Bold else FontWeight.Normal,
+                        fontSize = 9.5.sp,
+                        color = if (r.isTotal) Color(0xFF2E7D32) else Color.DarkGray
+                    )
+                    Text(
+                        r.pctStr,
+                        modifier = Modifier.weight(0.7f),
+                        fontSize = 9.sp,
+                        color = Color.Gray,
+                        textAlign = TextAlign.Center
+                    )
+                    Text(
+                        "$${String.format(Locale.US, "%,.2f", r.amountUSD)}",
+                        modifier = Modifier.weight(1.3f),
+                        fontWeight = if (r.isTotal) FontWeight.Bold else FontWeight.Normal,
+                        fontSize = 9.5.sp,
+                        color = if (r.isTotal) Color(0xFF2E7D32) else Color.Black,
+                        textAlign = TextAlign.End
+                    )
+                    Text(
+                        "$${String.format("%,.2f", r.amountUSD * tc)}",
+                        modifier = Modifier.weight(1.6f),
+                        fontWeight = if (r.isTotal) FontWeight.Bold else FontWeight.Normal,
+                        fontSize = 9.5.sp,
+                        color = if (r.isTotal) Color(0xFF1565C0) else Color.Black,
+                        textAlign = TextAlign.End
+                    )
+                }
+                if (r.isHeaderOrSubtotal || r.isTotal) HorizontalDivider()
+            }
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFE3F2FD))
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text("COSTO UNITARIO PUESTO (LANDED)", fontWeight = FontWeight.Bold, fontSize = 10.sp, color = Color(0xFF1565C0))
+                        Text("FOB Unit: $${String.format(Locale.US, "%.2f", fobUnit)} USD | MOQ: $qty u", fontSize = 9.sp, color = Color.Gray)
+                    }
+                    Column(horizontalAlignment = Alignment.End) {
+                        Text("$${String.format(Locale.US, "%.2f", unitLandedUSD)} USD / u", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = Color(0xFF2E7D32))
+                        Text("$${String.format("%,.2f", unitLandedARS)} ARS / u", fontWeight = FontWeight.Bold, fontSize = 11.sp, color = Color(0xFF1565C0))
+                    }
+                }
+            }
+        }
+    }
+}
+
 // MARK: - 4. Comparador de Costos Flexxus BI & Combos (Interactivo de 3 Pestañas)
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -2922,16 +3082,19 @@ fun ComparisonFlexxusScreen(
     // Parámetros de Importación (Ajustes Configurables)
     var dolarTCSetting by remember { mutableStateOf("1350.00") }
     var fleteUSDSetting by remember { mutableStateOf("3400.00") }
-    var iibbPercentSetting by remember { mutableStateOf("3.5") }
+    var seguroPercentSetting by remember { mutableStateOf("1.2") }
     var arancelPercentSetting by remember { mutableStateOf("20.0") }
     var tasaEstadPercentSetting by remember { mutableStateOf("3.0") }
+    var ivaPercentSetting by remember { mutableStateOf("21.0") }
+    var ivaAdicPercentSetting by remember { mutableStateOf("20.0") }
+    var gananciasPercentSetting by remember { mutableStateOf("6.0") }
+    var iibbPercentSetting by remember { mutableStateOf("2.5") }
     var despachantePercentSetting by remember { mutableStateOf("8.0") }
-    var seguroPercentSetting by remember { mutableStateOf("1.2") }
 
     // Cotización China Manual (Tab 1)
     var manualArtName by remember { mutableStateOf("Artículo Importado") }
-    var chinaFobUSDInput by remember { mutableStateOf("38.00") }
-    var qtyInput by remember { mutableStateOf("500") }
+    var chinaFobUSDInput by remember { mutableStateOf("10.00") }
+    var qtyInput by remember { mutableStateOf("1000") }
     var manualPortInput by remember { mutableStateOf("Shenzhen") }
 
     // Búsqueda en catálogo de guardados (Tab 2)
@@ -2940,25 +3103,32 @@ fun ComparisonFlexxusScreen(
     // Parse variables
     val tc = dolarTCSetting.toDoubleOrNull() ?: 1350.0
     val flete = fleteUSDSetting.toDoubleOrNull() ?: 3400.0
-    val iibb = iibbPercentSetting.toDoubleOrNull() ?: 3.5
+    val seguroPct = seguroPercentSetting.toDoubleOrNull() ?: 1.2
     val arancel = arancelPercentSetting.toDoubleOrNull() ?: 20.0
     val tasaEstad = tasaEstadPercentSetting.toDoubleOrNull() ?: 3.0
+    val ivaPct = ivaPercentSetting.toDoubleOrNull() ?: 21.0
+    val ivaAdicPct = ivaAdicPercentSetting.toDoubleOrNull() ?: 20.0
+    val gananciasPct = gananciasPercentSetting.toDoubleOrNull() ?: 6.0
+    val iibb = iibbPercentSetting.toDoubleOrNull() ?: 2.5
     val despachante = despachantePercentSetting.toDoubleOrNull() ?: 8.0
-    val seguroPct = seguroPercentSetting.toDoubleOrNull() ?: 1.2
 
-    val fobUnit = selectedCantonArticle?.fobPriceUSD ?: (chinaFobUSDInput.toDoubleOrNull() ?: 38.0)
-    val containerQty = if ((selectedCantonArticle?.moq ?: 0) > 0) selectedCantonArticle!!.moq else (qtyInput.toIntOrNull() ?: 500)
+    val fobUnit = selectedCantonArticle?.fobPriceUSD ?: (chinaFobUSDInput.toDoubleOrNull() ?: 10.0)
+    val containerQty = if ((selectedCantonArticle?.moq ?: 0) > 0) selectedCantonArticle!!.moq else (qtyInput.toIntOrNull() ?: 1000)
 
-    // Cálculo Landed China
+    // Cálculo Landed China Completo
     val fobTotal = fobUnit * containerQty
     val seguroTotal = fobTotal * (seguroPct / 100.0)
     val cifTotal = fobTotal + flete + seguroTotal
     val derechosTotal = cifTotal * (arancel / 100.0)
     val tasaEstadTotal = cifTotal * (tasaEstad / 100.0)
     val baseImponible = cifTotal + derechosTotal + tasaEstadTotal
-    val gastosDespachante = baseImponible * (despachante / 100.0)
+    val ivaTotal = baseImponible * (ivaPct / 100.0)
+    val ivaAdicTotal = baseImponible * (ivaAdicPct / 100.0)
+    val gananciasTotal = baseImponible * (gananciasPct / 100.0)
     val iibbTotal = baseImponible * (iibb / 100.0)
-    val costoLandedTotalUSD = baseImponible + gastosDespachante + iibbTotal
+    val gastosDespachante = baseImponible * (despachante / 100.0)
+
+    val costoLandedTotalUSD = baseImponible + ivaTotal + ivaAdicTotal + gananciasTotal + iibbTotal + gastosDespachante
     val unitLandedUSD = if (containerQty > 0) costoLandedTotalUSD / containerQty else 0.0
     val unitLandedARS = unitLandedUSD * tc
 
@@ -3053,7 +3223,7 @@ fun ComparisonFlexxusScreen(
                                 OutlinedTextField(
                                     value = chinaFobUSDInput,
                                     onValueChange = { chinaFobUSDInput = it },
-                                    label = { Text("Precio FOB ($ USD)") },
+                                    label = { Text("Precio FOB ($ USD / u)") },
                                     modifier = Modifier.weight(1f),
                                     singleLine = true
                                 )
@@ -3079,79 +3249,43 @@ fun ComparisonFlexxusScreen(
 
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF8E1)),
-                        border = BorderStroke(1.dp, Color(0xFFFFA000))
-                    ) {
-                        Column(modifier = Modifier.padding(14.dp)) {
-                            Text("⚙️ PARÁMETROS DE IMPORTACIÓN UTILIZADOS", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = Color(0xFFE65100))
-                            Spacer(modifier = Modifier.height(8.dp))
-
-                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                OutlinedTextField(
-                                    value = dolarTCSetting, onValueChange = { dolarTCSetting = it },
-                                    label = { Text("Dólar TC ($ ARS)") }, modifier = Modifier.weight(1f)
-                                )
-                                OutlinedTextField(
-                                    value = fleteUSDSetting, onValueChange = { fleteUSDSetting = it },
-                                    label = { Text("Flete Marítimo ($ USD)") }, modifier = Modifier.weight(1f)
-                                )
-                            }
-                            Spacer(modifier = Modifier.height(6.dp))
-                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                OutlinedTextField(
-                                    value = arancelPercentSetting, onValueChange = { arancelPercentSetting = it },
-                                    label = { Text("Arancel / Derechos %") }, modifier = Modifier.weight(1f)
-                                )
-                                OutlinedTextField(
-                                    value = despachantePercentSetting, onValueChange = { despachantePercentSetting = it },
-                                    label = { Text("Despachante & Puerto %") }, modifier = Modifier.weight(1f)
-                                )
-                            }
-                        }
-                    }
+                    // DESGLOSE COMPLETO EN TAB 1
+                    ImportBreakdownTableComposable(
+                        fobUnit = chinaFobUSDInput.toDoubleOrNull() ?: 10.0,
+                        containerQty = qtyInput.toIntOrNull() ?: 1000,
+                        fleteUSD = flete,
+                        seguroPct = seguroPct,
+                        arancelPct = arancel,
+                        tasaEstadPct = tasaEstad,
+                        ivaPct = ivaPct,
+                        ivaAdicPct = ivaAdicPct,
+                        gananciasPct = gananciasPct,
+                        iibbPct = iibb,
+                        despachantePct = despachante,
+                        tc = tc,
+                        titleSuffix = "(TAB 1 MANUAL)"
+                    )
 
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    // RESULTADO LANDED CALCULADO
-                    Card(
+                    Button(
+                        onClick = {
+                            selectedCantonArticle = ArticleItem(
+                                code = "MANUAL-${System.currentTimeMillis() % 10000}",
+                                name = manualArtName.ifBlank { "Artículo Manual" },
+                                fobPriceUSD = chinaFobUSDInput.toDoubleOrNull() ?: 10.0,
+                                moq = qtyInput.toIntOrNull() ?: 1000,
+                                port = manualPortInput,
+                                leadTime = "30 días"
+                            )
+                            selectedCantonSupplierName = "Carga Manual"
+                            selectedSubTab = 2
+                        },
                         modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFFE8F5E9)),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1976D2)),
+                        shape = RoundedCornerShape(8.dp)
                     ) {
-                        Column(modifier = Modifier.padding(14.dp)) {
-                            Text("📊 COSTO LANDED ESTIMADO PUESTO DEPÓSITO", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = Color(0xFF2E7D32))
-                            Spacer(modifier = Modifier.height(6.dp))
-                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                Text("Costo Unitario Puesto ($ USD MEP):", fontSize = 11.sp)
-                                Text("$${String.format(Locale.US, "%.2f", unitLandedUSD)} USD", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF2E7D32))
-                            }
-                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                Text("Costo Unitario Puesto ($ ARS):", fontSize = 11.sp)
-                                Text("$${String.format("%,.2f", unitLandedARS)} ARS", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1565C0))
-                            }
-                            Spacer(modifier = Modifier.height(10.dp))
-                            Button(
-                                onClick = {
-                                    selectedCantonArticle = ArticleItem(
-                                        code = "MANUAL-${System.currentTimeMillis() % 10000}",
-                                        name = manualArtName.ifBlank { "Artículo Manual" },
-                                        fobPriceUSD = chinaFobUSDInput.toDoubleOrNull() ?: 38.0,
-                                        moq = qtyInput.toIntOrNull() ?: 500,
-                                        port = manualPortInput,
-                                        leadTime = "30 días"
-                                    )
-                                    selectedCantonSupplierName = "Carga Manual"
-                                    selectedSubTab = 2
-                                },
-                                modifier = Modifier.fillMaxWidth(),
-                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1976D2)),
-                                shape = RoundedCornerShape(8.dp)
-                            ) {
-                                Text("➡️ ENVIAR A TAB 3 (COMPARA ARTÍCULOS)", fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                            }
-                        }
+                        Text("➡️ ENVIAR A TAB 3 (COMPARA ARTÍCULOS)", fontSize = 11.sp, fontWeight = FontWeight.Bold)
                     }
                 }
 
@@ -3192,12 +3326,10 @@ fun ComparisonFlexxusScreen(
                         } else {
                             filteredArticles.forEach { (sup, art) ->
                                 val artFob = art.fobPriceUSD
-                                val artMoq = if (art.moq > 0) art.moq else 500
-                                val artLandedUSD = (artFob * artMoq + flete + (artFob * artMoq * (seguroPct / 100.0))) * (1 + (arancel + tasaEstad + despachante + iibb) / 100.0) / artMoq
-                                val artLandedARS = artLandedUSD * tc
+                                val artMoq = if (art.moq > 0) art.moq else 1000
 
                                 Card(
-                                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                                    modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
                                     colors = CardDefaults.cardColors(containerColor = Color.White),
                                     elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                                 ) {
@@ -3206,18 +3338,26 @@ fun ComparisonFlexxusScreen(
                                             Text(art.name, fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color(0xFF1B365D))
                                             Text("MOQ: $artMoq u", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0xFF2E7D32))
                                         }
-                                        Text("Proveedor: ${sup.companyName} | Código: ${art.code}", fontSize = 10.sp, color = Color.Gray)
-                                        Spacer(modifier = Modifier.height(6.dp))
-                                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                            Column {
-                                                Text("PRECIO FOB", fontSize = 9.sp, color = Color.Gray)
-                                                Text("$${String.format(Locale.US, "%.2f", artFob)} USD", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFF2E7D32))
-                                            }
-                                            Column(horizontalAlignment = Alignment.End) {
-                                                Text("COSTO LANDED DEPÓSITO", fontSize = 9.sp, color = Color.Gray)
-                                                Text("$${String.format("%,.2f", artLandedARS)} ARS ($${String.format(Locale.US, "%.2f", artLandedUSD)} USD)", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1565C0))
-                                            }
-                                        }
+                                        Text("Proveedor: ${sup.companyName} | Código: ${art.code} | Puerto: ${art.port}", fontSize = 10.sp, color = Color.Gray)
+                                        Spacer(modifier = Modifier.height(8.dp))
+
+                                        // DESGLOSE COMPLETO EN TAB 2 PARA CADA ARTÍCULO GUARDADO
+                                        ImportBreakdownTableComposable(
+                                            fobUnit = artFob,
+                                            containerQty = artMoq,
+                                            fleteUSD = flete,
+                                            seguroPct = seguroPct,
+                                            arancelPct = arancel,
+                                            tasaEstadPct = tasaEstad,
+                                            ivaPct = ivaPct,
+                                            ivaAdicPct = ivaAdicPct,
+                                            gananciasPct = gananciasPct,
+                                            iibbPct = iibb,
+                                            despachantePct = despachante,
+                                            tc = tc,
+                                            titleSuffix = "(${sup.companyName})"
+                                        )
+
                                         Spacer(modifier = Modifier.height(8.dp))
                                         Button(
                                             onClick = {
@@ -3228,9 +3368,9 @@ fun ComparisonFlexxusScreen(
                                             modifier = Modifier.fillMaxWidth(),
                                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32)),
                                             shape = RoundedCornerShape(8.dp),
-                                            contentPadding = PaddingValues(vertical = 4.dp)
+                                            contentPadding = PaddingValues(vertical = 6.dp)
                                         ) {
-                                            Text("📊 COMPARAR ESTE ARTÍCULO EN TAB 3", fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                            Text("📊 COMPARAR ESTE ARTÍCULO EN TAB 3", fontSize = 11.sp, fontWeight = FontWeight.Bold)
                                         }
                                     }
                                 }
@@ -3304,7 +3444,7 @@ fun ComparisonFlexxusScreen(
 
                     Spacer(modifier = Modifier.height(10.dp))
 
-                    // PANEL DE AJUSTES & PARÁMETROS
+                    // PANEL DE AJUSTES & PARÁMETROS CONFIGURABLES
                     if (showSettingsModal) {
                         Card(
                             modifier = Modifier.fillMaxWidth(),
@@ -3333,8 +3473,41 @@ fun ComparisonFlexxusScreen(
                                         label = { Text("Arancel / Derechos %") }, modifier = Modifier.weight(1f)
                                     )
                                     OutlinedTextField(
+                                        value = tasaEstadPercentSetting, onValueChange = { tasaEstadPercentSetting = it },
+                                        label = { Text("Tasa Estadística %") }, modifier = Modifier.weight(1f)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    OutlinedTextField(
+                                        value = ivaPercentSetting, onValueChange = { ivaPercentSetting = it },
+                                        label = { Text("IVA %") }, modifier = Modifier.weight(1f)
+                                    )
+                                    OutlinedTextField(
+                                        value = ivaAdicPercentSetting, onValueChange = { ivaAdicPercentSetting = it },
+                                        label = { Text("IVA Adicional %") }, modifier = Modifier.weight(1f)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    OutlinedTextField(
+                                        value = gananciasPercentSetting, onValueChange = { gananciasPercentSetting = it },
+                                        label = { Text("Ganancias %") }, modifier = Modifier.weight(1f)
+                                    )
+                                    OutlinedTextField(
+                                        value = iibbPercentSetting, onValueChange = { iibbPercentSetting = it },
+                                        label = { Text("II.BB %") }, modifier = Modifier.weight(1f)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    OutlinedTextField(
                                         value = despachantePercentSetting, onValueChange = { despachantePercentSetting = it },
                                         label = { Text("Despachante & Puerto %") }, modifier = Modifier.weight(1f)
+                                    )
+                                    OutlinedTextField(
+                                        value = seguroPercentSetting, onValueChange = { seguroPercentSetting = it },
+                                        label = { Text("Seguro %") }, modifier = Modifier.weight(1f)
                                     )
                                 }
                             }
@@ -3436,40 +3609,22 @@ fun ComparisonFlexxusScreen(
 
                     Spacer(modifier = Modifier.height(10.dp))
 
-                    // DESARROLLO VISUAL DE IMPORTACIÓN
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF8E1)),
-                        border = BorderStroke(1.dp, Color(0xFFFFA000))
-                    ) {
-                        Column(modifier = Modifier.padding(12.dp)) {
-                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                Text("📊 DESARROLLO VISUAL DE IMPORTACIÓN (LANDED)", fontWeight = FontWeight.Bold, fontSize = 11.sp, color = Color(0xFFE65100))
-                                Text("TC: $${String.format("%,.2f", tc)} ARS/USD", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1565C0))
-                            }
-                            Spacer(modifier = Modifier.height(4.dp))
-                            HorizontalDivider()
-                            Spacer(modifier = Modifier.height(4.dp))
-
-                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                Text("• FOB Unitario:", fontSize = 10.sp, color = Color.DarkGray)
-                                Text("$${String.format(Locale.US, "%.2f", fobUnit)} USD", fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                            }
-                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                Text("• Flete + Seguro (${seguroPct}%):", fontSize = 10.sp, color = Color.DarkGray)
-                                Text("$${String.format(Locale.US, "%.2f", (flete + seguroTotal) / containerQty)} USD / u", fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                            }
-                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                Text("• Impuestos & Gastos (${arancel}% Aranc + ${tasaEstad}% Estad + ${despachante}% Desp + ${iibb}% IIBB):", fontSize = 9.sp, color = Color.DarkGray)
-                                Text("$${String.format(Locale.US, "%.2f", (derechosTotal + tasaEstadTotal + gastosDespachante + iibbTotal) / containerQty)} USD / u", fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                            }
-                            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                Text("COSTO LANDED UNIDAD PUESTO:", fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                                Text(formatVal(unitLandedARS, unitLandedUSD), fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFF2E7D32))
-                            }
-                        }
-                    }
+                    // DESARROLLO VISUAL DE IMPORTACIÓN COMPLETO (TAB 3)
+                    ImportBreakdownTableComposable(
+                        fobUnit = fobUnit,
+                        containerQty = containerQty,
+                        fleteUSD = flete,
+                        seguroPct = seguroPct,
+                        arancelPct = arancel,
+                        tasaEstadPct = tasaEstad,
+                        ivaPct = ivaPct,
+                        ivaAdicPct = ivaAdicPct,
+                        gananciasPct = gananciasPct,
+                        iibbPct = iibb,
+                        despachantePct = despachante,
+                        tc = tc,
+                        titleSuffix = if (selectedCantonArticle != null) "(${selectedCantonArticle!!.name})" else "(TAB 3 COMPARA)"
+                    )
 
                     Spacer(modifier = Modifier.height(12.dp))
 
