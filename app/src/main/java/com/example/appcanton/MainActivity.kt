@@ -3342,6 +3342,14 @@ fun PostgresSearchScreen(
             (selectedAbc.isNotBlank() && selectedAbc != "Todas las Clases") ||
             showOnlyFavorites
 
+    var searchTriggerCount by remember { mutableStateOf(0) }
+
+    val performSearch: () -> Unit = {
+        focusManager.clearFocus()
+        keyboardController?.hide()
+        searchTriggerCount++
+    }
+
     LaunchedEffect(Unit) {
         PerrenPostgresRepository.loadFavorites(context)
         withContext(Dispatchers.IO) {
@@ -3351,14 +3359,13 @@ fun PostgresSearchScreen(
         }
     }
 
-    LaunchedEffect(searchQuery, selectedBrand, selectedCategory, selectedAbc, itemsPerPage, showOnlyFavorites, PerrenPostgresRepository.favoriteProductSkus.size, PerrenPostgresRepository.totalProductCount, PerrenPostgresRepository.isSyncingProducts) {
-        if (!hasActiveFilter) {
+    LaunchedEffect(searchTriggerCount) {
+        if (searchTriggerCount == 0 || !hasActiveFilter) {
             displayProducts = emptyList()
             isSearching = false
             return@LaunchedEffect
         }
         isSearching = true
-        kotlinx.coroutines.delay(150)
         val results = withContext(Dispatchers.IO) {
             val dbResults = dbHelper.searchProductsInDb(cleanQuery, selectedBrand, selectedCategory, selectedAbc, itemsPerPage)
             if (showOnlyFavorites) {
@@ -3436,7 +3443,13 @@ fun PostgresSearchScreen(
                 leadingIcon = { Text("🔍", fontSize = 16.sp) },
                 trailingIcon = {
                     if (searchQuery.isNotEmpty()) {
-                        IconButton(onClick = { searchQuery = "" }) {
+                        IconButton(onClick = {
+                            searchQuery = ""
+                            if (selectedBrand == "Todas las Marcas" && selectedCategory == "Todos los Rubros" && selectedAbc == "Todas las Clases" && !showOnlyFavorites) {
+                                searchTriggerCount = 0
+                                displayProducts = emptyList()
+                            }
+                        }) {
                             Text("❌", fontSize = 12.sp)
                         }
                     }
@@ -3444,20 +3457,14 @@ fun PostgresSearchScreen(
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                 keyboardActions = KeyboardActions(
-                    onSearch = {
-                        focusManager.clearFocus()
-                        keyboardController?.hide()
-                    }
+                    onSearch = { performSearch() }
                 ),
                 modifier = Modifier.weight(1f),
                 shape = RoundedCornerShape(10.dp)
             )
 
             Button(
-                onClick = {
-                    focusManager.clearFocus()
-                    keyboardController?.hide()
-                },
+                onClick = { performSearch() },
                 modifier = Modifier.height(56.dp),
                 shape = RoundedCornerShape(10.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1B365D)),
@@ -3617,6 +3624,8 @@ fun PostgresSearchScreen(
                     selectedAbc = "Todas las Clases"
                     itemsPerPage = 50
                     showOnlyFavorites = false
+                    searchTriggerCount = 0
+                    displayProducts = emptyList()
                 }) {
                     Text("Limpiar filtros", fontSize = 11.sp, color = Color(0xFFD32F2F))
                 }
