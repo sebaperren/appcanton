@@ -389,6 +389,89 @@ class CantonSQLiteHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_
         } catch (_: Exception) {}
         return list
     }
+
+    fun searchProductsInDb(query: String, selectedBrand: String, selectedCategory: String): List<PerrenPostgresProduct> {
+        val list = mutableListOf<PerrenPostgresProduct>()
+        try {
+            val db = readableDatabase
+            val selectionClauses = mutableListOf<String>()
+            val args = mutableListOf<String>()
+
+            if (query.trim().isNotBlank()) {
+                val q = "%${query.trim()}%"
+                selectionClauses.add("(sku LIKE ? OR description LIKE ? OR brand LIKE ? OR category LIKE ? OR subcategory LIKE ?)")
+                args.add(q)
+                args.add(q)
+                args.add(q)
+                args.add(q)
+                args.add(q)
+            }
+
+            if (selectedBrand.isNotBlank() && selectedBrand != "Todas las Marcas") {
+                selectionClauses.add("brand = ?")
+                args.add(selectedBrand)
+            }
+
+            if (selectedCategory.isNotBlank() && selectedCategory != "Todos los Rubros") {
+                selectionClauses.add("category = ?")
+                args.add(selectedCategory)
+            }
+
+            val selection = if (selectionClauses.isNotEmpty()) selectionClauses.joinToString(" AND ") else null
+            val selectionArgs = if (args.isNotEmpty()) args.toTypedArray() else null
+
+            val cursor = db.query(TABLE_FLEXXUS_PRODUCTS, null, selection, selectionArgs, null, null, null, "60")
+            cursor.use { c ->
+                while (c.moveToNext()) {
+                    list.add(
+                        PerrenPostgresProduct(
+                            sku = c.getString(c.getColumnIndexOrThrow("sku")),
+                            description = c.getString(c.getColumnIndexOrThrow("description")),
+                            brand = c.getString(c.getColumnIndexOrThrow("brand")),
+                            category = c.getString(c.getColumnIndexOrThrow("category")),
+                            subcategory = c.getString(c.getColumnIndexOrThrow("subcategory")),
+                            classification = c.getString(c.getColumnIndexOrThrow("classification")),
+                            costNoVAT = c.getDouble(c.getColumnIndexOrThrow("costNoVAT")),
+                            costUSDNoVAT = c.getDouble(c.getColumnIndexOrThrow("costUSDNoVAT")),
+                            stockAvailable = c.getInt(c.getColumnIndexOrThrow("stockAvailable")),
+                            unit = c.getString(c.getColumnIndexOrThrow("unit")),
+                            priceVAT = c.getDouble(c.getColumnIndexOrThrow("priceVAT")),
+                            salePriceNoVAT = c.getDouble(c.getColumnIndexOrThrow("salePriceNoVAT"))
+                        )
+                    )
+                }
+            }
+        } catch (_: Exception) {}
+        return list
+    }
+
+    fun getDistinctBrands(): List<String> {
+        val list = mutableListOf<String>()
+        try {
+            val db = readableDatabase
+            val cursor = db.rawQuery("SELECT DISTINCT brand FROM $TABLE_FLEXXUS_PRODUCTS WHERE brand IS NOT NULL AND brand != '' ORDER BY brand ASC", null)
+            cursor.use { c ->
+                while (c.moveToNext()) {
+                    list.add(c.getString(0))
+                }
+            }
+        } catch (_: Exception) {}
+        return listOf("Todas las Marcas") + list
+    }
+
+    fun getDistinctCategories(): List<String> {
+        val list = mutableListOf<String>()
+        try {
+            val db = readableDatabase
+            val cursor = db.rawQuery("SELECT DISTINCT category FROM $TABLE_FLEXXUS_PRODUCTS WHERE category IS NOT NULL AND category != '' ORDER BY category ASC", null)
+            cursor.use { c ->
+                while (c.moveToNext()) {
+                    list.add(c.getString(0))
+                }
+            }
+        } catch (_: Exception) {}
+        return listOf("Todos los Rubros") + list
+    }
 }
 
 object PerrenPostgresRepository {
@@ -3096,42 +3179,53 @@ fun PostgresSearchScreen(
     var searchQuery by remember { mutableStateOf("") }
     var selectedBrand by remember { mutableStateOf("Todas las Marcas") }
     var selectedCategory by remember { mutableStateOf("Todos los Rubros") }
+    var showOnlyFavorites by remember { mutableStateOf(false) }
 
     var brandDropdownExpanded by remember { mutableStateOf(false) }
     var categoryDropdownExpanded by remember { mutableStateOf(false) }
 
-    val availableBrands = remember(suppliers, PerrenPostgresRepository.loadedCsvProducts.size) { PerrenPostgresRepository.getAvailableBrands(suppliers) }
-    val availableCategories = remember(suppliers, PerrenPostgresRepository.loadedCsvProducts.size) { PerrenPostgresRepository.getAvailableCategories(suppliers) }
-
-    val filteredProducts = PerrenPostgresRepository.searchProducts(suppliers, searchQuery, selectedBrand, selectedCategory)
-
-    var showOnlyFavorites by remember { mutableStateOf(false) }
-
     val context = LocalContext.current
+    val dbHelper = remember(context) { CantonSQLiteHelper(context) }
+
+    var availableBrands by remember { mutableStateOf(listOf("Todas las Marcas")) }
+    var availableCategories by remember { mutableStateOf(listOf("Todos los Rubros")) }
+
+    var displayProducts by remember { mutableStateOf<List<PerrenPostgresProduct>>(emptyList()) }
+    var isSearching by remember { mutableStateOf(false) }
+
     val scrollState = rememberScrollState()
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
 
     LaunchedEffect(Unit) {
         PerrenPostgresRepository.loadFavorites(context)
-        if (PerrenPostgresRepository.loadedCsvProducts.isEmpty()) {
-            try {
-                context.assets.open("articulos_flexxus_perren.csv").use { stream ->
-                    PerrenPostgresRepository.loadProductsFromCsvStream(stream, context)
-                }
-            } catch (e: Exception) {
-                e.printStackTrace()
+        withContext(Dispatchers.IO) {
+            availableBrands = dbHelper.getDistinctBrands()
+            availableCategories = dbHelper.getDistinctCategories()
+            if (PerrenPostgresRepository.loadedCsvProducts.isEmpty()) {
+                try {
+                    context.assets.open("articulos_flexxus_perren.csv").use { stream ->
+                        PerrenPostgresRepository.loadProductsFromCsvStream(stream, context)
+                    }
+                } catch (_: Exception) {}
             }
         }
     }
 
-    val displayProducts = remember(filteredProducts, showOnlyFavorites, PerrenPostgresRepository.favoriteProductSkus.size) {
-        val baseList = if (showOnlyFavorites) {
-            filteredProducts.filter { PerrenPostgresRepository.favoriteProductSkus.contains(it.sku) }
-        } else {
-            filteredProducts
+    LaunchedEffect(searchQuery, selectedBrand, selectedCategory, showOnlyFavorites, PerrenPostgresRepository.favoriteProductSkus.size, PerrenPostgresRepository.loadedCsvProducts.size) {
+        isSearching = true
+        kotlinx.coroutines.delay(150)
+        val results = withContext(Dispatchers.IO) {
+            val dbResults = dbHelper.searchProductsInDb(searchQuery, selectedBrand, selectedCategory)
+            val list = if (dbResults.isNotEmpty()) dbResults else PerrenPostgresRepository.searchProducts(suppliers, searchQuery, selectedBrand, selectedCategory)
+            if (showOnlyFavorites) {
+                list.filter { PerrenPostgresRepository.favoriteProductSkus.contains(it.sku) }
+            } else {
+                list
+            }
         }
-        baseList.take(60)
+        displayProducts = results.take(60)
+        isSearching = false
     }
 
     Column(
