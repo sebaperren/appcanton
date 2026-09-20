@@ -3712,9 +3712,11 @@ fun ComparisonFlexxusScreen(
                                     colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF3E0))
                                 ) {
                                     Column(modifier = Modifier.padding(8.dp)) {
-                                        Text("ℹ️ Capacidad Máxima de Carga de Contenedores en Aduana Argentina:", fontWeight = FontWeight.Bold, fontSize = 9.sp, color = Color(0xFFE65100))
-                                        Text("• Contenedor 20ft (20 pies): 21.700 kg a 24.000 kg (Volumen ~33 m³).", fontSize = 8.5.sp, color = Color.DarkGray)
-                                        Text("• Contenedor 40ft HQ (40 High Cube): 26.000 kg a 28.000 kg (Límite legal balanza puerto Argentina: 26.000 kg netos).", fontSize = 8.5.sp, color = Color.DarkGray)
+                                        Text("ℹ️ Capacidad Estructural & Carga Útil por Tipo de Contenedor:", fontWeight = FontWeight.Bold, fontSize = 9.sp, color = Color(0xFFE65100))
+                                        Spacer(modifier = Modifier.height(2.dp))
+                                        Text("• 20' DV (20 pies): Carga útil de 27 a 28 Tn (27.000-28.000 kg). Peso bruto max total ~30,4 Tn incl. tara.", fontSize = 8.5.sp, color = Color.DarkGray)
+                                        Text("• 40' DV / HC (40 pies): Carga útil de 26 a 29 Tn (26.000-29.000 kg) por resistencia estructural del piso.", fontSize = 8.5.sp, color = Color.DarkGray)
+                                        Text("• Límite Balanza Puerto AR: 26.000 kg netos recomendados sin sobretasa vial.", fontSize = 8.5.sp, color = Color(0xFFD84315), fontWeight = FontWeight.Bold)
                                     }
                                 }
                             }
