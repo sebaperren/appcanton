@@ -2984,9 +2984,23 @@ fun ImportBreakdownTableComposable(
             ) {
                 Text(
                     "📋 DESGLOSE COMPLETO DE IMPORTACIÓN (LANDED) $titleSuffix",
+                    modifier = Modifier.weight(1f),
                     fontWeight = FontWeight.Bold, fontSize = 11.sp, color = Color(0xFF1B365D)
                 )
-                Text("Lote: $qty u", fontWeight = FontWeight.Bold, fontSize = 10.sp, color = Color(0xFF2E7D32))
+                Spacer(modifier = Modifier.width(6.dp))
+                Surface(
+                    color = Color(0xFFE8F5E9),
+                    shape = RoundedCornerShape(4.dp)
+                ) {
+                    Text(
+                        "Lote: $qty u",
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 10.sp,
+                        color = Color(0xFF2E7D32),
+                        maxLines = 1
+                    )
+                }
             }
 
             if (qty <= 1 && !weightModeEnabled) {
