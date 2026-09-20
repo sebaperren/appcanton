@@ -2890,7 +2890,7 @@ fun SupplierWorkspaceScreen(
     }
 }
 
-// MARK: - 4. Comparador de Costos Flexxus BI & Combos (Interactivo)
+// MARK: - 4. Comparador de Costos Flexxus BI & Combos (Interactivo de 3 Pestañas)
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun ComparisonFlexxusScreen(
@@ -2901,13 +2901,16 @@ fun ComparisonFlexxusScreen(
     val dbHelper = remember(context) { CantonSQLiteHelper(context) }
     val scrollState = rememberScrollState()
 
+    var selectedSubTab by remember { mutableStateOf(if (preselectedPerrenProduct != null) 2 else 0) }
+
     var selectedPerrenProduct by remember { mutableStateOf<PerrenPostgresProduct?>(preselectedPerrenProduct) }
-    var selectedCantonArticle by remember { mutableStateOf<Article?>(null) }
+    var selectedCantonArticle by remember { mutableStateOf<ArticleItem?>(null) }
     var selectedCantonSupplierName by remember { mutableStateOf("") }
 
     LaunchedEffect(preselectedPerrenProduct) {
         if (preselectedPerrenProduct != null) {
             selectedPerrenProduct = preselectedPerrenProduct
+            selectedSubTab = 2
         }
     }
 
@@ -2925,9 +2928,14 @@ fun ComparisonFlexxusScreen(
     var despachantePercentSetting by remember { mutableStateOf("8.0") }
     var seguroPercentSetting by remember { mutableStateOf("1.2") }
 
-    // Cotización China Manual (fallback si no se elige artículo de proveedor)
+    // Cotización China Manual (Tab 1)
+    var manualArtName by remember { mutableStateOf("Artículo Importado") }
     var chinaFobUSDInput by remember { mutableStateOf("38.00") }
     var qtyInput by remember { mutableStateOf("500") }
+    var manualPortInput by remember { mutableStateOf("Shenzhen") }
+
+    // Búsqueda en catálogo de guardados (Tab 2)
+    var cantonCatalogQuery by remember { mutableStateOf("") }
 
     // Parse variables
     val tc = dolarTCSetting.toDoubleOrNull() ?: 1350.0
@@ -2970,330 +2978,565 @@ fun ComparisonFlexxusScreen(
         else "$${String.format("%,.2f", ars)} ARS"
     }
 
+    val allSupplierArticles = remember(suppliers) {
+        suppliers.flatMap { sup -> sup.articles.map { art -> sup to art } }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(Color(0xFFF8F9FA))
-            .padding(16.dp)
-            .verticalScroll(scrollState)
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+        // ENCABEZADO CON NAVEGACIÓN DE 3 TABS
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(Color.White)
+                .padding(top = 12.dp, start = 12.dp, end = 12.dp)
         ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text("⚖️ COMPARADOR FLEXXUS VS CANTON FAIR", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1B365D))
-                Text("Comparación directa de Costo Argentina vs Importación Landed", fontSize = 10.sp, color = Color.Gray)
-            }
-            Button(
-                onClick = { showSettingsModal = !showSettingsModal },
-                colors = ButtonDefaults.buttonColors(containerColor = if (showSettingsModal) Color(0xFFD32F2F) else Color(0xFF1976D2)),
-                shape = RoundedCornerShape(8.dp),
-                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
-            ) {
-                Text(if (showSettingsModal) "✖️ Ajustes" else "⚙️ Ajustes Importación", fontSize = 10.sp, fontWeight = FontWeight.Bold)
-            }
-        }
-
-        Spacer(modifier = Modifier.height(10.dp))
-
-        // BARRA SELECTORA DE MONEDA ($ Pesos / $ Dólares MEP)
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFFE3F2FD))
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(10.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column {
-                    Text("💱 VER EN MONEDA:", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1565C0))
-                    Text("Dólar TC: $${String.format("%,.2f", tc)} ARS", fontSize = 9.sp, color = Color.Gray)
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Button(
-                        onClick = { currencyMode = "ARS" },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = if (currencyMode == "ARS") Color(0xFF1B365D) else Color.LightGray
-                        ),
-                        shape = RoundedCornerShape(8.dp),
-                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
-                    ) {
-                        Text("💵 Pesos ($ ARS)", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                    }
-
-                    Button(
-                        onClick = { currencyMode = "USD" },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = if (currencyMode == "USD") Color(0xFF2E7D32) else Color.LightGray
-                        ),
-                        shape = RoundedCornerShape(8.dp),
-                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
-                    ) {
-                        Text("💲 Dólares ($ USD MEP)", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                    }
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(10.dp))
-
-        // PANEL DE AJUSTES & PARÁMETROS
-        if (showSettingsModal) {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF8E1)),
-                border = BorderStroke(1.dp, Color(0xFFFFA000))
-            ) {
-                Column(modifier = Modifier.padding(12.dp)) {
-                    Text("⚙️ PARÁMETROS DE IMPORTACIÓN & TIPO DE CAMBIO", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = Color(0xFFE65100))
-                    Text("Modifica las tasas para actualizar los costos landed en tiempo real.", fontSize = 9.sp, color = Color.Gray)
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        OutlinedTextField(
-                            value = dolarTCSetting, onValueChange = { dolarTCSetting = it },
-                            label = { Text("Dólar TC ($ ARS)") }, modifier = Modifier.weight(1f)
-                        )
-                        OutlinedTextField(
-                            value = fleteUSDSetting, onValueChange = { fleteUSDSetting = it },
-                            label = { Text("Flete Marítimo ($ USD)") }, modifier = Modifier.weight(1f)
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(6.dp))
-
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        OutlinedTextField(
-                            value = iibbPercentSetting, onValueChange = { iibbPercentSetting = it },
-                            label = { Text("IIBB % (ej: 3.5%)") }, modifier = Modifier.weight(1f)
-                        )
-                        OutlinedTextField(
-                            value = arancelPercentSetting, onValueChange = { arancelPercentSetting = it },
-                            label = { Text("Arancel / Derechos %") }, modifier = Modifier.weight(1f)
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(6.dp))
-
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        OutlinedTextField(
-                            value = tasaEstadPercentSetting, onValueChange = { tasaEstadPercentSetting = it },
-                            label = { Text("Tasa Estadística %") }, modifier = Modifier.weight(1f)
-                        )
-                        OutlinedTextField(
-                            value = despachantePercentSetting, onValueChange = { despachantePercentSetting = it },
-                            label = { Text("Despachante & Puerto %") }, modifier = Modifier.weight(1f)
-                        )
-                    }
-                }
-            }
+            Text("⚖️ MODULO DE COMPARACIÓN FLEXXUS & CANTON", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1B365D))
+            Text("Cálculo Landed, Selección de Proveedores y Evaluación de Costos", fontSize = 10.sp, color = Color.Gray)
             Spacer(modifier = Modifier.height(10.dp))
-        }
 
-        // SELECCIÓN PERREN (SQLITE)
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
-            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-        ) {
-            Column(modifier = Modifier.padding(12.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text("🇦🇷 ARTÍCULO PERREN (SQLITE LOCAL)", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = Color(0xFF1976D2))
-                    Button(
-                        onClick = { showPerrenSearchModal = true },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1976D2)),
-                        shape = RoundedCornerShape(8.dp),
-                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
-                    ) {
-                        Text("🔍 BUSCAR PERREN", fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                    }
-                }
-                Spacer(modifier = Modifier.height(6.dp))
-                if (selectedPerrenProduct == null) {
-                    Text("Ningún artículo Perren seleccionado. Toca 'BUSCAR PERREN' para elegir de la base de 12.074 artículos.", fontSize = 11.sp, color = Color.Gray)
-                } else {
-                    val prod = selectedPerrenProduct!!
-                    Text("${prod.sku} - ${prod.description}", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color(0xFF1B365D))
-                    Text("Marca: ${prod.brand} | Rubro: ${prod.category} | Clase: ${prod.abcClass}", fontSize = 10.sp, color = Color.Gray)
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Column {
-                            Text("COSTO SIN IVA", fontSize = 9.sp, color = Color.Gray)
-                            Text(formatVal(perrenCostARS, perrenCostUSD), fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFFD32F2F))
-                        }
-                        Column(horizontalAlignment = Alignment.End) {
-                            Text("VENTA ESTIMADA SIN IVA", fontSize = 9.sp, color = Color.Gray)
-                            Text(formatVal(perrenSaleARS, perrenSaleUSD), fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFF2E7D32))
-                        }
-                    }
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(10.dp))
-
-        // SELECCIÓN CANTON FAIR (PROVEEDORES)
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
-            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-        ) {
-            Column(modifier = Modifier.padding(12.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text("🇨🇳 ARTÍCULO CANTON FAIR (PROVEEDORES)", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = Color(0xFF2E7D32))
-                    Button(
-                        onClick = { showCantonPickerModal = true },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32)),
-                        shape = RoundedCornerShape(8.dp),
-                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
-                    ) {
-                        Text("📦 ELEGIR DE CANTON", fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                    }
-                }
-                Spacer(modifier = Modifier.height(6.dp))
-                if (selectedCantonArticle == null) {
-                    Text("Puedes elegir de los artículos de proveedores guardados o ingresar el FOB manual:", fontSize = 10.sp, color = Color.Gray)
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        OutlinedTextField(
-                            value = chinaFobUSDInput, onValueChange = { chinaFobUSDInput = it },
-                            label = { Text("Precio FOB China ($ USD)") }, modifier = Modifier.weight(1f)
-                        )
-                        OutlinedTextField(
-                            value = qtyInput, onValueChange = { qtyInput = it },
-                            label = { Text("Cantidad Contenedor") }, modifier = Modifier.weight(1f)
-                        )
-                    }
-                } else {
-                    val art = selectedCantonArticle!!
-                    Text("${art.name} (${selectedCantonSupplierName})", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color(0xFF1B365D))
-                    Text("Código: ${art.code} | Puerto: ${art.shippingPort} | MOQ: ${art.moq} Unidades", fontSize = 10.sp, color = Color.Gray)
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Column {
-                            Text("PRECIO FOB FÁBRICA", fontSize = 9.sp, color = Color.Gray)
-                            Text("$${String.format(Locale.US, "%.2f", art.fobPriceUSD)} USD", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFF2E7D32))
-                        }
-                        Column(horizontalAlignment = Alignment.End) {
-                            Text("COSTO LANDED PUESTO", fontSize = 9.sp, color = Color.Gray)
-                            Text(formatVal(unitLandedARS, unitLandedUSD), fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1565C0))
-                        }
-                    }
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(10.dp))
-
-        // DESARROLLO VISUAL DE IMPORTACIÓN
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF8E1)),
-            border = BorderStroke(1.dp, Color(0xFFFFA000))
-        ) {
-            Column(modifier = Modifier.padding(12.dp)) {
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text("📊 DESARROLLO VISUAL DE IMPORTACIÓN (LANDED)", fontWeight = FontWeight.Bold, fontSize = 11.sp, color = Color(0xFFE65100))
-                    Text("TC: $${String.format("%,.2f", tc)} ARS/USD", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1565C0))
-                }
-                Spacer(modifier = Modifier.height(4.dp))
-                HorizontalDivider()
-                Spacer(modifier = Modifier.height(4.dp))
-
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text("• FOB Unitario:", fontSize = 10.sp, color = Color.DarkGray)
-                    Text("$${String.format(Locale.US, "%.2f", fobUnit)} USD", fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                }
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text("• Flete + Seguro (${seguroPct}%):", fontSize = 10.sp, color = Color.DarkGray)
-                    Text("$${String.format(Locale.US, "%.2f", (flete + seguroTotal) / containerQty)} USD / u", fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                }
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text("• Impuestos & Gastos (${arancel}% Aranc + ${tasaEstad}% Estad + ${despachante}% Desp + ${iibb}% IIBB):", fontSize = 9.sp, color = Color.DarkGray)
-                    Text("$${String.format(Locale.US, "%.2f", (derechosTotal + tasaEstadTotal + gastosDespachante + iibbTotal) / containerQty)} USD / u", fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                }
-                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text("COSTO LANDED UNIDAD PUESTO:", fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                    Text(formatVal(unitLandedARS, unitLandedUSD), fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFF2E7D32))
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        // TARJETAS COMPARATIVAS LADO A LADO
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Card(
-                modifier = Modifier.weight(1f).border(2.dp, Color(0xFFD32F2F), RoundedCornerShape(8.dp)),
-                colors = CardDefaults.cardColors(containerColor = Color.White)
+            TabRow(
+                selectedTabIndex = selectedSubTab,
+                containerColor = Color.White,
+                contentColor = Color(0xFF1B365D)
             ) {
-                Column(modifier = Modifier.padding(10.dp)) {
-                    Text("🇦🇷 PERREN (ARGENTINA)", fontWeight = FontWeight.Bold, fontSize = 10.sp, color = Color(0xFFD32F2F))
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text("Costo Sin IVA", fontSize = 9.sp, color = Color.Gray)
-                    Text(formatVal(perrenCostARS, perrenCostUSD), fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color(0xFFD32F2F))
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text("Venta: ${formatVal(perrenSaleARS, perrenSaleUSD)}", fontSize = 9.sp, color = Color.DarkGray)
-                }
-            }
-
-            Spacer(modifier = Modifier.width(8.dp))
-
-            Card(
-                modifier = Modifier.weight(1f).border(2.dp, Color(0xFF2E7D32), RoundedCornerShape(8.dp)),
-                colors = CardDefaults.cardColors(containerColor = Color.White)
-            ) {
-                Column(modifier = Modifier.padding(10.dp)) {
-                    Text("🇨🇳 CANTON FAIR (IMPORTADO)", fontWeight = FontWeight.Bold, fontSize = 10.sp, color = Color(0xFF2E7D32))
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text("Costo Puesto Depósito", fontSize = 9.sp, color = Color.Gray)
-                    Text(formatVal(unitLandedARS, unitLandedUSD), fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color(0xFF2E7D32))
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text("FOB: $${String.format(Locale.US, "%.2f", fobUnit)} USD", fontSize = 9.sp, color = Color.DarkGray)
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        // AHORRO O DIFERENCIA FINAL
-        Card(
-            colors = CardDefaults.cardColors(containerColor = if (ahorroUSD > 0) Color(0xFFE8F5E9) else Color(0xFFFFEBEE)),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(modifier = Modifier.padding(14.dp)) {
-                Text("RESULTADO COMPARATIVO FINAL", fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                Spacer(modifier = Modifier.height(6.dp))
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text("Diferencia / Ahorro Unitario:", fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                    Text(
-                        "${if (ahorroUSD > 0) "+" else ""}${formatVal(ahorroARS, ahorroUSD)} (${String.format(Locale.US, "%.1f", ahorroPct)}%)",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 12.sp,
-                        color = if (ahorroUSD > 0) Color(0xFF2E7D32) else Color(0xFFD32F2F)
-                    )
-                }
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    if (selectedPerrenProduct == null) "Selecciona un artículo Perren para calcular la diferencia de costo exacta."
-                    else if (ahorroUSD > 0) "🟢 Importar desde Canton Fair representa un ahorro de ${formatVal(ahorroARS, ahorroUSD)} (${String.format(Locale.US, "%.1f", ahorroPct)}%) por unidad vs Perren."
-                    else "🔴 El producto local resulta de menor costo que la alternativa importada.",
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = if (ahorroUSD > 0) Color(0xFF2E7D32) else Color(0xFFD32F2F)
+                Tab(
+                    selected = selectedSubTab == 0,
+                    onClick = { selectedSubTab = 0 },
+                    text = { Text("✍️ Tab 1: Carga Manual", fontSize = 10.sp, fontWeight = FontWeight.Bold) }
                 )
+                Tab(
+                    selected = selectedSubTab == 1,
+                    onClick = { selectedSubTab = 1 },
+                    text = { Text("📦 Tab 2: Guardados (${allSupplierArticles.size})", fontSize = 10.sp, fontWeight = FontWeight.Bold) }
+                )
+                Tab(
+                    selected = selectedSubTab == 2,
+                    onClick = { selectedSubTab = 2 },
+                    text = { Text("⚖️ Tab 3: Compara", fontSize = 10.sp, fontWeight = FontWeight.Bold) }
+                )
+            }
+        }
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp)
+                .verticalScroll(scrollState)
+        ) {
+            when (selectedSubTab) {
+                // ==================== TAB 1: CARGA MANUAL DEL ARTÍCULO ====================
+                0 -> {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(14.dp)) {
+                            Text("✍️ TAB 1: CARGA MANUAL DEL ARTÍCULO (FOB CHINA)", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color(0xFF1B365D))
+                            Text("Ingresa los datos de cotización directa para calcular el costo puesto landed:", fontSize = 10.sp, color = Color.Gray)
+                            Spacer(modifier = Modifier.height(10.dp))
+
+                            OutlinedTextField(
+                                value = manualArtName,
+                                onValueChange = { manualArtName = it },
+                                label = { Text("Nombre / Descripción del Artículo") },
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                OutlinedTextField(
+                                    value = chinaFobUSDInput,
+                                    onValueChange = { chinaFobUSDInput = it },
+                                    label = { Text("Precio FOB ($ USD)") },
+                                    modifier = Modifier.weight(1f),
+                                    singleLine = true
+                                )
+                                OutlinedTextField(
+                                    value = qtyInput,
+                                    onValueChange = { qtyInput = it },
+                                    label = { Text("Cantidad (MOQ)") },
+                                    modifier = Modifier.weight(1f),
+                                    singleLine = true
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            OutlinedTextField(
+                                value = manualPortInput,
+                                onValueChange = { manualPortInput = it },
+                                label = { Text("Puerto de Embarque (ej: Shenzhen, Ningbo)") },
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF8E1)),
+                        border = BorderStroke(1.dp, Color(0xFFFFA000))
+                    ) {
+                        Column(modifier = Modifier.padding(14.dp)) {
+                            Text("⚙️ PARÁMETROS DE IMPORTACIÓN UTILIZADOS", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = Color(0xFFE65100))
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                OutlinedTextField(
+                                    value = dolarTCSetting, onValueChange = { dolarTCSetting = it },
+                                    label = { Text("Dólar TC ($ ARS)") }, modifier = Modifier.weight(1f)
+                                )
+                                OutlinedTextField(
+                                    value = fleteUSDSetting, onValueChange = { fleteUSDSetting = it },
+                                    label = { Text("Flete Marítimo ($ USD)") }, modifier = Modifier.weight(1f)
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                OutlinedTextField(
+                                    value = arancelPercentSetting, onValueChange = { arancelPercentSetting = it },
+                                    label = { Text("Arancel / Derechos %") }, modifier = Modifier.weight(1f)
+                                )
+                                OutlinedTextField(
+                                    value = despachantePercentSetting, onValueChange = { despachantePercentSetting = it },
+                                    label = { Text("Despachante & Puerto %") }, modifier = Modifier.weight(1f)
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // RESULTADO LANDED CALCULADO
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFFE8F5E9)),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(14.dp)) {
+                            Text("📊 COSTO LANDED ESTIMADO PUESTO DEPÓSITO", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = Color(0xFF2E7D32))
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text("Costo Unitario Puesto ($ USD MEP):", fontSize = 11.sp)
+                                Text("$${String.format(Locale.US, "%.2f", unitLandedUSD)} USD", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF2E7D32))
+                            }
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text("Costo Unitario Puesto ($ ARS):", fontSize = 11.sp)
+                                Text("$${String.format("%,.2f", unitLandedARS)} ARS", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1565C0))
+                            }
+                            Spacer(modifier = Modifier.height(10.dp))
+                            Button(
+                                onClick = {
+                                    selectedCantonArticle = ArticleItem(
+                                        code = "MANUAL-${System.currentTimeMillis() % 10000}",
+                                        name = manualArtName.ifBlank { "Artículo Manual" },
+                                        fobPriceUSD = chinaFobUSDInput.toDoubleOrNull() ?: 38.0,
+                                        moq = qtyInput.toIntOrNull() ?: 500,
+                                        port = manualPortInput,
+                                        leadTime = "30 días"
+                                    )
+                                    selectedCantonSupplierName = "Carga Manual"
+                                    selectedSubTab = 2
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1976D2)),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Text("➡️ ENVIAR A TAB 3 (COMPARA ARTÍCULOS)", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                }
+
+                // ==================== TAB 2: CARGA ARTÍCULOS GUARDADOS ====================
+                1 -> {
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Text("📦 TAB 2: CATÁLOGOS Y ARTÍCULOS GUARDADOS POR PROVEEDORES", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color(0xFF1B365D))
+                        Text("Selecciona un artículo cotizado durante la feria para enviarlo al comparador:", fontSize = 10.sp, color = Color.Gray)
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        OutlinedTextField(
+                            value = cantonCatalogQuery,
+                            onValueChange = { cantonCatalogQuery = it },
+                            label = { Text("Filtrar por artículo o proveedor...") },
+                            leadingIcon = { Text("🔍") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        val filteredArticles = allSupplierArticles.filter { (sup, art) ->
+                            val q = cantonCatalogQuery.trim().lowercase()
+                            q.isEmpty() || art.name.lowercase().contains(q) || art.code.lowercase().contains(q) || sup.companyName.lowercase().contains(q)
+                        }
+
+                        if (filteredArticles.isEmpty()) {
+                            Card(
+                                modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
+                                colors = CardDefaults.cardColors(containerColor = Color.White)
+                            ) {
+                                Column(modifier = Modifier.padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Text("📦 No hay artículos cargados en proveedores", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color.DarkGray)
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text("Carga artículos desde la sección '+ Proveedor' para tenerlos guardados aquí.", fontSize = 11.sp, color = Color.Gray)
+                                }
+                            }
+                        } else {
+                            filteredArticles.forEach { (sup, art) ->
+                                val artFob = art.fobPriceUSD
+                                val artMoq = if (art.moq > 0) art.moq else 500
+                                val artLandedUSD = (artFob * artMoq + flete + (artFob * artMoq * (seguroPct / 100.0))) * (1 + (arancel + tasaEstad + despachante + iibb) / 100.0) / artMoq
+                                val artLandedARS = artLandedUSD * tc
+
+                                Card(
+                                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                                ) {
+                                    Column(modifier = Modifier.padding(12.dp)) {
+                                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                            Text(art.name, fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color(0xFF1B365D))
+                                            Text("MOQ: $artMoq u", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0xFF2E7D32))
+                                        }
+                                        Text("Proveedor: ${sup.companyName} | Código: ${art.code}", fontSize = 10.sp, color = Color.Gray)
+                                        Spacer(modifier = Modifier.height(6.dp))
+                                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                            Column {
+                                                Text("PRECIO FOB", fontSize = 9.sp, color = Color.Gray)
+                                                Text("$${String.format(Locale.US, "%.2f", artFob)} USD", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFF2E7D32))
+                                            }
+                                            Column(horizontalAlignment = Alignment.End) {
+                                                Text("COSTO LANDED DEPÓSITO", fontSize = 9.sp, color = Color.Gray)
+                                                Text("$${String.format("%,.2f", artLandedARS)} ARS ($${String.format(Locale.US, "%.2f", artLandedUSD)} USD)", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1565C0))
+                                            }
+                                        }
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        Button(
+                                            onClick = {
+                                                selectedCantonArticle = art
+                                                selectedCantonSupplierName = sup.companyName
+                                                selectedSubTab = 2
+                                            },
+                                            modifier = Modifier.fillMaxWidth(),
+                                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32)),
+                                            shape = RoundedCornerShape(8.dp),
+                                            contentPadding = PaddingValues(vertical = 4.dp)
+                                        ) {
+                                            Text("📊 COMPARAR ESTE ARTÍCULO EN TAB 3", fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // ==================== TAB 3: COMPARA ARTÍCULOS ====================
+                2 -> {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("⚖️ TAB 3: COMPARA ARTÍCULOS EN TIEMPO REAL", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1B365D))
+                            Text("Costo Argentina vs Importado Landed", fontSize = 10.sp, color = Color.Gray)
+                        }
+                        Button(
+                            onClick = { showSettingsModal = !showSettingsModal },
+                            colors = ButtonDefaults.buttonColors(containerColor = if (showSettingsModal) Color(0xFFD32F2F) else Color(0xFF1976D2)),
+                            shape = RoundedCornerShape(8.dp),
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                        ) {
+                            Text(if (showSettingsModal) "✖️ Ajustes" else "⚙️ Ajustes Importación", fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    // BARRA SELECTORA DE MONEDA ($ Pesos / $ Dólares MEP)
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFFE3F2FD))
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(10.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column {
+                                Text("💱 VER EN MONEDA:", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1565C0))
+                                Text("Dólar TC: $${String.format("%,.2f", tc)} ARS", fontSize = 9.sp, color = Color.Gray)
+                            }
+                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Button(
+                                    onClick = { currencyMode = "ARS" },
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = if (currencyMode == "ARS") Color(0xFF1B365D) else Color.LightGray
+                                    ),
+                                    shape = RoundedCornerShape(8.dp),
+                                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+                                ) {
+                                    Text("💵 Pesos ($ ARS)", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                                }
+
+                                Button(
+                                    onClick = { currencyMode = "USD" },
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = if (currencyMode == "USD") Color(0xFF2E7D32) else Color.LightGray
+                                    ),
+                                    shape = RoundedCornerShape(8.dp),
+                                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+                                ) {
+                                    Text("💲 Dólares ($ USD MEP)", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    // PANEL DE AJUSTES & PARÁMETROS
+                    if (showSettingsModal) {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF8E1)),
+                            border = BorderStroke(1.dp, Color(0xFFFFA000))
+                        ) {
+                            Column(modifier = Modifier.padding(12.dp)) {
+                                Text("⚙️ PARÁMETROS DE IMPORTACIÓN & TIPO DE CAMBIO", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = Color(0xFFE65100))
+                                Text("Modifica las tasas para actualizar los costos landed en tiempo real.", fontSize = 9.sp, color = Color.Gray)
+                                Spacer(modifier = Modifier.height(8.dp))
+
+                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    OutlinedTextField(
+                                        value = dolarTCSetting, onValueChange = { dolarTCSetting = it },
+                                        label = { Text("Dólar TC ($ ARS)") }, modifier = Modifier.weight(1f)
+                                    )
+                                    OutlinedTextField(
+                                        value = fleteUSDSetting, onValueChange = { fleteUSDSetting = it },
+                                        label = { Text("Flete Marítimo ($ USD)") }, modifier = Modifier.weight(1f)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    OutlinedTextField(
+                                        value = arancelPercentSetting, onValueChange = { arancelPercentSetting = it },
+                                        label = { Text("Arancel / Derechos %") }, modifier = Modifier.weight(1f)
+                                    )
+                                    OutlinedTextField(
+                                        value = despachantePercentSetting, onValueChange = { despachantePercentSetting = it },
+                                        label = { Text("Despachante & Puerto %") }, modifier = Modifier.weight(1f)
+                                    )
+                                }
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(10.dp))
+                    }
+
+                    // SELECCIÓN PERREN (SQLITE)
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text("🇦🇷 ARTÍCULO PERREN (SQLITE LOCAL)", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = Color(0xFF1976D2))
+                                Button(
+                                    onClick = { showPerrenSearchModal = true },
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1976D2)),
+                                    shape = RoundedCornerShape(8.dp),
+                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                                ) {
+                                    Text("🔍 BUSCAR PERREN", fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(6.dp))
+                            if (selectedPerrenProduct == null) {
+                                Text("Ningún artículo Perren seleccionado. Toca 'BUSCAR PERREN' para elegir de la base de 12.074 artículos.", fontSize = 11.sp, color = Color.Gray)
+                            } else {
+                                val prod = selectedPerrenProduct!!
+                                Text("${prod.sku} - ${prod.description}", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color(0xFF1B365D))
+                                Text("Marca: ${prod.brand} | Rubro: ${prod.category} | Clase: ${prod.abcClass}", fontSize = 10.sp, color = Color.Gray)
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                    Column {
+                                        Text("COSTO SIN IVA", fontSize = 9.sp, color = Color.Gray)
+                                        Text(formatVal(perrenCostARS, perrenCostUSD), fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFFD32F2F))
+                                    }
+                                    Column(horizontalAlignment = Alignment.End) {
+                                        Text("VENTA ESTIMADA SIN IVA", fontSize = 9.sp, color = Color.Gray)
+                                        Text(formatVal(perrenSaleARS, perrenSaleUSD), fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFF2E7D32))
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    // SELECCIÓN CANTON FAIR (PROVEEDORES)
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text("🇨🇳 ARTÍCULO CANTON FAIR (PROVEEDORES)", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = Color(0xFF2E7D32))
+                                Button(
+                                    onClick = { showCantonPickerModal = true },
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32)),
+                                    shape = RoundedCornerShape(8.dp),
+                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                                ) {
+                                    Text("📦 ELEGIR DE CANTON", fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(6.dp))
+                            if (selectedCantonArticle == null) {
+                                Text("Puedes elegir de los artículos de proveedores guardados (Tab 2) o ingresar el FOB manual (Tab 1).", fontSize = 10.sp, color = Color.Gray)
+                            } else {
+                                val art = selectedCantonArticle
+                                if (art != null) {
+                                    Text("${art.name} (${selectedCantonSupplierName})", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color(0xFF1B365D))
+                                    Text("Código: ${art.code} | Puerto: ${art.port} | MOQ: ${containerQty} Unidades", fontSize = 10.sp, color = Color.Gray)
+                                }
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                    Column {
+                                        Text("PRECIO FOB FÁBRICA", fontSize = 9.sp, color = Color.Gray)
+                                        Text("$${String.format(Locale.US, "%.2f", fobUnit)} USD", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFF2E7D32))
+                                    }
+                                    Column(horizontalAlignment = Alignment.End) {
+                                        Text("COSTO LANDED PUESTO", fontSize = 9.sp, color = Color.Gray)
+                                        Text(formatVal(unitLandedARS, unitLandedUSD), fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1565C0))
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    // DESARROLLO VISUAL DE IMPORTACIÓN
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF8E1)),
+                        border = BorderStroke(1.dp, Color(0xFFFFA000))
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text("📊 DESARROLLO VISUAL DE IMPORTACIÓN (LANDED)", fontWeight = FontWeight.Bold, fontSize = 11.sp, color = Color(0xFFE65100))
+                                Text("TC: $${String.format("%,.2f", tc)} ARS/USD", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1565C0))
+                            }
+                            Spacer(modifier = Modifier.height(4.dp))
+                            HorizontalDivider()
+                            Spacer(modifier = Modifier.height(4.dp))
+
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text("• FOB Unitario:", fontSize = 10.sp, color = Color.DarkGray)
+                                Text("$${String.format(Locale.US, "%.2f", fobUnit)} USD", fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                            }
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text("• Flete + Seguro (${seguroPct}%):", fontSize = 10.sp, color = Color.DarkGray)
+                                Text("$${String.format(Locale.US, "%.2f", (flete + seguroTotal) / containerQty)} USD / u", fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                            }
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text("• Impuestos & Gastos (${arancel}% Aranc + ${tasaEstad}% Estad + ${despachante}% Desp + ${iibb}% IIBB):", fontSize = 9.sp, color = Color.DarkGray)
+                                Text("$${String.format(Locale.US, "%.2f", (derechosTotal + tasaEstadTotal + gastosDespachante + iibbTotal) / containerQty)} USD / u", fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                            }
+                            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text("COSTO LANDED UNIDAD PUESTO:", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                Text(formatVal(unitLandedARS, unitLandedUSD), fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFF2E7D32))
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // TARJETAS COMPARATIVAS LADO A LADO
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Card(
+                            modifier = Modifier.weight(1f).border(2.dp, Color(0xFFD32F2F), RoundedCornerShape(8.dp)),
+                            colors = CardDefaults.cardColors(containerColor = Color.White)
+                        ) {
+                            Column(modifier = Modifier.padding(10.dp)) {
+                                Text("🇦🇷 PERREN (ARGENTINA)", fontWeight = FontWeight.Bold, fontSize = 10.sp, color = Color(0xFFD32F2F))
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text("Costo Sin IVA", fontSize = 9.sp, color = Color.Gray)
+                                Text(formatVal(perrenCostARS, perrenCostUSD), fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color(0xFFD32F2F))
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text("Venta: ${formatVal(perrenSaleARS, perrenSaleUSD)}", fontSize = 9.sp, color = Color.DarkGray)
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.width(8.dp))
+
+                        Card(
+                            modifier = Modifier.weight(1f).border(2.dp, Color(0xFF2E7D32), RoundedCornerShape(8.dp)),
+                            colors = CardDefaults.cardColors(containerColor = Color.White)
+                        ) {
+                            Column(modifier = Modifier.padding(10.dp)) {
+                                Text("🇨🇳 CANTON FAIR (IMPORTADO)", fontWeight = FontWeight.Bold, fontSize = 10.sp, color = Color(0xFF2E7D32))
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text("Costo Puesto Depósito", fontSize = 9.sp, color = Color.Gray)
+                                Text(formatVal(unitLandedARS, unitLandedUSD), fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color(0xFF2E7D32))
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text("FOB: $${String.format(Locale.US, "%.2f", fobUnit)} USD", fontSize = 9.sp, color = Color.DarkGray)
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // AHORRO O DIFERENCIA FINAL
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = if (ahorroUSD > 0) Color(0xFFE8F5E9) else Color(0xFFFFEBEE)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(14.dp)) {
+                            Text("RESULTADO COMPARATIVO FINAL", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text("Diferencia / Ahorro Unitario:", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                Text(
+                                    "${if (ahorroUSD > 0) "+" else ""}${formatVal(ahorroARS, ahorroUSD)} (${String.format(Locale.US, "%.1f", ahorroPct)}%)",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 12.sp,
+                                    color = if (ahorroUSD > 0) Color(0xFF2E7D32) else Color(0xFFD32F2F)
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                if (selectedPerrenProduct == null) "Selecciona un artículo Perren para calcular la diferencia de costo exacta."
+                                else if (ahorroUSD > 0) "🟢 Importar desde Canton Fair representa un ahorro de ${formatVal(ahorroARS, ahorroUSD)} (${String.format(Locale.US, "%.1f", ahorroPct)}%) por unidad vs Perren."
+                                else "🔴 El producto local resulta de menor costo que la alternativa importada.",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = if (ahorroUSD > 0) Color(0xFF2E7D32) else Color(0xFFD32F2F)
+                            )
+                        }
+                    }
+                }
             }
         }
     }
@@ -3381,17 +3624,13 @@ fun ComparisonFlexxusScreen(
 
     // MODAL DE SELECCIÓN CANTON FAIR (ARTÍCULOS DE PROVEEDORES)
     if (showCantonPickerModal) {
-        val allSupplierArticles = remember(suppliers) {
-            suppliers.flatMap { sup -> sup.articles.map { art -> sup to art } }
-        }
-
         AlertDialog(
             onDismissRequest = { showCantonPickerModal = false },
             title = { Text("🇨🇳 Seleccionar Artículo Canton Fair", fontSize = 14.sp, fontWeight = FontWeight.Bold) },
             text = {
                 Column(modifier = Modifier.fillMaxWidth().heightIn(max = 400.dp)) {
                     if (allSupplierArticles.isEmpty()) {
-                        Text("No tienes artículos guardados en proveedores todavía. Puedes utilizar el ingreso FOB manual.", fontSize = 11.sp, color = Color.Gray)
+                        Text("No tienes artículos guardados en proveedores todavía. Puedes utilizar el ingreso FOB manual en el Tab 1.", fontSize = 11.sp, color = Color.Gray)
                     } else {
                         LazyColumn(modifier = Modifier.fillMaxWidth()) {
                             items(allSupplierArticles) { (sup, art) ->
