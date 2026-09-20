@@ -19,6 +19,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -1516,6 +1518,7 @@ fun MainAppFlow() {
     var activeSupplier by remember { mutableStateOf<LocalSupplier?>(null) }
     var isSyncingCloud by remember { mutableStateOf(false) }
     var lastSyncTime by remember { mutableStateOf("") }
+    var comparisonPerrenProduct by remember { mutableStateOf<PerrenPostgresProduct?>(null) }
 
     val syncWithCloud: () -> Unit = {
         isSyncingCloud = true
@@ -1726,8 +1729,17 @@ fun MainAppFlow() {
                             }
                         )
                     }
-                    currentScreen == "postgres_search" -> PostgresSearchScreen(suppliers = savedSuppliers)
-                    currentScreen == "comparison" -> ComparisonFlexxusScreen(suppliers = savedSuppliers)
+                    currentScreen == "postgres_search" -> PostgresSearchScreen(
+                        suppliers = savedSuppliers,
+                        onSelectProductForComparison = { prod ->
+                            comparisonPerrenProduct = prod
+                            currentScreen = "comparison"
+                        }
+                    )
+                    currentScreen == "comparison" -> ComparisonFlexxusScreen(
+                        suppliers = savedSuppliers,
+                        preselectedPerrenProduct = comparisonPerrenProduct
+                    )
                     currentScreen == "wallet" -> CardWalletScreen(suppliers = savedSuppliers)
                 }
             }
@@ -2878,19 +2890,33 @@ fun SupplierWorkspaceScreen(
     }
 }
 
-// MARK: - 4. Comparador de Costos Flexxus BI & Combos
-@OptIn(ExperimentalMaterial3Api::class)
+// MARK: - 4. Comparador de Costos Flexxus BI & Combos (Interactivo)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
-fun ComparisonFlexxusScreen(suppliers: List<LocalSupplier> = emptyList()) {
+fun ComparisonFlexxusScreen(
+    suppliers: List<LocalSupplier> = emptyList(),
+    preselectedPerrenProduct: PerrenPostgresProduct? = null
+) {
+    val context = LocalContext.current
+    val dbHelper = remember(context) { CantonSQLiteHelper(context) }
     val scrollState = rememberScrollState()
-    val allProducts = remember(suppliers) { PerrenPostgresRepository.getAllProducts(suppliers) }
 
-    var selectedSkus by remember {
-        mutableStateOf(setOf<String>())
+    var selectedPerrenProduct by remember { mutableStateOf<PerrenPostgresProduct?>(preselectedPerrenProduct) }
+    var selectedCantonArticle by remember { mutableStateOf<Article?>(null) }
+    var selectedCantonSupplierName by remember { mutableStateOf("") }
+
+    LaunchedEffect(preselectedPerrenProduct) {
+        if (preselectedPerrenProduct != null) {
+            selectedPerrenProduct = preselectedPerrenProduct
+        }
     }
 
-    // Parámetros de Importación (Ajustes Configurables)
+    var currencyMode by remember { mutableStateOf("ARS") } // "ARS" or "USD"
+    var showPerrenSearchModal by remember { mutableStateOf(false) }
+    var showCantonPickerModal by remember { mutableStateOf(false) }
     var showSettingsModal by remember { mutableStateOf(false) }
+
+    // Parámetros de Importación (Ajustes Configurables)
     var dolarTCSetting by remember { mutableStateOf("1350.00") }
     var fleteUSDSetting by remember { mutableStateOf("3400.00") }
     var iibbPercentSetting by remember { mutableStateOf("3.5") }
@@ -2899,7 +2925,7 @@ fun ComparisonFlexxusScreen(suppliers: List<LocalSupplier> = emptyList()) {
     var despachantePercentSetting by remember { mutableStateOf("8.0") }
     var seguroPercentSetting by remember { mutableStateOf("1.2") }
 
-    // Oferta China
+    // Cotización China Manual (fallback si no se elige artículo de proveedor)
     var chinaFobUSDInput by remember { mutableStateOf("38.00") }
     var qtyInput by remember { mutableStateOf("500") }
 
@@ -2912,15 +2938,11 @@ fun ComparisonFlexxusScreen(suppliers: List<LocalSupplier> = emptyList()) {
     val despachante = despachantePercentSetting.toDoubleOrNull() ?: 8.0
     val seguroPct = seguroPercentSetting.toDoubleOrNull() ?: 1.2
 
-    val chinaFob = chinaFobUSDInput.toDoubleOrNull() ?: 38.0
-    val qty = qtyInput.toIntOrNull() ?: 500
-
-    val selectedProductList = allProducts.filter { selectedSkus.contains(it.sku) }
-    val totalArgentinaCostARSNoVAT = selectedProductList.sumOf { it.costNoVAT }
-    val totalArgentinaCostUSDNoVAT = if (tc > 0) totalArgentinaCostARSNoVAT / tc else 0.0
+    val fobUnit = selectedCantonArticle?.fobPriceUSD ?: (chinaFobUSDInput.toDoubleOrNull() ?: 38.0)
+    val containerQty = if ((selectedCantonArticle?.moq ?: 0) > 0) selectedCantonArticle!!.moq else (qtyInput.toIntOrNull() ?: 500)
 
     // Cálculo Landed China
-    val fobTotal = chinaFob * qty
+    val fobTotal = fobUnit * containerQty
     val seguroTotal = fobTotal * (seguroPct / 100.0)
     val cifTotal = fobTotal + flete + seguroTotal
     val derechosTotal = cifTotal * (arancel / 100.0)
@@ -2929,12 +2951,24 @@ fun ComparisonFlexxusScreen(suppliers: List<LocalSupplier> = emptyList()) {
     val gastosDespachante = baseImponible * (despachante / 100.0)
     val iibbTotal = baseImponible * (iibb / 100.0)
     val costoLandedTotalUSD = baseImponible + gastosDespachante + iibbTotal
-    val unitLandedUSD = if (qty > 0) costoLandedTotalUSD / qty else 0.0
+    val unitLandedUSD = if (containerQty > 0) costoLandedTotalUSD / containerQty else 0.0
     val unitLandedARS = unitLandedUSD * tc
 
-    val ahorroUSD = totalArgentinaCostUSDNoVAT - unitLandedUSD
-    val ahorroARS = totalArgentinaCostARSNoVAT - unitLandedARS
-    val ahorroPct = if (totalArgentinaCostUSDNoVAT > 0) (ahorroUSD / totalArgentinaCostUSDNoVAT) * 100.0 else 0.0
+    // Datos Perren
+    val perrenCostARS = selectedPerrenProduct?.costNoVAT ?: 0.0
+    val perrenCostUSD = if (tc > 0) perrenCostARS / tc else 0.0
+    val perrenSaleARS = if ((selectedPerrenProduct?.priceVAT ?: 0.0) > 0) selectedPerrenProduct!!.priceVAT / 1.21 else perrenCostARS * 1.40
+    val perrenSaleUSD = if (tc > 0) perrenSaleARS / tc else 0.0
+
+    // Diferencia y Ahorro
+    val ahorroUSD = perrenCostUSD - unitLandedUSD
+    val ahorroARS = perrenCostARS - unitLandedARS
+    val ahorroPct = if (perrenCostUSD > 0) (ahorroUSD / perrenCostUSD) * 100.0 else 0.0
+
+    val formatVal: (Double, Double) -> String = { ars, usd ->
+        if (currencyMode == "USD") "$${String.format(Locale.US, "%.2f", usd)} USD"
+        else "$${String.format("%,.2f", ars)} ARS"
+    }
 
     Column(
         modifier = Modifier
@@ -2949,8 +2983,8 @@ fun ComparisonFlexxusScreen(suppliers: List<LocalSupplier> = emptyList()) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                Text("COMPARADOR FLEXXUS VS CANTON FAIR", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1B365D))
-                Text("Costo Argentina (Sin IVA) vs Costo Puesto Importado", fontSize = 10.sp, color = Color.Gray)
+                Text("⚖️ COMPARADOR FLEXXUS VS CANTON FAIR", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1B365D))
+                Text("Comparación directa de Costo Argentina vs Importación Landed", fontSize = 10.sp, color = Color.Gray)
             }
             Button(
                 onClick = { showSettingsModal = !showSettingsModal },
@@ -2958,7 +2992,49 @@ fun ComparisonFlexxusScreen(suppliers: List<LocalSupplier> = emptyList()) {
                 shape = RoundedCornerShape(8.dp),
                 contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
             ) {
-                Text(if (showSettingsModal) "✖️ Cerrar Ajustes" else "⚙️ Ajustes Importación", fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                Text(if (showSettingsModal) "✖️ Ajustes" else "⚙️ Ajustes Importación", fontSize = 10.sp, fontWeight = FontWeight.Bold)
+            }
+        }
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        // BARRA SELECTORA DE MONEDA ($ Pesos / $ Dólares MEP)
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = Color(0xFFE3F2FD))
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(10.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text("💱 VER EN MONEDA:", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1565C0))
+                    Text("Dólar TC: $${String.format("%,.2f", tc)} ARS", fontSize = 9.sp, color = Color.Gray)
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Button(
+                        onClick = { currencyMode = "ARS" },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (currencyMode == "ARS") Color(0xFF1B365D) else Color.LightGray
+                        ),
+                        shape = RoundedCornerShape(8.dp),
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+                    ) {
+                        Text("💵 Pesos ($ ARS)", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                    }
+
+                    Button(
+                        onClick = { currencyMode = "USD" },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (currencyMode == "USD") Color(0xFF2E7D32) else Color.LightGray
+                        ),
+                        shape = RoundedCornerShape(8.dp),
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+                    ) {
+                        Text("💲 Dólares ($ USD MEP)", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                    }
+                }
             }
         }
 
@@ -3017,77 +3093,147 @@ fun ComparisonFlexxusScreen(suppliers: List<LocalSupplier> = emptyList()) {
             Spacer(modifier = Modifier.height(10.dp))
         }
 
-        // SELECCIÓN BUNDLE FLEXXUS
+        // SELECCIÓN PERREN (SQLITE)
         Card(
             modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = Color.White)
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
         ) {
             Column(modifier = Modifier.padding(12.dp)) {
-                Text("SELECCIÓN DE ARTÍCULOS PERREN (FLEXXUS BI)", fontWeight = FontWeight.Bold, fontSize = 11.sp, color = Color(0xFF1976D2))
-                Text("Selecciona los productos que forman el bundle o cotización a comparar:", fontSize = 9.sp, color = Color.Gray)
-                Spacer(modifier = Modifier.height(6.dp))
-
-                allProducts.forEach { prod ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable {
-                                selectedSkus = if (selectedSkus.contains(prod.sku)) {
-                                    selectedSkus - prod.sku
-                                } else {
-                                    selectedSkus + prod.sku
-                                }
-                            }
-                            .padding(vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("🇦🇷 ARTÍCULO PERREN (SQLITE LOCAL)", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = Color(0xFF1976D2))
+                    Button(
+                        onClick = { showPerrenSearchModal = true },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1976D2)),
+                        shape = RoundedCornerShape(8.dp),
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
                     ) {
-                        Checkbox(
-                            checked = selectedSkus.contains(prod.sku),
-                            onCheckedChange = null
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text("${prod.description} (${prod.brand})", fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                            Text("Costo Sin IVA: $${String.format("%,.2f", prod.costNoVAT)} ARS ($${String.format(Locale.US, "%.2f", prod.costUSDNoVAT)} USD)", fontSize = 10.sp, color = Color.Gray)
-                        }
+                        Text("🔍 BUSCAR PERREN", fontSize = 10.sp, fontWeight = FontWeight.Bold)
                     }
                 }
-
-                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text("COSTO BUNDLE FLEXXUS SIN IVA:", fontWeight = FontWeight.Bold, fontSize = 11.sp)
-                    Text("$${String.format("%,.2f", totalArgentinaCostARSNoVAT)} ARS ($${String.format(Locale.US, "%.2f", totalArgentinaCostUSDNoVAT)} USD)", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = Color(0xFFD32F2F))
+                Spacer(modifier = Modifier.height(6.dp))
+                if (selectedPerrenProduct == null) {
+                    Text("Ningún artículo Perren seleccionado. Toca 'BUSCAR PERREN' para elegir de la base de 12.074 artículos.", fontSize = 11.sp, color = Color.Gray)
+                } else {
+                    val prod = selectedPerrenProduct!!
+                    Text("${prod.sku} - ${prod.description}", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color(0xFF1B365D))
+                    Text("Marca: ${prod.brand} | Rubro: ${prod.category} | Clase: ${prod.abcClass}", fontSize = 10.sp, color = Color.Gray)
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Column {
+                            Text("COSTO SIN IVA", fontSize = 9.sp, color = Color.Gray)
+                            Text(formatVal(perrenCostARS, perrenCostUSD), fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFFD32F2F))
+                        }
+                        Column(horizontalAlignment = Alignment.End) {
+                            Text("VENTA ESTIMADA SIN IVA", fontSize = 9.sp, color = Color.Gray)
+                            Text(formatVal(perrenSaleARS, perrenSaleUSD), fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFF2E7D32))
+                        }
+                    }
                 }
             }
         }
 
         Spacer(modifier = Modifier.height(10.dp))
 
-        // OFERTA CHINA
+        // SELECCIÓN CANTON FAIR (PROVEEDORES)
         Card(
             modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = Color.White)
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
         ) {
             Column(modifier = Modifier.padding(12.dp)) {
-                Text("COTIZACIÓN DE FÁBRICA CHINA (FOB)", fontWeight = FontWeight.Bold, fontSize = 11.sp, color = Color(0xFF2E7D32))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("🇨🇳 ARTÍCULO CANTON FAIR (PROVEEDORES)", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = Color(0xFF2E7D32))
+                    Button(
+                        onClick = { showCantonPickerModal = true },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32)),
+                        shape = RoundedCornerShape(8.dp),
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                    ) {
+                        Text("📦 ELEGIR DE CANTON", fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
                 Spacer(modifier = Modifier.height(6.dp))
-
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    OutlinedTextField(
-                        value = chinaFobUSDInput, onValueChange = { chinaFobUSDInput = it },
-                        label = { Text("Precio FOB China ($ USD)") }, modifier = Modifier.weight(1f)
-                    )
-                    OutlinedTextField(
-                        value = qtyInput, onValueChange = { qtyInput = it },
-                        label = { Text("Cantidad Contenedor") }, modifier = Modifier.weight(1f)
-                    )
+                if (selectedCantonArticle == null) {
+                    Text("Puedes elegir de los artículos de proveedores guardados o ingresar el FOB manual:", fontSize = 10.sp, color = Color.Gray)
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        OutlinedTextField(
+                            value = chinaFobUSDInput, onValueChange = { chinaFobUSDInput = it },
+                            label = { Text("Precio FOB China ($ USD)") }, modifier = Modifier.weight(1f)
+                        )
+                        OutlinedTextField(
+                            value = qtyInput, onValueChange = { qtyInput = it },
+                            label = { Text("Cantidad Contenedor") }, modifier = Modifier.weight(1f)
+                        )
+                    }
+                } else {
+                    val art = selectedCantonArticle!!
+                    Text("${art.name} (${selectedCantonSupplierName})", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color(0xFF1B365D))
+                    Text("Código: ${art.code} | Puerto: ${art.shippingPort} | MOQ: ${art.moq} Unidades", fontSize = 10.sp, color = Color.Gray)
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Column {
+                            Text("PRECIO FOB FÁBRICA", fontSize = 9.sp, color = Color.Gray)
+                            Text("$${String.format(Locale.US, "%.2f", art.fobPriceUSD)} USD", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFF2E7D32))
+                        }
+                        Column(horizontalAlignment = Alignment.End) {
+                            Text("COSTO LANDED PUESTO", fontSize = 9.sp, color = Color.Gray)
+                            Text(formatVal(unitLandedARS, unitLandedUSD), fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1565C0))
+                        }
+                    }
                 }
             }
         }
 
-        Spacer(modifier = Modifier.height(14.dp))
+        Spacer(modifier = Modifier.height(10.dp))
 
-        // TARJETAS COMPARATIVAS DERECHA E IZQUIERDA
+        // DESARROLLO VISUAL DE IMPORTACIÓN
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF8E1)),
+            border = BorderStroke(1.dp, Color(0xFFFFA000))
+        ) {
+            Column(modifier = Modifier.padding(12.dp)) {
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text("📊 DESARROLLO VISUAL DE IMPORTACIÓN (LANDED)", fontWeight = FontWeight.Bold, fontSize = 11.sp, color = Color(0xFFE65100))
+                    Text("TC: $${String.format("%,.2f", tc)} ARS/USD", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1565C0))
+                }
+                Spacer(modifier = Modifier.height(4.dp))
+                HorizontalDivider()
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text("• FOB Unitario:", fontSize = 10.sp, color = Color.DarkGray)
+                    Text("$${String.format(Locale.US, "%.2f", fobUnit)} USD", fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                }
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text("• Flete + Seguro (${seguroPct}%):", fontSize = 10.sp, color = Color.DarkGray)
+                    Text("$${String.format(Locale.US, "%.2f", (flete + seguroTotal) / containerQty)} USD / u", fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                }
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text("• Impuestos & Gastos (${arancel}% Aranc + ${tasaEstad}% Estad + ${despachante}% Desp + ${iibb}% IIBB):", fontSize = 9.sp, color = Color.DarkGray)
+                    Text("$${String.format(Locale.US, "%.2f", (derechosTotal + tasaEstadTotal + gastosDespachante + iibbTotal) / containerQty)} USD / u", fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                }
+                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text("COSTO LANDED UNIDAD PUESTO:", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    Text(formatVal(unitLandedARS, unitLandedUSD), fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFF2E7D32))
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // TARJETAS COMPARATIVAS LADO A LADO
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Card(
                 modifier = Modifier.weight(1f).border(2.dp, Color(0xFFD32F2F), RoundedCornerShape(8.dp)),
@@ -3096,9 +3242,10 @@ fun ComparisonFlexxusScreen(suppliers: List<LocalSupplier> = emptyList()) {
                 Column(modifier = Modifier.padding(10.dp)) {
                     Text("🇦🇷 PERREN (ARGENTINA)", fontWeight = FontWeight.Bold, fontSize = 10.sp, color = Color(0xFFD32F2F))
                     Spacer(modifier = Modifier.height(4.dp))
-                    Text("Costo Venta Sin IVA", fontSize = 9.sp, color = Color.Gray)
-                    Text("$${String.format("%,.2f", totalArgentinaCostARSNoVAT)} ARS", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color(0xFFD32F2F))
-                    Text("Equiv: $${String.format(Locale.US, "%.2f", totalArgentinaCostUSDNoVAT)} USD", fontSize = 10.sp, color = Color.DarkGray)
+                    Text("Costo Sin IVA", fontSize = 9.sp, color = Color.Gray)
+                    Text(formatVal(perrenCostARS, perrenCostUSD), fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color(0xFFD32F2F))
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text("Venta: ${formatVal(perrenSaleARS, perrenSaleUSD)}", fontSize = 9.sp, color = Color.DarkGray)
                 }
             }
 
@@ -3109,41 +3256,184 @@ fun ComparisonFlexxusScreen(suppliers: List<LocalSupplier> = emptyList()) {
                 colors = CardDefaults.cardColors(containerColor = Color.White)
             ) {
                 Column(modifier = Modifier.padding(10.dp)) {
-                    Text("🇨🇳 CANTON FAIR (CHINA)", fontWeight = FontWeight.Bold, fontSize = 10.sp, color = Color(0xFF2E7D32))
+                    Text("🇨🇳 CANTON FAIR (IMPORTADO)", fontWeight = FontWeight.Bold, fontSize = 10.sp, color = Color(0xFF2E7D32))
                     Spacer(modifier = Modifier.height(4.dp))
                     Text("Costo Puesto Depósito", fontSize = 9.sp, color = Color.Gray)
-                    Text("$${String.format("%,.2f", unitLandedARS)} ARS", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color(0xFF2E7D32))
-                    Text("Puesto: $${String.format(Locale.US, "%.2f", unitLandedUSD)} USD", fontSize = 10.sp, color = Color.DarkGray)
+                    Text(formatVal(unitLandedARS, unitLandedUSD), fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color(0xFF2E7D32))
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text("FOB: $${String.format(Locale.US, "%.2f", fobUnit)} USD", fontSize = 9.sp, color = Color.DarkGray)
                 }
             }
         }
 
-        Spacer(modifier = Modifier.height(14.dp))
+        Spacer(modifier = Modifier.height(12.dp))
 
-        // AHORRO O DIFERENCIA
+        // AHORRO O DIFERENCIA FINAL
         Card(
             colors = CardDefaults.cardColors(containerColor = if (ahorroUSD > 0) Color(0xFFE8F5E9) else Color(0xFFFFEBEE)),
             modifier = Modifier.fillMaxWidth()
         ) {
             Column(modifier = Modifier.padding(14.dp)) {
-                Text("RESULTADO DE COMPARACIÓN", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                Text("RESULTADO COMPARATIVO FINAL", fontWeight = FontWeight.Bold, fontSize = 12.sp)
                 Spacer(modifier = Modifier.height(6.dp))
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text("Diferencia / Ahorro Puesto:", fontSize = 12.sp)
+                    Text("Diferencia / Ahorro Unitario:", fontSize = 11.sp, fontWeight = FontWeight.Bold)
                     Text(
-                        "${if (ahorroUSD > 0) "+" else ""}$${String.format(Locale.US, "%.2f", ahorroUSD)} USD (${String.format(Locale.US, "%.1f", ahorroPct)}%)",
+                        "${if (ahorroUSD > 0) "+" else ""}${formatVal(ahorroARS, ahorroUSD)} (${String.format(Locale.US, "%.1f", ahorroPct)}%)",
                         fontWeight = FontWeight.Bold,
+                        fontSize = 12.sp,
                         color = if (ahorroUSD > 0) Color(0xFF2E7D32) else Color(0xFFD32F2F)
                     )
                 }
+                Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    "Ahorro en Pesos: ${if (ahorroARS > 0) "+" else ""}$${String.format("%,.2f", ahorroARS)} ARS por unidad",
-                    fontSize = 11.sp,
+                    if (selectedPerrenProduct == null) "Selecciona un artículo Perren para calcular la diferencia de costo exacta."
+                    else if (ahorroUSD > 0) "🟢 Importar desde Canton Fair representa un ahorro de ${formatVal(ahorroARS, ahorroUSD)} (${String.format(Locale.US, "%.1f", ahorroPct)}%) por unidad vs Perren."
+                    else "🔴 El producto local resulta de menor costo que la alternativa importada.",
+                    fontSize = 10.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = if (ahorroARS > 0) Color(0xFF2E7D32) else Color(0xFFD32F2F)
+                    color = if (ahorroUSD > 0) Color(0xFF2E7D32) else Color(0xFFD32F2F)
                 )
             }
         }
+    }
+
+    // MODAL DE BÚSQUEDA PERREN (SQLITE)
+    if (showPerrenSearchModal) {
+        var dialogQuery by remember { mutableStateOf("") }
+        var dialogResults by remember { mutableStateOf<List<PerrenPostgresProduct>>(emptyList()) }
+        var isSearchingDialog by remember { mutableStateOf(false) }
+
+        AlertDialog(
+            onDismissRequest = { showPerrenSearchModal = false },
+            title = { Text("🔍 Buscar Artículo Perren (SQLite)", fontSize = 14.sp, fontWeight = FontWeight.Bold) },
+            text = {
+                Column(modifier = Modifier.fillMaxWidth().heightIn(max = 400.dp)) {
+                    OutlinedTextField(
+                        value = dialogQuery,
+                        onValueChange = { dialogQuery = it },
+                        label = { Text("Buscar por código, descripción o marca...") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        trailingIcon = {
+                            IconButton(onClick = {
+                                if (dialogQuery.trim().length >= 2) {
+                                    isSearchingDialog = true
+                                    CoroutineScope(Dispatchers.IO).launch {
+                                        val res = dbHelper.searchProductsInDb(dialogQuery.trim(), "Todas las Marcas", "Todos los Rubros", limit = 30)
+                                        withContext(Dispatchers.Main) {
+                                            dialogResults = res
+                                            isSearchingDialog = false
+                                        }
+                                    }
+                                }
+                            }) {
+                                Text("🔍")
+                            }
+                        }
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    if (isSearchingDialog) {
+                        CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
+                    } else if (dialogResults.isEmpty()) {
+                        Text("Escribe al menos 2 letras y toca 🔍 para buscar en SQLite.", fontSize = 11.sp, color = Color.Gray)
+                    } else {
+                        LazyColumn(modifier = Modifier.fillMaxWidth()) {
+                            items(dialogResults) { prod ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            selectedPerrenProduct = prod
+                                            showPerrenSearchModal = false
+                                        }
+                                        .padding(vertical = 6.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text("${prod.sku} - ${prod.description}", fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                                        Text("${prod.brand} | Costo ARS: $${String.format("%,.2f", prod.costNoVAT)}", fontSize = 10.sp, color = Color.Gray)
+                                    }
+                                    Button(
+                                        onClick = {
+                                            selectedPerrenProduct = prod
+                                            showPerrenSearchModal = false
+                                        },
+                                        contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp)
+                                    ) {
+                                        Text("Elegir", fontSize = 10.sp)
+                                    }
+                                }
+                                HorizontalDivider()
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showPerrenSearchModal = false }) {
+                    Text("Cerrar")
+                }
+            }
+        )
+    }
+
+    // MODAL DE SELECCIÓN CANTON FAIR (ARTÍCULOS DE PROVEEDORES)
+    if (showCantonPickerModal) {
+        val allSupplierArticles = remember(suppliers) {
+            suppliers.flatMap { sup -> sup.articles.map { art -> sup to art } }
+        }
+
+        AlertDialog(
+            onDismissRequest = { showCantonPickerModal = false },
+            title = { Text("🇨🇳 Seleccionar Artículo Canton Fair", fontSize = 14.sp, fontWeight = FontWeight.Bold) },
+            text = {
+                Column(modifier = Modifier.fillMaxWidth().heightIn(max = 400.dp)) {
+                    if (allSupplierArticles.isEmpty()) {
+                        Text("No tienes artículos guardados en proveedores todavía. Puedes utilizar el ingreso FOB manual.", fontSize = 11.sp, color = Color.Gray)
+                    } else {
+                        LazyColumn(modifier = Modifier.fillMaxWidth()) {
+                            items(allSupplierArticles) { (sup, art) ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            selectedCantonArticle = art
+                                            selectedCantonSupplierName = sup.companyName
+                                            showCantonPickerModal = false
+                                        }
+                                        .padding(vertical = 6.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(art.name, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                                        Text("${sup.companyName} | FOB: $${String.format(Locale.US, "%.2f", art.fobPriceUSD)} USD | MOQ: ${art.moq}", fontSize = 10.sp, color = Color.Gray)
+                                    }
+                                    Button(
+                                        onClick = {
+                                            selectedCantonArticle = art
+                                            selectedCantonSupplierName = sup.companyName
+                                            showCantonPickerModal = false
+                                        },
+                                        contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp)
+                                    ) {
+                                        Text("Elegir", fontSize = 10.sp)
+                                    }
+                                }
+                                HorizontalDivider()
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showCantonPickerModal = false }) {
+                    Text("Cerrar")
+                }
+            }
+        )
     }
 }
 
@@ -3302,7 +3592,7 @@ fun CardWalletScreen(suppliers: List<LocalSupplier>) {
 }
 
 // MARK: - 6. Buscador de Costos Perren (PostgreSQL Flexxus BI)
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun PostgresSearchScreen(
     suppliers: List<LocalSupplier> = emptyList(),
@@ -3717,7 +4007,10 @@ fun PostgresSearchScreen(
                         Text(prod.description, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color(0xFF1B365D))
                         Spacer(modifier = Modifier.height(4.dp))
 
-                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
                             val abcBadge = when (prod.abcClass) {
                                 "A" -> Color(0xFFE8F5E9) to Color(0xFF2E7D32) to "🟢 Clase A"
                                 "B" -> Color(0xFFFFF8E1) to Color(0xFFE65100) to "🟡 Clase B"
