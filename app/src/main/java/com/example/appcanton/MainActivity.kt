@@ -2927,8 +2927,11 @@ fun ImportBreakdownTableComposable(
     weightModeEnabled: Boolean = false,
     itemWeightKg: Double = 0.0,
     containerMaxWeightKg: Double = 26000.0,
+    currencyMode: String = "USD",
     titleSuffix: String = ""
 ) {
+    val isARS = currencyMode == "ARS"
+    val mult = if (isARS) tc else 1.0
     val qty = if (containerQty > 0) containerQty else 1
     val fobTotal = fobUnit * qty
 
@@ -3044,8 +3047,8 @@ fun ImportBreakdownTableComposable(
             ) {
                 Text("CONCEPTO", modifier = Modifier.weight(2.0f), fontWeight = FontWeight.Bold, fontSize = 8.5.sp, color = Color(0xFF01579B))
                 Text("%", modifier = Modifier.weight(0.6f), fontWeight = FontWeight.Bold, fontSize = 8.5.sp, color = Color(0xFF01579B), textAlign = TextAlign.Center)
-                Text("UNITARIO (USD)", modifier = Modifier.weight(1.5f), fontWeight = FontWeight.Bold, fontSize = 8.5.sp, color = Color(0xFF01579B), textAlign = TextAlign.End)
-                Text("TOTAL LOTE (USD)", modifier = Modifier.weight(1.6f), fontWeight = FontWeight.Bold, fontSize = 8.5.sp, color = Color(0xFF01579B), textAlign = TextAlign.End)
+                Text(if (isARS) "UNITARIO (ARS)" else "UNITARIO (USD)", modifier = Modifier.weight(1.5f), fontWeight = FontWeight.Bold, fontSize = 8.5.sp, color = Color(0xFF01579B), textAlign = TextAlign.End)
+                Text(if (isARS) "TOTAL LOTE (ARS)" else "TOTAL LOTE (USD)", modifier = Modifier.weight(1.6f), fontWeight = FontWeight.Bold, fontSize = 8.5.sp, color = Color(0xFF01579B), textAlign = TextAlign.End)
             }
             HorizontalDivider()
 
@@ -3075,6 +3078,11 @@ fun ImportBreakdownTableComposable(
                     r.isHeaderOrSubtotal -> Color(0xFFFFF8E1)
                     else -> Color.Transparent
                 }
+                val unitVal = r.unitUSD * mult
+                val totalVal = r.totalUSD * mult
+                val unitStr = if (isARS) "$${String.format("%,.2f", unitVal)}" else "$${String.format(Locale.US, "%,.2f", unitVal)}"
+                val totalStr = if (isARS) "$${String.format("%,.2f", totalVal)}" else "$${String.format(Locale.US, "%,.2f", totalVal)}"
+
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -3102,7 +3110,7 @@ fun ImportBreakdownTableComposable(
                         textAlign = TextAlign.Center
                     )
                     Text(
-                        "$${String.format(Locale.US, "%,.2f", r.unitUSD)}",
+                        unitStr,
                         modifier = Modifier.weight(1.5f),
                         fontWeight = if (r.isHeaderOrSubtotal || r.isTotal || r.isCostIncidido) FontWeight.Bold else FontWeight.Normal,
                         fontSize = 9.sp,
@@ -3110,7 +3118,7 @@ fun ImportBreakdownTableComposable(
                         textAlign = TextAlign.End
                     )
                     Text(
-                        "$${String.format(Locale.US, "%,.2f", r.totalUSD)}",
+                        totalStr,
                         modifier = Modifier.weight(1.6f),
                         fontWeight = if (r.isHeaderOrSubtotal || r.isTotal || r.isCostIncidido) FontWeight.Bold else FontWeight.Normal,
                         fontSize = 9.sp,
@@ -3275,16 +3283,63 @@ fun ComparisonFlexxusScreen(
             .fillMaxSize()
             .background(Color(0xFFF8F9FA))
     ) {
-        // ENCABEZADO CON NAVEGACIÓN DE 3 TABS
+        // ENCABEZADO CON NAVEGACIÓN Y CONTROLES GLOBALES DE MONEDA Y AJUSTES
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .background(Color.White)
-                .padding(top = 12.dp, start = 12.dp, end = 12.dp)
+                .padding(top = 10.dp, start = 12.dp, end = 12.dp)
         ) {
-            Text("⚖️ MODULO DE COMPARACIÓN FLEXXUS & CANTON", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1B365D))
-            Text("Cálculo Landed, Selección de Proveedores y Evaluación de Costos", fontSize = 10.sp, color = Color.Gray)
-            Spacer(modifier = Modifier.height(10.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("⚖️ MODULO DE COMPARACIÓN FLEXXUS & CANTON", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1B365D))
+                    Text("Cálculo Landed, Selección de Proveedores y Evaluación de Costos", fontSize = 9.5.sp, color = Color.Gray)
+                }
+                Spacer(modifier = Modifier.width(6.dp))
+                Button(
+                    onClick = { showSettingsModal = !showSettingsModal },
+                    colors = ButtonDefaults.buttonColors(containerColor = if (showSettingsModal) Color(0xFFD32F2F) else Color(0xFF1976D2)),
+                    shape = RoundedCornerShape(8.dp),
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                ) {
+                    Text(if (showSettingsModal) "✖️ Cerrar" else "⚙️ Ajustes Importación", fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // BARRA GLOBAL SELECTORA DE MONEDA ($ PESOS / $ DÓLARES MEP)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color(0xFFE3F2FD), shape = RoundedCornerShape(8.dp))
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("💱 MONEDA: ", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1565C0))
+                    Text("Dólar TC: $${String.format("%,.0f", tc)} ARS", fontSize = 9.sp, color = Color.DarkGray)
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    FilterChip(
+                        selected = currencyMode == "ARS",
+                        onClick = { currencyMode = "ARS" },
+                        label = { Text("💵 Pesos ($ ARS)", fontSize = 9.sp, fontWeight = FontWeight.Bold) }
+                    )
+                    FilterChip(
+                        selected = currencyMode == "USD",
+                        onClick = { currencyMode = "USD" },
+                        label = { Text("💲 Dólares ($ USD)", fontSize = 9.sp, fontWeight = FontWeight.Bold) }
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
 
             TabRow(
                 selectedTabIndex = selectedSubTab,
@@ -3413,6 +3468,7 @@ fun ComparisonFlexxusScreen(
                         weightModeEnabled = weightModeEnabled,
                         itemWeightKg = itemWeightKgInput.toDoubleOrNull() ?: 0.0,
                         containerMaxWeightKg = containerMaxWeightInput.toDoubleOrNull() ?: 26000.0,
+                        currencyMode = currencyMode,
                         titleSuffix = "(TAB 1 MANUAL)"
                     )
 
@@ -3509,8 +3565,9 @@ fun ComparisonFlexxusScreen(
                                                 color = Color(0xFFE3F2FD),
                                                 shape = RoundedCornerShape(6.dp)
                                             ) {
+                                                val fobTagText = if (currencyMode == "ARS") "FOB: $${String.format("%,.2f", artFob * tc)} ARS" else "FOB: $${String.format(Locale.US, "%.2f", artFob)} USD"
                                                 Text(
-                                                    "FOB: $${String.format(Locale.US, "%.2f", artFob)} USD",
+                                                    fobTagText,
                                                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                                                     fontWeight = FontWeight.Bold,
                                                     fontSize = 11.sp,
@@ -3565,6 +3622,7 @@ fun ComparisonFlexxusScreen(
                                                 weightModeEnabled = weightModeEnabled,
                                                 itemWeightKg = itemWeightKgInput.toDoubleOrNull() ?: 0.0,
                                                 containerMaxWeightKg = containerMaxWeightInput.toDoubleOrNull() ?: 26000.0,
+                                                currencyMode = currencyMode,
                                                 titleSuffix = "(${sup.companyName})"
                                             )
 
@@ -3607,66 +3665,8 @@ fun ComparisonFlexxusScreen(
 
                 // ==================== TAB 3: COMPARA ARTÍCULOS ====================
                 2 -> {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text("⚖️ TAB 3: COMPARA ARTÍCULOS EN TIEMPO REAL", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1B365D))
-                            Text("Costo Argentina vs Importado Landed", fontSize = 10.sp, color = Color.Gray)
-                        }
-                        Button(
-                            onClick = { showSettingsModal = !showSettingsModal },
-                            colors = ButtonDefaults.buttonColors(containerColor = if (showSettingsModal) Color(0xFFD32F2F) else Color(0xFF1976D2)),
-                            shape = RoundedCornerShape(8.dp),
-                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
-                        ) {
-                            Text(if (showSettingsModal) "✖️ Ajustes" else "⚙️ Ajustes Importación", fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    // BARRA SELECTORA DE MONEDA ($ Pesos / $ Dólares MEP)
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFFE3F2FD))
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(10.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column {
-                                Text("💱 VER EN MONEDA:", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1565C0))
-                                Text("Dólar TC: $${String.format("%,.2f", tc)} ARS", fontSize = 9.sp, color = Color.Gray)
-                            }
-                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                Button(
-                                    onClick = { currencyMode = "ARS" },
-                                    colors = ButtonDefaults.buttonColors(
-                                        containerColor = if (currencyMode == "ARS") Color(0xFF1B365D) else Color.LightGray
-                                    ),
-                                    shape = RoundedCornerShape(8.dp),
-                                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
-                                ) {
-                                    Text("💵 Pesos ($ ARS)", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                                }
-
-                                Button(
-                                    onClick = { currencyMode = "USD" },
-                                    colors = ButtonDefaults.buttonColors(
-                                        containerColor = if (currencyMode == "USD") Color(0xFF2E7D32) else Color.LightGray
-                                    ),
-                                    shape = RoundedCornerShape(8.dp),
-                                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
-                                ) {
-                                    Text("💲 Dólares ($ USD MEP)", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                                }
-                            }
-                        }
-                    }
+                    Text("⚖️ TAB 3: COMPARA ARTÍCULOS EN TIEMPO REAL (FLEXXUS VS CANTON)", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1B365D))
+                    Text("Selecciona un producto Perren y un artículo de proveedor para evaluar diferencias:", fontSize = 10.sp, color = Color.Gray)
 
                     Spacer(modifier = Modifier.height(10.dp))
 
