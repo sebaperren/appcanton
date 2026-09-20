@@ -122,6 +122,7 @@ data class PerrenPostgresProduct(
     val category: String,        // Rubro
     val subcategory: String = "",// Subrubro
     val classification: String = "", // Categoria
+    val abcClass: String = "A",   // Clase ABC (A, B, C) Flexxus BI
     val costNoVAT: Double,       // Costo de venta sin IVA en ARS ($)
     val costUSDNoVAT: Double,     // Costo de venta sin IVA en USD ($)
     val stockAvailable: Int,      // Stock disponible en depósito
@@ -134,7 +135,7 @@ data class PerrenPostgresProduct(
 class CantonSQLiteHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, null, DATABASE_VERSION) {
     companion object {
         private const val DATABASE_NAME = "canton_local.db"
-        private const val DATABASE_VERSION = 1
+        private const val DATABASE_VERSION = 2
 
         const val TABLE_SUPPLIERS = "suppliers"
         const val TABLE_FAVORITES = "favorites"
@@ -175,6 +176,7 @@ class CantonSQLiteHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_
                 category TEXT,
                 subcategory TEXT,
                 classification TEXT,
+                abcClass TEXT,
                 costNoVAT REAL,
                 costUSDNoVAT REAL,
                 stockAvailable INTEGER,
@@ -344,6 +346,7 @@ class CantonSQLiteHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_
                             put("category", prod.category)
                             put("subcategory", prod.subcategory)
                             put("classification", prod.classification)
+                            put("abcClass", prod.abcClass)
                             put("costNoVAT", prod.costNoVAT)
                             put("costUSDNoVAT", prod.costUSDNoVAT)
                             put("stockAvailable", prod.stockAvailable)
@@ -376,6 +379,7 @@ class CantonSQLiteHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_
                             category = c.getString(c.getColumnIndexOrThrow("category")),
                             subcategory = c.getString(c.getColumnIndexOrThrow("subcategory")),
                             classification = c.getString(c.getColumnIndexOrThrow("classification")),
+                            abcClass = try { c.getString(c.getColumnIndexOrThrow("abcClass")) } catch(_: Exception) { "A" } ?: "A",
                             costNoVAT = c.getDouble(c.getColumnIndexOrThrow("costNoVAT")),
                             costUSDNoVAT = c.getDouble(c.getColumnIndexOrThrow("costUSDNoVAT")),
                             stockAvailable = c.getInt(c.getColumnIndexOrThrow("stockAvailable")),
@@ -390,7 +394,7 @@ class CantonSQLiteHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_
         return list
     }
 
-    fun searchProductsInDb(query: String, selectedBrand: String, selectedCategory: String): List<PerrenPostgresProduct> {
+    fun searchProductsInDb(query: String, selectedBrand: String, selectedCategory: String, selectedAbc: String = "Todas las Clases", limit: Int = 50): List<PerrenPostgresProduct> {
         val list = mutableListOf<PerrenPostgresProduct>()
         try {
             val db = readableDatabase
@@ -417,10 +421,21 @@ class CantonSQLiteHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_
                 args.add(selectedCategory)
             }
 
+            if (selectedAbc.isNotBlank() && selectedAbc != "Todas las Clases") {
+                val letter = when {
+                    selectedAbc.contains("Clase A") -> "A"
+                    selectedAbc.contains("Clase B") -> "B"
+                    selectedAbc.contains("Clase C") -> "C"
+                    else -> selectedAbc
+                }
+                selectionClauses.add("abcClass = ?")
+                args.add(letter)
+            }
+
             val selection = if (selectionClauses.isNotEmpty()) selectionClauses.joinToString(" AND ") else null
             val selectionArgs = if (args.isNotEmpty()) args.toTypedArray() else null
 
-            val cursor = db.query(TABLE_FLEXXUS_PRODUCTS, null, selection, selectionArgs, null, null, null, "60")
+            val cursor = db.query(TABLE_FLEXXUS_PRODUCTS, null, selection, selectionArgs, null, null, null, limit.toString())
             cursor.use { c ->
                 while (c.moveToNext()) {
                     list.add(
@@ -431,6 +446,7 @@ class CantonSQLiteHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_
                             category = c.getString(c.getColumnIndexOrThrow("category")),
                             subcategory = c.getString(c.getColumnIndexOrThrow("subcategory")),
                             classification = c.getString(c.getColumnIndexOrThrow("classification")),
+                            abcClass = try { c.getString(c.getColumnIndexOrThrow("abcClass")) } catch(_: Exception) { "A" } ?: "A",
                             costNoVAT = c.getDouble(c.getColumnIndexOrThrow("costNoVAT")),
                             costUSDNoVAT = c.getDouble(c.getColumnIndexOrThrow("costUSDNoVAT")),
                             stockAvailable = c.getInt(c.getColumnIndexOrThrow("stockAvailable")),
@@ -579,10 +595,13 @@ object PerrenPostgresRepository {
                 val subcat = if (tokens.size >= 10) tokens.getOrElse(4) { "" }.trim() else ""
                 val classification = if (tokens.size >= 10) tokens.getOrElse(5) { "" }.trim() else ""
 
-                val costIdx = if (tokens.size >= 10) 6 else 4
-                val saleIdx = if (tokens.size >= 10) 7 else 5
-                val stockIdx = if (tokens.size >= 10) 8 else 6
-                val unitIdx = if (tokens.size >= 10) 9 else 7
+                val hasAbc = tokens.size >= 11
+                val abcClass = if (hasAbc) tokens.getOrElse(6) { "A" }.trim().ifBlank { "A" } else "A"
+
+                val costIdx = if (hasAbc) 7 else (if (tokens.size >= 10) 6 else 4)
+                val saleIdx = if (hasAbc) 8 else (if (tokens.size >= 10) 7 else 5)
+                val stockIdx = if (hasAbc) 9 else (if (tokens.size >= 10) 8 else 6)
+                val unitIdx = if (hasAbc) 10 else (if (tokens.size >= 10) 9 else 7)
 
                 val costNoVat = tokens.getOrElse(costIdx) { "0" }.replace("$", "").replace(",", "").trim().toDoubleOrNull() ?: 0.0
                 val saleNoVat = tokens.getOrElse(saleIdx) { "0" }.replace("$", "").replace(",", "").trim().toDoubleOrNull() ?: (costNoVat * 1.40)
@@ -597,6 +616,7 @@ object PerrenPostgresRepository {
                         category = cat,
                         subcategory = subcat,
                         classification = classification,
+                        abcClass = abcClass,
                         costNoVAT = costNoVat,
                         costUSDNoVAT = costNoVat / 1350.0,
                         stockAvailable = stock,
@@ -757,7 +777,7 @@ object PerrenPostgresRepository {
             .replace(Regex("[^a-z0-9 ]"), " ")
     }
 
-    fun searchProducts(suppliers: List<LocalSupplier>, query: String, selectedBrand: String, selectedCategory: String): List<PerrenPostgresProduct> {
+    fun searchProducts(suppliers: List<LocalSupplier>, query: String, selectedBrand: String, selectedCategory: String, selectedAbc: String = "Todas las Clases"): List<PerrenPostgresProduct> {
         val allProducts = getProductsFromSuppliers(suppliers)
         val normQuery = normalizeText(query.replace("\n", " ").replace("\r", " "))
         val keywords = normQuery.split(" ").filter { it.isNotBlank() }
@@ -783,7 +803,13 @@ object PerrenPostgresRepository {
             val matchCategory = (selectedCategory == "Todos los Rubros" || selectedCategory.isEmpty()) ||
                     normalizeText(prod.category) == normalizeText(selectedCategory)
 
-            matchQuery && matchBrand && matchCategory
+            val matchAbc = (selectedAbc == "Todas las Clases" || selectedAbc.isEmpty()) ||
+                    (selectedAbc.contains("Clase A") && prod.abcClass == "A") ||
+                    (selectedAbc.contains("Clase B") && prod.abcClass == "B") ||
+                    (selectedAbc.contains("Clase C") && prod.abcClass == "C") ||
+                    prod.abcClass.equals(selectedAbc, ignoreCase = true)
+
+            matchQuery && matchBrand && matchCategory && matchAbc
         }
 
         return matches
@@ -3179,16 +3205,22 @@ fun PostgresSearchScreen(
     var searchQuery by remember { mutableStateOf("") }
     var selectedBrand by remember { mutableStateOf("Todas las Marcas") }
     var selectedCategory by remember { mutableStateOf("Todos los Rubros") }
+    var selectedAbc by remember { mutableStateOf("Todas las Clases") }
+    var itemsPerPage by remember { mutableStateOf(50) }
     var showOnlyFavorites by remember { mutableStateOf(false) }
 
     var brandDropdownExpanded by remember { mutableStateOf(false) }
     var categoryDropdownExpanded by remember { mutableStateOf(false) }
+    var abcDropdownExpanded by remember { mutableStateOf(false) }
+    var limitDropdownExpanded by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
     val dbHelper = remember(context) { CantonSQLiteHelper(context) }
 
     var availableBrands by remember { mutableStateOf(listOf("Todas las Marcas")) }
     var availableCategories by remember { mutableStateOf(listOf("Todos los Rubros")) }
+    val abcOptions = listOf("Todas las Clases", "🟢 Clase A", "🟡 Clase B", "🟠 Clase C")
+    val itemsPerPageOptions = listOf(20, 50, 100, 200)
 
     var displayProducts by remember { mutableStateOf<List<PerrenPostgresProduct>>(emptyList()) }
     var isSearching by remember { mutableStateOf(false) }
@@ -3212,19 +3244,19 @@ fun PostgresSearchScreen(
         }
     }
 
-    LaunchedEffect(searchQuery, selectedBrand, selectedCategory, showOnlyFavorites, PerrenPostgresRepository.favoriteProductSkus.size, PerrenPostgresRepository.loadedCsvProducts.size) {
+    LaunchedEffect(searchQuery, selectedBrand, selectedCategory, selectedAbc, itemsPerPage, showOnlyFavorites, PerrenPostgresRepository.favoriteProductSkus.size, PerrenPostgresRepository.loadedCsvProducts.size) {
         isSearching = true
         kotlinx.coroutines.delay(150)
         val results = withContext(Dispatchers.IO) {
-            val dbResults = dbHelper.searchProductsInDb(searchQuery, selectedBrand, selectedCategory)
-            val list = if (dbResults.isNotEmpty()) dbResults else PerrenPostgresRepository.searchProducts(suppliers, searchQuery, selectedBrand, selectedCategory)
+            val dbResults = dbHelper.searchProductsInDb(searchQuery, selectedBrand, selectedCategory, selectedAbc, itemsPerPage)
+            val list = if (dbResults.isNotEmpty()) dbResults else PerrenPostgresRepository.searchProducts(suppliers, searchQuery, selectedBrand, selectedCategory, selectedAbc)
             if (showOnlyFavorites) {
                 list.filter { PerrenPostgresRepository.favoriteProductSkus.contains(it.sku) }
             } else {
                 list
             }
         }
-        displayProducts = results.take(60)
+        displayProducts = results.take(itemsPerPage)
         isSearching = false
     }
 
@@ -3327,7 +3359,7 @@ fun PostgresSearchScreen(
 
         Spacer(modifier = Modifier.height(10.dp))
 
-        // Filtros por Marca, Rubro y Filtro de Favoritos
+        // Filtros por Marca, Rubro
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(6.dp)
@@ -3381,6 +3413,64 @@ fun PostgresSearchScreen(
                     }
                 }
             }
+        }
+
+        Spacer(modifier = Modifier.height(6.dp))
+
+        // Filtros por Clase ABC, Cantidad por Pantalla y Favoritos
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            // Dropdown Clase ABC
+            Box(modifier = Modifier.weight(1f)) {
+                OutlinedButton(
+                    onClick = { abcDropdownExpanded = true },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text("📊 $selectedAbc", fontSize = 10.sp, maxLines = 1)
+                }
+                DropdownMenu(
+                    expanded = abcDropdownExpanded,
+                    onDismissRequest = { abcDropdownExpanded = false }
+                ) {
+                    abcOptions.forEach { option ->
+                        DropdownMenuItem(
+                            text = { Text(option, fontSize = 12.sp) },
+                            onClick = {
+                                selectedAbc = option
+                                abcDropdownExpanded = false
+                            }
+                        )
+                    }
+                }
+            }
+
+            // Dropdown Cantidad por pantalla
+            Box(modifier = Modifier.weight(1f)) {
+                OutlinedButton(
+                    onClick = { limitDropdownExpanded = true },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text("📄 $itemsPerPage / pág", fontSize = 10.sp, maxLines = 1)
+                }
+                DropdownMenu(
+                    expanded = limitDropdownExpanded,
+                    onDismissRequest = { limitDropdownExpanded = false }
+                ) {
+                    itemsPerPageOptions.forEach { limit ->
+                        DropdownMenuItem(
+                            text = { Text("$limit artículos", fontSize = 12.sp) },
+                            onClick = {
+                                itemsPerPage = limit
+                                limitDropdownExpanded = false
+                            }
+                        )
+                    }
+                }
+            }
 
             // Botón Filtro Favoritos
             OutlinedButton(
@@ -3393,7 +3483,7 @@ fun PostgresSearchScreen(
                 border = BorderStroke(1.dp, if (showOnlyFavorites) Color(0xFFFFA000) else Color.LightGray)
             ) {
                 Text(
-                    text = if (showOnlyFavorites) "⭐ Favoritos (${PerrenPostgresRepository.favoriteProductSkus.size})" else "☆ Favoritos (${PerrenPostgresRepository.favoriteProductSkus.size})",
+                    text = if (showOnlyFavorites) "⭐ Fav (${PerrenPostgresRepository.favoriteProductSkus.size})" else "☆ Fav (${PerrenPostgresRepository.favoriteProductSkus.size})",
                     fontSize = 10.sp,
                     fontWeight = FontWeight.Bold,
                     color = if (showOnlyFavorites) Color(0xFFE65100) else Color.DarkGray
@@ -3409,11 +3499,13 @@ fun PostgresSearchScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text("Resultados (${displayProducts.size})", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
-            if (selectedBrand != "Todas las Marcas" || selectedCategory != "Todos los Rubros" || searchQuery.isNotEmpty() || showOnlyFavorites) {
+            if (selectedBrand != "Todas las Marcas" || selectedCategory != "Todos los Rubros" || selectedAbc != "Todas las Clases" || itemsPerPage != 50 || searchQuery.isNotEmpty() || showOnlyFavorites) {
                 TextButton(onClick = {
                     searchQuery = ""
                     selectedBrand = "Todas las Marcas"
                     selectedCategory = "Todos los Rubros"
+                    selectedAbc = "Todas las Clases"
+                    itemsPerPage = 50
                     showOnlyFavorites = false
                 }) {
                     Text("Limpiar filtros", fontSize = 11.sp, color = Color(0xFFD32F2F))
@@ -3438,9 +3530,9 @@ fun PostgresSearchScreen(
                         if (showOnlyFavorites)
                             "No tienes productos marcados como favoritos. Toca la estrella ⭐ en cualquier artículo para guardarlo en tus favoritos."
                         else if (searchQuery.isNotBlank())
-                            "No se encontraron coincidencias para '$searchQuery' en el archivo CSV."
+                            "No se encontraron coincidencias para '$searchQuery' en la base de datos."
                         else
-                            "Intenta modificar los filtros o cargar un nuevo archivo CSV.",
+                            "Intenta modificar los filtros de marca, rubro o clase ABC.",
                         fontSize = 11.sp,
                         color = Color.Gray
                     )
@@ -3486,6 +3578,17 @@ fun PostgresSearchScreen(
                         Spacer(modifier = Modifier.height(4.dp))
 
                         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            val abcBadge = when (prod.abcClass) {
+                                "A" -> Color(0xFFE8F5E9) to Color(0xFF2E7D32) to "🟢 Clase A"
+                                "B" -> Color(0xFFFFF8E1) to Color(0xFFE65100) to "🟡 Clase B"
+                                "C" -> Color(0xFFFFEBEE) to Color(0xFFD32F2F) to "🟠 Clase C"
+                                else -> Color(0xFFE8F5E9) to Color(0xFF2E7D32) to "🟢 Clase A"
+                            }
+                            Card(
+                                colors = CardDefaults.cardColors(containerColor = abcBadge.first.first)
+                            ) {
+                                Text(abcBadge.second, fontSize = 10.sp, color = abcBadge.first.second, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp))
+                            }
                             Card(
                                 colors = CardDefaults.cardColors(containerColor = Color(0xFFE3F2FD))
                             ) {
