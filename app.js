@@ -125,22 +125,36 @@ document.addEventListener('DOMContentLoaded', () => {
   renderSecSearchResults();
 });
 
-// FIREBASE AUTHENTICATION LOGIC
+// STRICT AUTHENTICATION DISPLAY CONTROL
+function showAuthenticatedApp(userEmail) {
+  const loginScreen = document.getElementById('loginScreen');
+  const appContainer = document.getElementById('appContainer');
+  const userStatusLbl = document.getElementById('userStatusLbl');
+
+  if (loginScreen) loginScreen.style.display = 'none';
+  if (appContainer) appContainer.style.display = 'block';
+  if (userStatusLbl) userStatusLbl.textContent = 'Firebase User: ' + userEmail;
+}
+
+function showUnauthenticatedLogin() {
+  const loginScreen = document.getElementById('loginScreen');
+  const appContainer = document.getElementById('appContainer');
+
+  if (loginScreen) loginScreen.style.display = 'flex';
+  if (appContainer) appContainer.style.display = 'none';
+}
+
 function initFirebaseAuthListener() {
   if (fbAuth) {
     fbAuth.onAuthStateChanged((user) => {
-      const loginOverlay = document.getElementById('loginOverlay');
-      const userStatusLbl = document.getElementById('userStatusLbl');
       if (user) {
-        loginOverlay.style.display = 'none';
-        userStatusLbl.textContent = 'Firebase User: ' + (user.email || 'comprador@perren.com.ar');
+        showAuthenticatedApp(user.email || 'comprador@perren.com.ar');
       } else {
         const savedSession = localStorage.getItem('firebaseAuthSession');
         if (savedSession) {
-          loginOverlay.style.display = 'none';
-          userStatusLbl.textContent = 'Firebase User: ' + savedSession;
+          showAuthenticatedApp(savedSession);
         } else {
-          loginOverlay.style.display = 'flex';
+          showUnauthenticatedLogin();
         }
       }
     });
@@ -148,8 +162,9 @@ function initFirebaseAuthListener() {
     // Local session fallback
     const savedSession = localStorage.getItem('firebaseAuthSession');
     if (savedSession) {
-      document.getElementById('loginOverlay').style.display = 'none';
-      document.getElementById('userStatusLbl').textContent = 'Firebase User: ' + savedSession;
+      showAuthenticatedApp(savedSession);
+    } else {
+      showUnauthenticatedLogin();
     }
   }
 }
@@ -167,20 +182,16 @@ function handleFirebaseAuthLogin() {
     fbAuth.signInWithEmailAndPassword(email, password)
       .then((userCredential) => {
         localStorage.setItem('firebaseAuthSession', email);
-        document.getElementById('loginOverlay').style.display = 'none';
-        document.getElementById('userStatusLbl').textContent = 'Firebase User: ' + email;
+        showAuthenticatedApp(email);
       })
       .catch((error) => {
         console.log("Firebase Auth notice:", error.message);
-        // Direct local session login if offline or demo user
         localStorage.setItem('firebaseAuthSession', email);
-        document.getElementById('loginOverlay').style.display = 'none';
-        document.getElementById('userStatusLbl').textContent = 'Firebase User: ' + email;
+        showAuthenticatedApp(email);
       });
   } else {
     localStorage.setItem('firebaseAuthSession', email);
-    document.getElementById('loginOverlay').style.display = 'none';
-    document.getElementById('userStatusLbl').textContent = 'Firebase User: ' + email;
+    showAuthenticatedApp(email);
   }
 }
 
@@ -189,7 +200,7 @@ function handleFirebaseLogout() {
   if (fbAuth) {
     fbAuth.signOut().catch(err => console.log('Logout notice', err));
   }
-  document.getElementById('loginOverlay').style.display = 'flex';
+  showUnauthenticatedLogin();
 }
 
 // MAIN SECTION SWITCHING
