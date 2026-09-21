@@ -1,4 +1,5 @@
 // State Global
+let currentSection = 'inicio';
 let currentTab = 1;
 let currencyMode = 'ARS'; // 'ARS' or 'USD'
 let weightModeEnabled = false;
@@ -27,13 +28,46 @@ let stateSettings = {
   incDespachante: true
 };
 
-// Saved Articles Sample
-let savedArticles = [
-  { code: 'ART-CN-101', name: 'Cerámico Foshan 60x60 Pulido', supplier: 'Foshan Ceramics Co.', fob: 4.50, moq: 2000, port: 'Foshan', weightKg: 3.2 },
-  { code: 'ART-CN-204', name: 'Grifería Monocomando Bronce', supplier: 'Zhejiang Plumbing Ltd.', fob: 12.80, moq: 800, port: 'Ningbo', weightKg: 1.1 }
+// Base de Datos Perren Flexxus BI (Muestra Integrada de 12.074 artículos)
+let perrenSqlDatabase = [
+  { sku: 'PERREN-1042', description: 'Azulejo cerámico 20x20 Blanco Satinado', brand: 'Cortines', category: 'Revestimientos', costNoVAT: 14175.0, priceVAT: 21500.0, abcClass: 'A' },
+  { sku: 'PERREN-2088', description: 'Porcelanato 60x60 Gris Pulido San Lorenzo', brand: 'San Lorenzo', category: 'Porcelanatos', costNoVAT: 28500.0, priceVAT: 42000.0, abcClass: 'A' },
+  { sku: 'PERREN-3015', description: 'Grifería Monocomando FV Cocina Bronce', brand: 'FV', category: 'Grifería', costNoVAT: 48900.0, priceVAT: 74000.0, abcClass: 'B' },
+  { sku: 'PERREN-4090', description: 'Inodoro Largo Ferrum Bari Blanco', brand: 'Ferrum', category: 'Sanitarios', costNoVAT: 89000.0, priceVAT: 135000.0, abcClass: 'A' },
+  { sku: 'PERREN-5012', description: 'Bidet 3 Orificios Ferrum Bari Blanco', brand: 'Ferrum', category: 'Sanitarios', costNoVAT: 65000.0, priceVAT: 98000.0, abcClass: 'B' },
+  { sku: 'PERREN-6045', description: 'Pegamento Weber Keraflor 30kg', brand: 'Weber', category: 'Adhesivos', costNoVAT: 8500.0, priceVAT: 12900.0, abcClass: 'C' }
+];
+
+// Proveedores Guardados y Cotizaciones Chinas
+let localSuppliers = [
+  {
+    id: 'SUP-01',
+    companyName: 'Foshan Ceramics Co. Ltd',
+    stand: 'Hall 9.2 - Stand C14',
+    category: 'Cerámicos y Azulejos',
+    contactName: 'Jacky Zhang',
+    phone: '+86 138 0000 1111',
+    email: 'jacky@foshanceramics.cn',
+    articles: [
+      { code: 'ART-CN-101', name: 'Cerámico Foshan 60x60 Pulido', fob: 4.50, moq: 2000, port: 'Foshan', weightKg: 3.2, supplier: 'Foshan Ceramics Co. Ltd' }
+    ]
+  },
+  {
+    id: 'SUP-02',
+    companyName: 'Zhejiang Plumbing Ltd',
+    stand: 'Hall 11.1 - Stand E05',
+    category: 'Grifería y Sanitarios',
+    contactName: 'Emily Chen',
+    phone: '+86 139 2222 3333',
+    email: 'emily@zhengjiangplumbing.cn',
+    articles: [
+      { code: 'ART-CN-204', name: 'Grifería Monocomando Bronce', fob: 12.80, moq: 800, port: 'Ningbo', weightKg: 1.1, supplier: 'Zhejiang Plumbing Ltd' }
+    ]
+  }
 ];
 
 let expandedCards = new Set();
+let selectedPerrenProduct = perrenSqlDatabase[0];
 let selectedCantonItem = null;
 
 // IndexedDB Storage setup for Photo Backup
@@ -54,8 +88,12 @@ if ('serviceWorker' in navigator) {
 
 document.addEventListener('DOMContentLoaded', () => {
   setupEventListeners();
+  updateMetrics();
+  populateSupplierDropdown();
   calculateTab1();
   renderTab2List();
+  renderTarjeteroList();
+  renderPerrenSearchResults();
 });
 
 function setupEventListeners() {
@@ -66,6 +104,178 @@ function setupEventListeners() {
   ['t1Fob', 't1Qty', 't1Weight'].forEach(id => {
     document.getElementById(id).addEventListener('input', calculateTab1);
   });
+}
+
+function switchMainSection(secName) {
+  currentSection = secName;
+  const sections = ['inicio', 'addProveedor', 'costos', 'comparador', 'tarjetero'];
+  sections.forEach(s => {
+    const el = document.getElementById(`sec${s.charAt(0).toUpperCase() + s.slice(1)}`);
+    const nav = document.getElementById(`nav${s.charAt(0).toUpperCase() + s.slice(1)}`);
+    if (el) el.style.display = (s === secName) ? 'block' : 'none';
+    if (nav) nav.classList.toggle('active', s === secName);
+  });
+}
+
+function updateMetrics() {
+  const totalSuppliers = localSuppliers.length;
+  let totalArticles = 0;
+  localSuppliers.forEach(s => totalArticles += s.articles.length);
+
+  document.getElementById('lblTotalSuppliers').textContent = totalSuppliers;
+  document.getElementById('lblTotalArticles').textContent = totalArticles;
+  document.getElementById('savedCount').textContent = totalArticles;
+}
+
+function populateSupplierDropdown() {
+  const sel = document.getElementById('pArticleSupplierSelect');
+  if (!sel) return;
+  sel.innerHTML = '';
+  localSuppliers.forEach(s => {
+    const opt = document.createElement('option');
+    opt.value = s.id;
+    opt.textContent = `${s.companyName} (${s.stand})`;
+    sel.appendChild(opt);
+  });
+}
+
+function saveNewSupplier() {
+  const name = document.getElementById('pCompany').value.trim();
+  if (!name) {
+    alert('Ingresa el nombre de la empresa proveedora.');
+    return;
+  }
+  const newSup = {
+    id: `SUP-${Date.now()}`,
+    companyName: name,
+    stand: document.getElementById('pStand').value || 'Sin Stand',
+    category: document.getElementById('pCategory').value || 'General',
+    contactName: document.getElementById('pContact').value || 'Sin Contacto',
+    phone: document.getElementById('pPhone').value || '',
+    email: document.getElementById('pEmail').value || '',
+    articles: []
+  };
+  localSuppliers.push(newSup);
+  updateMetrics();
+  populateSupplierDropdown();
+  renderTarjeteroList();
+  alert(`✅ Proveedor "${name}" guardado exitosamente.`);
+  document.getElementById('pCompany').value = '';
+}
+
+function saveNewArticleToSupplier() {
+  const supId = document.getElementById('pArticleSupplierSelect').value;
+  const sup = localSuppliers.find(s => s.id === supId);
+  if (!sup) return;
+
+  const code = document.getElementById('artCode').value || `ART-${Date.now() % 1000}`;
+  const name = document.getElementById('artName').value || 'Artículo Cotizado';
+  const fob = parseFloat(document.getElementById('artFob').value) || 10.0;
+  const moq = parseInt(document.getElementById('artMoq').value) || 1000;
+  const port = document.getElementById('artPort').value || 'Foshan';
+  const weightKg = parseFloat(document.getElementById('artWeight').value) || 2.5;
+
+  const newArt = { code, name, fob, moq, port, weightKg, supplier: sup.companyName };
+  sup.articles.push(newArt);
+
+  updateMetrics();
+  renderTab2List();
+  alert(`✅ Artículo "${name}" guardado en el catálogo de ${sup.companyName}.`);
+  document.getElementById('artCode').value = '';
+  document.getElementById('artName').value = '';
+}
+
+function renderTarjeteroList() {
+  const el = document.getElementById('tarjeteroList');
+  if (!el) return;
+  let html = '';
+  localSuppliers.forEach(sup => {
+    const waClean = (sup.phone || '').replace(/[^0-9]/g, '');
+    html += `
+      <div class="card" style="border-left: 4px solid var(--primary-color);">
+        <strong style="font-size:13px; color:var(--primary-color);">${sup.companyName}</strong>
+        <div style="font-size:10px; color:var(--text-muted); margin-top:2px;">${sup.stand} | Rubro: ${sup.category}</div>
+        <hr style="margin:6px 0; border:none; border-top:1px solid #EEE;">
+        <div style="font-size:11px; margin-bottom:6px;">
+          👤 <strong>${sup.contactName}</strong><br>
+          📞 ${sup.phone || 'Sin Teléfono'}<br>
+          ✉️ ${sup.email || 'Sin Email'}
+        </div>
+        <div style="display:flex; gap:6px;">
+          ${waClean ? `<a href="https://wa.me/${waClean}" target="_blank" class="btn-whatsapp">💬 Enviar WhatsApp</a>` : ''}
+          ${sup.phone ? `<a href="tel:${sup.phone}" class="btn-chip" style="text-decoration:none;">📞 Llamar</a>` : ''}
+        </div>
+      </div>
+    `;
+  });
+  el.innerHTML = html;
+}
+
+function renderGlobalSearchResults() {
+  const query = (document.getElementById('globalSearchInput').value || '').toLowerCase();
+  const el = document.getElementById('globalSearchResults');
+  if (!el) return;
+
+  if (!query) {
+    el.innerHTML = '<div style="font-size:11px; color:#666; text-align:center; padding:10px;">Ingresa un término de búsqueda...</div>';
+    return;
+  }
+
+  let html = '';
+  // Search in Perren SQL
+  const filteredPerren = perrenSqlDatabase.filter(p => p.sku.toLowerCase().includes(query) || p.description.toLowerCase().includes(query) || p.brand.toLowerCase().includes(query));
+  filteredPerren.forEach(p => {
+    html += `
+      <div class="card" style="border-left: 4px solid var(--secondary-color);">
+        <strong style="font-size:12px; color:var(--secondary-color);">${p.sku} - ${p.description}</strong>
+        <div style="font-size:10px; color:#666;">Marca: ${p.brand} | Rubro: ${p.category}</div>
+        <div style="font-size:11px; font-weight:bold; color:var(--primary-color); margin-top:4px;">Costo Sin IVA: $ ${p.costNoVAT.toLocaleString('es-AR')} ARS</div>
+      </div>
+    `;
+  });
+
+  // Search in Canton Suppliers
+  localSuppliers.forEach(sup => {
+    sup.articles.forEach(art => {
+      if (art.name.toLowerCase().includes(query) || art.code.toLowerCase().includes(query) || sup.companyName.toLowerCase().includes(query)) {
+        html += `
+          <div class="card" style="border-left: 4px solid var(--accent-color);">
+            <strong style="font-size:12px; color:var(--accent-color);">${art.name} (${sup.companyName})</strong>
+            <div style="font-size:10px; color:#666;">Código: ${art.code} | Puerto: ${art.port}</div>
+            <div style="font-size:11px; font-weight:bold; color:var(--accent-color); margin-top:4px;">FOB: $ ${art.fob.toFixed(2)} USD</div>
+          </div>
+        `;
+      }
+    });
+  });
+
+  el.innerHTML = html || '<div style="font-size:11px; color:#666; text-align:center; padding:10px;">No se encontraron resultados</div>';
+}
+
+function renderPerrenSearchResults() {
+  const query = (document.getElementById('perrenSearchInput').value || '').toLowerCase();
+  const el = document.getElementById('perrenSearchResults');
+  if (!el) return;
+
+  const filtered = perrenSqlDatabase.filter(p => !query || p.sku.toLowerCase().includes(query) || p.description.toLowerCase().includes(query) || p.brand.toLowerCase().includes(query));
+
+  let html = '';
+  filtered.forEach(p => {
+    html += `
+      <div class="card" style="padding:8px; cursor:pointer; margin-bottom:6px;" onclick="selectPerrenProduct('${p.sku}')">
+        <strong style="font-size:11.5px; color:var(--primary-color);">${p.sku} - ${p.description}</strong>
+        <div style="font-size:9.5px; color:#666;">Marca: ${p.brand} | Rubro: ${p.category}</div>
+        <div style="font-size:11px; font-weight:bold; color:#D32F2F; margin-top:2px;">Costo Sin IVA: $ ${p.costNoVAT.toLocaleString('es-AR')} ARS</div>
+      </div>
+    `;
+  });
+  el.innerHTML = html;
+}
+
+function selectPerrenProduct(sku) {
+  selectedPerrenProduct = perrenSqlDatabase.find(p => p.sku === sku);
+  closePerrenModal();
+  updateTab3Comparison();
 }
 
 function setCurrency(mode) {
@@ -208,9 +418,17 @@ function generateBreakdownTableHTML(fobUnit, containerQty, itemWeightKg, titleSu
 function renderTab2List() {
   const query = (document.getElementById('tab2Search').value || '').toLowerCase();
   const listEl = document.getElementById('tab2List');
-  document.getElementById('savedCount').textContent = savedArticles.length;
 
-  const filtered = savedArticles.filter(a => 
+  let allArticles = [];
+  localSuppliers.forEach(sup => {
+    sup.articles.forEach(art => {
+      allArticles.push({ ...art, supplier: sup.companyName });
+    });
+  });
+
+  document.getElementById('savedCount').textContent = allArticles.length;
+
+  const filtered = allArticles.filter(a => 
     a.name.toLowerCase().includes(query) || a.code.toLowerCase().includes(query) || a.supplier.toLowerCase().includes(query)
   );
 
@@ -265,8 +483,17 @@ function toggleCardExpand(code) {
 }
 
 function selectForTab3(code) {
-  selectedCantonItem = savedArticles.find(a => a.code === code);
-  switchTab(3);
+  let found = null;
+  localSuppliers.forEach(sup => {
+    sup.articles.forEach(art => {
+      if (art.code === code) found = { ...art, supplier: sup.companyName };
+    });
+  });
+  if (found) {
+    selectedCantonItem = found;
+    switchMainSection('comparador');
+    switchTab(3);
+  }
 }
 
 function sendTab1ToTab3() {
@@ -276,7 +503,8 @@ function sendTab1ToTab3() {
     fob: parseFloat(document.getElementById('t1Fob').value) || 10.0,
     moq: parseInt(document.getElementById('t1Qty').value) || 1000,
     port: document.getElementById('t1Port').value,
-    weightKg: parseFloat(document.getElementById('t1Weight').value) || 0.0
+    weightKg: parseFloat(document.getElementById('t1Weight').value) || 0.0,
+    supplier: 'Carga Manual'
   };
   switchTab(3);
 }
@@ -286,10 +514,12 @@ function updateTab3Comparison() {
     name: document.getElementById('t1Name').value,
     fob: parseFloat(document.getElementById('t1Fob').value) || 10.0,
     moq: parseInt(document.getElementById('t1Qty').value) || 1000,
-    weightKg: parseFloat(document.getElementById('t1Weight').value) || 0.0
+    weightKg: parseFloat(document.getElementById('t1Weight').value) || 0.0,
+    supplier: 'Carga Manual'
   };
 
-  const perrenARS = 14175.0; // Costo Perren Sin IVA
+  const perren = selectedPerrenProduct;
+  const perrenARS = perren.costNoVAT;
   const perrenUSD = perrenARS / stateSettings.tc;
 
   // Landed calculation for Canton item
@@ -312,8 +542,15 @@ function updateTab3Comparison() {
   const ahorroARS = perrenARS - unitCostoIncididoARS;
   const ahorroPct = (ahorroUSD / perrenUSD) * 100.0;
 
+  document.getElementById('perrenProductDetail').innerHTML = `
+    <strong>${perren.sku} - ${perren.description}</strong><br>
+    <span style="color:var(--text-muted);">Marca: ${perren.brand} | Rubro: ${perren.category}</span><br>
+    <span style="color:var(--text-muted);">Costo Nacional Sin IVA:</span> 
+    <strong id="perrenCostTxt">$ ${perrenARS.toLocaleString('es-AR', {minimumFractionDigits:2})} ARS ($ ${perrenUSD.toFixed(2)} USD)</strong>
+  `;
+
   document.getElementById('cantonProductDetail').innerHTML = `
-    <strong>${item.name}</strong><br>
+    <strong>${item.name} (${item.supplier})</strong><br>
     <span style="color:var(--text-muted);">Costo Puesto Incidido Landed:</span> 
     <strong>$ ${unitCostoIncididoARS.toLocaleString('es-AR', {minimumFractionDigits:2})} ARS ($ ${unitCostoIncididoUSD.toFixed(2)} USD)</strong>
   `;
@@ -322,7 +559,7 @@ function updateTab3Comparison() {
   document.getElementById('savingPctTxt').textContent = `Reducción de costo del ${ahorroPct.toFixed(1)}%`;
 }
 
-// Modal Settings
+// Modales
 function openSettingsModal() { document.getElementById('modalSettings').classList.add('open'); }
 function closeSettingsModal() { 
   stateSettings.tc = parseFloat(document.getElementById('sTC').value) || 1350;
@@ -340,6 +577,9 @@ function closeSettingsModal() {
   renderTab2List();
   updateTab3Comparison();
 }
+
+function openPerrenModal() { document.getElementById('modalPerren').classList.add('open'); renderPerrenSearchResults(); }
+function closePerrenModal() { document.getElementById('modalPerren').classList.remove('open'); }
 
 function toggleInc(key) {
   stateSettings[key] = !stateSettings[key];
@@ -359,7 +599,6 @@ function processOcrImage(event) {
   statusEl.textContent = '⏳ Escaneando texto y precios con OCR...';
   outEl.textContent = '';
 
-  // Save photo locally in IndexedDB as backup
   const reader = new FileReader();
   reader.onload = (e) => {
     if (db) {
@@ -374,7 +613,6 @@ function processOcrImage(event) {
       statusEl.textContent = '✅ Reconocimiento OCR Completado!';
       outEl.textContent = text;
 
-      // Extract numeric values if present
       const numbers = text.match(/\d+(\.\d+)?/g);
       if (numbers && numbers.length > 0) {
         document.getElementById('t1Fob').value = numbers[0];
