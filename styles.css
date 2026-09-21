@@ -28,13 +28,54 @@ body {
   margin: 0 auto;
   min-height: 100vh;
   padding-bottom: 75px;
+  position: relative;
+}
+
+/* Login Screen */
+.login-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: linear-gradient(135deg, #1B365D 0%, #0D1B2A 100%);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.login-card {
+  background: white;
+  border-radius: 16px;
+  padding: 24px;
+  width: 100%;
+  max-width: 380px;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+  text-align: center;
+}
+
+.login-logo {
+  font-size: 38px;
+  margin-bottom: 8px;
+}
+
+.login-card h2 {
+  font-size: 18px;
+  color: var(--primary-color);
+  margin-bottom: 4px;
+  font-weight: 800;
+}
+
+.login-card p {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-bottom: 20px;
 }
 
 /* Header */
 .app-header {
   background-color: var(--primary-color);
   color: white;
-  padding: 12px 14px;
+  padding: 10px 14px;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -45,12 +86,12 @@ body {
 }
 
 .app-title h1 {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 700;
 }
 
 .app-title p {
-  font-size: 9.5px;
+  font-size: 9px;
   opacity: 0.8;
 }
 
@@ -118,16 +159,15 @@ body {
 .nav-tabs {
   display: flex;
   background-color: white;
-  border-bottom: 2px solid #E0E0E0;
+  border-bottom: 1px solid #E0E0E0;
 }
 
 .tab-btn {
   flex: 1;
   padding: 9px 4px;
-  text-align: center;
-  background: none;
   border: none;
-  font-size: 10.5px;
+  background: none;
+  font-size: 10px;
   font-weight: bold;
   color: var(--text-muted);
   border-bottom: 3px solid transparent;
@@ -137,48 +177,10 @@ body {
 .tab-btn.active {
   color: var(--primary-color);
   border-bottom-color: var(--primary-color);
+  background-color: #F0F4F8;
 }
 
-/* Bottom Navigation Bar (5 Sections) */
-.bottom-nav {
-  position: fixed;
-  bottom: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 100%;
-  max-width: 600px;
-  background-color: var(--primary-color);
-  display: flex;
-  justify-content: space-around;
-  padding: 6px 0 8px 0;
-  z-index: 150;
-  box-shadow: 0 -2px 6px rgba(0,0,0,0.15);
-}
-
-.bottom-nav-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  color: rgba(255,255,255,0.65);
-  font-size: 9.5px;
-  font-weight: 500;
-  background: none;
-  border: none;
-  cursor: pointer;
-  flex: 1;
-}
-
-.bottom-nav-item .icon {
-  font-size: 16px;
-  margin-bottom: 2px;
-}
-
-.bottom-nav-item.active {
-  color: #FFFFFF;
-  font-weight: bold;
-}
-
-/* Main Content Container */
+/* Container & Cards */
 .container {
   padding: 12px;
 }
@@ -188,12 +190,23 @@ body {
   border-radius: 10px;
   padding: 12px;
   margin-bottom: 12px;
-  border: 1px solid #E0E0E0;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  border: 1px solid var(--border-color);
 }
 
-.form-group {
+.card-title {
+  font-size: 12px;
+  font-weight: bold;
+  color: var(--primary-color);
   margin-bottom: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* Form Controls */
+.form-group {
+  margin-bottom: 10px;
 }
 
 .form-group label {
@@ -201,15 +214,22 @@ body {
   font-size: 10px;
   font-weight: bold;
   color: var(--text-muted);
-  margin-bottom: 2px;
+  margin-bottom: 4px;
 }
 
 .form-control {
   width: 100%;
-  padding: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--border-color);
   border-radius: 6px;
-  border: 1px solid #CCCCCC;
-  font-size: 11.5px;
+  font-size: 12px;
+  background-color: #FAFAFA;
+}
+
+.form-control:focus {
+  outline: none;
+  border-color: var(--secondary-color);
+  background-color: #FFFFFF;
 }
 
 .row-2 {
@@ -217,91 +237,80 @@ body {
   gap: 8px;
 }
 
-.row-2 > div {
+.row-2 > * {
   flex: 1;
 }
 
-/* Filter Chips Grid */
+/* Breakdown Table */
+.breakdown-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 8px;
+  font-size: 10px;
+}
+
+.breakdown-table th {
+  background-color: var(--primary-color);
+  color: white;
+  padding: 6px 8px;
+  text-align: left;
+  font-size: 9.5px;
+}
+
+.breakdown-table td {
+  padding: 6px 8px;
+  border-bottom: 1px solid #EEEEEE;
+}
+
+.breakdown-table tr.header-row {
+  background-color: #E3F2FD;
+  font-weight: bold;
+  color: var(--primary-color);
+}
+
+.breakdown-table tr.total-row {
+  background-color: #FFF3E0;
+  font-weight: bold;
+  color: var(--warning-text);
+  font-size: 10.5px;
+}
+
+.breakdown-table tr.costo-incidido {
+  background-color: #E8F5E9;
+  font-weight: bold;
+  color: var(--accent-color);
+  font-size: 11px;
+}
+
+/* Filter Chips */
 .chip-grid {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 4px;
   margin-top: 6px;
 }
 
 .filter-chip {
   padding: 4px 8px;
   border-radius: 12px;
-  font-size: 9.5px;
-  background-color: #F0F0F0;
-  border: 1px solid #CCCCCC;
+  background-color: #E0E0E0;
+  color: #424242;
+  font-size: 9px;
+  font-weight: bold;
   cursor: pointer;
 }
 
 .filter-chip.selected {
-  background-color: #E3F2FD;
-  border-color: var(--secondary-color);
-  color: var(--secondary-color);
-  font-weight: bold;
+  background-color: var(--accent-color);
+  color: white;
 }
 
-/* Table Breakdown */
-.table-container {
-  overflow-x: auto;
-  margin-top: 8px;
-}
-
-table.breakdown-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 9.5px;
-}
-
-table.breakdown-table th {
-  background-color: #E1F5FE;
-  color: #01579B;
-  font-weight: bold;
-  padding: 5px 4px;
-  text-align: right;
-}
-
-table.breakdown-table th:first-child {
-  text-align: left;
-}
-
-table.breakdown-table td {
-  padding: 4px 4px;
-  border-bottom: 1px solid #ECEFF1;
-  text-align: right;
-}
-
-table.breakdown-table td:first-child {
-  text-align: left;
-}
-
-.row-header {
-  background-color: #FFF8E1;
-  font-weight: bold;
-}
-
-.row-cost-net {
-  background-color: #E3F2FD;
-  font-weight: bold;
-  color: #1565C0;
-}
-
-.row-total-outlay {
-  background-color: #E8F5E9;
-  font-weight: bold;
-  color: #2E7D32;
-}
-
-/* Modal */
+/* Modals */
 .modal {
   display: none;
   position: fixed;
   top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(0,0,0,0.5);
+  background: rgba(0,0,0,0.6);
   z-index: 200;
   align-items: center;
   justify-content: center;
@@ -322,11 +331,12 @@ table.breakdown-table td:first-child {
   overflow-y: auto;
 }
 
+/* Buttons */
 .btn-primary {
   background-color: var(--secondary-color);
   color: white;
   border: none;
-  padding: 8px 12px;
+  padding: 9px 12px;
   border-radius: 6px;
   font-size: 11px;
   font-weight: bold;
@@ -339,7 +349,7 @@ table.breakdown-table td:first-child {
   background-color: var(--accent-color);
   color: white;
   border: none;
-  padding: 8px 12px;
+  padding: 9px 12px;
   border-radius: 6px;
   font-size: 11px;
   font-weight: bold;
@@ -352,9 +362,9 @@ table.breakdown-table td:first-child {
   background-color: #25D366;
   color: white;
   border: none;
-  padding: 6px 10px;
+  padding: 6px 12px;
   border-radius: 6px;
-  font-size: 10px;
+  font-size: 10.5px;
   font-weight: bold;
   cursor: pointer;
   display: inline-flex;
@@ -378,4 +388,53 @@ table.breakdown-table td:first-child {
   border-radius: 4px;
   font-size: 9px;
   font-weight: bold;
+}
+
+/* Bottom Navigation Bar (Navegación Fija Inferior) */
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  max-width: 600px;
+  margin: 0 auto;
+  height: 60px;
+  background-color: white;
+  border-top: 1px solid #D0D0D0;
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  z-index: 900;
+  box-shadow: 0 -2px 10px rgba(0,0,0,0.08);
+}
+
+.nav-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 0;
+  color: #757575;
+  text-decoration: none;
+  font-size: 9.5px;
+  font-weight: 600;
+  border: none;
+  background: none;
+  cursor: pointer;
+}
+
+.nav-item .nav-icon {
+  font-size: 18px;
+  margin-bottom: 2px;
+}
+
+.nav-item.active {
+  color: var(--primary-color);
+  font-weight: 800;
+}
+
+.nav-item.active .nav-icon {
+  transform: scale(1.15);
+  transition: transform 0.15s ease;
 }
