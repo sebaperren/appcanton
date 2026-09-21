@@ -46,29 +46,35 @@ let localSuppliers = [
     stand: 'Hall 9.2 - Stand C14',
     category: 'Cerámicos y Azulejos',
     contactName: 'Jacky Zhang',
-    phone: '+86 138 0000 1111',
+    phone: '+86 138 0000 8888',
     email: 'jacky@foshanceramics.cn',
     articles: [
-      { code: 'ART-CN-101', name: 'Cerámico Foshan 60x60 Pulido', fob: 4.50, moq: 2000, port: 'Foshan', weightKg: 3.2, supplier: 'Foshan Ceramics Co. Ltd' }
+      { code: 'ART-CN-101', name: 'Cerámico Foshan 60x60 Pulido', fob: 4.50, moq: 2000, port: 'Foshan', weightKg: 3.2 }
     ]
   },
   {
     id: 'SUP-02',
-    companyName: 'Zhejiang Plumbing Ltd',
-    stand: 'Hall 11.1 - Stand E05',
-    category: 'Grifería y Sanitarios',
-    contactName: 'Emily Chen',
-    phone: '+86 139 2222 3333',
-    email: 'emily@zhengjiangplumbing.cn',
+    companyName: 'Zhejiang Sanitary Ware Co.',
+    stand: 'Hall 10.1 - Stand B23',
+    category: 'Sanitarios y Grifería',
+    contactName: 'Wei Chen',
+    phone: '+86 139 1111 2222',
+    email: 'sales@zjsanitary.cn',
     articles: [
-      { code: 'ART-CN-204', name: 'Grifería Monocomando Bronce', fob: 12.80, moq: 800, port: 'Ningbo', weightKg: 1.1, supplier: 'Zhejiang Plumbing Ltd' }
+      { code: 'ART-CN-204', name: 'Inodoro Rimless Monobloc Foshan', fob: 38.00, moq: 300, port: 'Ningbo', weightKg: 28.5 }
     ]
   }
 ];
 
+let savedArticles = [
+  { code: 'ART-CN-101', name: 'Cerámico Foshan 60x60 Pulido', supplier: 'Foshan Ceramics Co.', fob: 4.50, moq: 2000, port: 'Foshan', weightKg: 3.2 },
+  { code: 'ART-CN-204', name: 'Inodoro Rimless Monobloc Foshan', supplier: 'Zhejiang Sanitary Ware', fob: 38.00, moq: 300, port: 'Ningbo', weightKg: 28.5 }
+];
+
 let expandedCards = new Set();
-let selectedPerrenProduct = perrenSqlDatabase[0];
 let selectedCantonItem = null;
+let selectedPerrenItem = null;
+let activeCategoryFilter = 'TODOS';
 
 // IndexedDB Storage setup for Photo Backup
 let db;
@@ -87,195 +93,80 @@ if ('serviceWorker' in navigator) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+  checkSession();
   setupEventListeners();
-  updateMetrics();
-  populateSupplierDropdown();
   calculateTab1();
   renderTab2List();
-  renderTarjeteroList();
-  renderPerrenSearchResults();
+  renderTarjetero();
+  renderSecSearchResults();
 });
 
+// AUTHENTICATION LOGIC
+function checkSession() {
+  const user = localStorage.getItem('cantonUser');
+  if (user) {
+    document.getElementById('loginOverlay').style.display = 'none';
+    document.getElementById('userStatusLbl').textContent = 'Usuario: ' + user;
+  } else {
+    document.getElementById('loginOverlay').style.display = 'flex';
+  }
+}
+
+function handleLogin() {
+  const userSelect = document.getElementById('loginUser').value;
+  localStorage.setItem('cantonUser', userSelect);
+  document.getElementById('userStatusLbl').textContent = 'Usuario: ' + userSelect;
+  document.getElementById('loginOverlay').style.display = 'none';
+}
+
+function handleLogout() {
+  localStorage.removeItem('cantonUser');
+  document.getElementById('loginOverlay').style.display = 'flex';
+}
+
+// MAIN SECTION SWITCHING
+function switchMainSection(secId) {
+  currentSection = secId;
+  const sections = ['secInicio', 'secAddProveedor', 'secCostos', 'secComparador', 'secTarjetero'];
+  sections.forEach(s => {
+    const el = document.getElementById(s);
+    if (el) el.style.display = (s === 'sec' + capitalize(secId)) ? 'block' : 'none';
+  });
+
+  // Update Bottom Nav Styling
+  const navItems = {
+    'inicio': 'navInicio',
+    'addProveedor': 'navAddProveedor',
+    'costos': 'navCostos',
+    'comparador': 'navComparador',
+    'tarjetero': 'navTarjetero'
+  };
+
+  Object.keys(navItems).forEach(k => {
+    const btn = document.getElementById(navItems[k]);
+    if (btn) {
+      if (k === secId) btn.classList.add('active');
+      else btn.classList.remove('active');
+    }
+  });
+
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function capitalize(str) {
+  return str.charAt(0).toUpperCase() + str.slice(1);
+}
+
+// EVENT LISTENERS & CONTROLS
 function setupEventListeners() {
   document.getElementById('btnCurrARS').addEventListener('click', () => setCurrency('ARS'));
   document.getElementById('btnCurrUSD').addEventListener('click', () => setCurrency('USD'));
   document.getElementById('btnOpenSettings').addEventListener('click', openSettingsModal);
 
   ['t1Fob', 't1Qty', 't1Weight'].forEach(id => {
-    document.getElementById(id).addEventListener('input', calculateTab1);
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('input', calculateTab1);
   });
-}
-
-function switchMainSection(secName) {
-  currentSection = secName;
-  const sections = ['inicio', 'addProveedor', 'costos', 'comparador', 'tarjetero'];
-  sections.forEach(s => {
-    const el = document.getElementById(`sec${s.charAt(0).toUpperCase() + s.slice(1)}`);
-    const nav = document.getElementById(`nav${s.charAt(0).toUpperCase() + s.slice(1)}`);
-    if (el) el.style.display = (s === secName) ? 'block' : 'none';
-    if (nav) nav.classList.toggle('active', s === secName);
-  });
-}
-
-function updateMetrics() {
-  const totalSuppliers = localSuppliers.length;
-  let totalArticles = 0;
-  localSuppliers.forEach(s => totalArticles += s.articles.length);
-
-  document.getElementById('lblTotalSuppliers').textContent = totalSuppliers;
-  document.getElementById('lblTotalArticles').textContent = totalArticles;
-  document.getElementById('savedCount').textContent = totalArticles;
-}
-
-function populateSupplierDropdown() {
-  const sel = document.getElementById('pArticleSupplierSelect');
-  if (!sel) return;
-  sel.innerHTML = '';
-  localSuppliers.forEach(s => {
-    const opt = document.createElement('option');
-    opt.value = s.id;
-    opt.textContent = `${s.companyName} (${s.stand})`;
-    sel.appendChild(opt);
-  });
-}
-
-function saveNewSupplier() {
-  const name = document.getElementById('pCompany').value.trim();
-  if (!name) {
-    alert('Ingresa el nombre de la empresa proveedora.');
-    return;
-  }
-  const newSup = {
-    id: `SUP-${Date.now()}`,
-    companyName: name,
-    stand: document.getElementById('pStand').value || 'Sin Stand',
-    category: document.getElementById('pCategory').value || 'General',
-    contactName: document.getElementById('pContact').value || 'Sin Contacto',
-    phone: document.getElementById('pPhone').value || '',
-    email: document.getElementById('pEmail').value || '',
-    articles: []
-  };
-  localSuppliers.push(newSup);
-  updateMetrics();
-  populateSupplierDropdown();
-  renderTarjeteroList();
-  alert(`✅ Proveedor "${name}" guardado exitosamente.`);
-  document.getElementById('pCompany').value = '';
-}
-
-function saveNewArticleToSupplier() {
-  const supId = document.getElementById('pArticleSupplierSelect').value;
-  const sup = localSuppliers.find(s => s.id === supId);
-  if (!sup) return;
-
-  const code = document.getElementById('artCode').value || `ART-${Date.now() % 1000}`;
-  const name = document.getElementById('artName').value || 'Artículo Cotizado';
-  const fob = parseFloat(document.getElementById('artFob').value) || 10.0;
-  const moq = parseInt(document.getElementById('artMoq').value) || 1000;
-  const port = document.getElementById('artPort').value || 'Foshan';
-  const weightKg = parseFloat(document.getElementById('artWeight').value) || 2.5;
-
-  const newArt = { code, name, fob, moq, port, weightKg, supplier: sup.companyName };
-  sup.articles.push(newArt);
-
-  updateMetrics();
-  renderTab2List();
-  alert(`✅ Artículo "${name}" guardado en el catálogo de ${sup.companyName}.`);
-  document.getElementById('artCode').value = '';
-  document.getElementById('artName').value = '';
-}
-
-function renderTarjeteroList() {
-  const el = document.getElementById('tarjeteroList');
-  if (!el) return;
-  let html = '';
-  localSuppliers.forEach(sup => {
-    const waClean = (sup.phone || '').replace(/[^0-9]/g, '');
-    html += `
-      <div class="card" style="border-left: 4px solid var(--primary-color);">
-        <strong style="font-size:13px; color:var(--primary-color);">${sup.companyName}</strong>
-        <div style="font-size:10px; color:var(--text-muted); margin-top:2px;">${sup.stand} | Rubro: ${sup.category}</div>
-        <hr style="margin:6px 0; border:none; border-top:1px solid #EEE;">
-        <div style="font-size:11px; margin-bottom:6px;">
-          👤 <strong>${sup.contactName}</strong><br>
-          📞 ${sup.phone || 'Sin Teléfono'}<br>
-          ✉️ ${sup.email || 'Sin Email'}
-        </div>
-        <div style="display:flex; gap:6px;">
-          ${waClean ? `<a href="https://wa.me/${waClean}" target="_blank" class="btn-whatsapp">💬 Enviar WhatsApp</a>` : ''}
-          ${sup.phone ? `<a href="tel:${sup.phone}" class="btn-chip" style="text-decoration:none;">📞 Llamar</a>` : ''}
-        </div>
-      </div>
-    `;
-  });
-  el.innerHTML = html;
-}
-
-function renderGlobalSearchResults() {
-  const query = (document.getElementById('globalSearchInput').value || '').toLowerCase();
-  const el = document.getElementById('globalSearchResults');
-  if (!el) return;
-
-  if (!query) {
-    el.innerHTML = '<div style="font-size:11px; color:#666; text-align:center; padding:10px;">Ingresa un término de búsqueda...</div>';
-    return;
-  }
-
-  let html = '';
-  // Search in Perren SQL
-  const filteredPerren = perrenSqlDatabase.filter(p => p.sku.toLowerCase().includes(query) || p.description.toLowerCase().includes(query) || p.brand.toLowerCase().includes(query));
-  filteredPerren.forEach(p => {
-    html += `
-      <div class="card" style="border-left: 4px solid var(--secondary-color);">
-        <strong style="font-size:12px; color:var(--secondary-color);">${p.sku} - ${p.description}</strong>
-        <div style="font-size:10px; color:#666;">Marca: ${p.brand} | Rubro: ${p.category}</div>
-        <div style="font-size:11px; font-weight:bold; color:var(--primary-color); margin-top:4px;">Costo Sin IVA: $ ${p.costNoVAT.toLocaleString('es-AR')} ARS</div>
-      </div>
-    `;
-  });
-
-  // Search in Canton Suppliers
-  localSuppliers.forEach(sup => {
-    sup.articles.forEach(art => {
-      if (art.name.toLowerCase().includes(query) || art.code.toLowerCase().includes(query) || sup.companyName.toLowerCase().includes(query)) {
-        html += `
-          <div class="card" style="border-left: 4px solid var(--accent-color);">
-            <strong style="font-size:12px; color:var(--accent-color);">${art.name} (${sup.companyName})</strong>
-            <div style="font-size:10px; color:#666;">Código: ${art.code} | Puerto: ${art.port}</div>
-            <div style="font-size:11px; font-weight:bold; color:var(--accent-color); margin-top:4px;">FOB: $ ${art.fob.toFixed(2)} USD</div>
-          </div>
-        `;
-      }
-    });
-  });
-
-  el.innerHTML = html || '<div style="font-size:11px; color:#666; text-align:center; padding:10px;">No se encontraron resultados</div>';
-}
-
-function renderPerrenSearchResults() {
-  const query = (document.getElementById('perrenSearchInput').value || '').toLowerCase();
-  const el = document.getElementById('perrenSearchResults');
-  if (!el) return;
-
-  const filtered = perrenSqlDatabase.filter(p => !query || p.sku.toLowerCase().includes(query) || p.description.toLowerCase().includes(query) || p.brand.toLowerCase().includes(query));
-
-  let html = '';
-  filtered.forEach(p => {
-    html += `
-      <div class="card" style="padding:8px; cursor:pointer; margin-bottom:6px;" onclick="selectPerrenProduct('${p.sku}')">
-        <strong style="font-size:11.5px; color:var(--primary-color);">${p.sku} - ${p.description}</strong>
-        <div style="font-size:9.5px; color:#666;">Marca: ${p.brand} | Rubro: ${p.category}</div>
-        <div style="font-size:11px; font-weight:bold; color:#D32F2F; margin-top:2px;">Costo Sin IVA: $ ${p.costNoVAT.toLocaleString('es-AR')} ARS</div>
-      </div>
-    `;
-  });
-  el.innerHTML = html;
-}
-
-function selectPerrenProduct(sku) {
-  selectedPerrenProduct = perrenSqlDatabase.find(p => p.sku === sku);
-  closePerrenModal();
-  updateTab3Comparison();
 }
 
 function setCurrency(mode) {
@@ -284,343 +175,505 @@ function setCurrency(mode) {
   document.getElementById('btnCurrUSD').classList.toggle('active', mode === 'USD');
   calculateTab1();
   renderTab2List();
-  updateTab3Comparison();
+  if (selectedPerrenItem) renderComparisonResult();
+  renderSecSearchResults();
+}
+
+function formatMoney(valUSD) {
+  if (currencyMode === 'ARS') {
+    const valARS = valUSD * stateSettings.tc;
+    return `$${valARS.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ARS`;
+  } else {
+    return `$${valUSD.toFixed(2)} USD`;
+  }
+}
+
+// WEIGHT PRORATING TOGGLE
+function toggleWeightProrating() {
+  weightModeEnabled = !weightModeEnabled;
+  const btn = document.getElementById('btnToggleWeightMode');
+  if (weightModeEnabled) {
+    btn.textContent = '✅ PESO ACTIVO';
+    btn.style.backgroundColor = '#E65100';
+    btn.style.color = '#FFFFFF';
+  } else {
+    btn.textContent = 'PROBAR PESO';
+    btn.style.backgroundColor = '#FFFFFF';
+    btn.style.color = '#E65100';
+  }
+  calculateTab1();
+}
+
+// TAB 1: CALCULO LANDED COMPLETO
+function calculateTab1() {
+  const fobUSD = parseFloat(document.getElementById('t1Fob').value) || 0;
+  const qty = parseInt(document.getElementById('t1Qty').value) || 1;
+  const weightKgUnit = parseFloat(document.getElementById('t1Weight').value) || 0;
+
+  const totalWeightKg = qty * weightKgUnit;
+  const maxWeightKg = stateSettings.containerMaxWeightKg || 26000;
+  const weightPct = ((totalWeightKg / maxWeightKg) * 100).toFixed(1);
+
+  document.getElementById('lblWeightDetail').textContent = 
+    `${qty} u. × ${weightKgUnit} kg = ${totalWeightKg.toLocaleString()} kg (${weightPct}% de 26.000 kg cont.)`;
+
+  let freightUSDTotal = stateSettings.flete;
+  let freightUSDUnit = freightUSDTotal / qty;
+
+  if (weightModeEnabled && totalWeightKg > 0) {
+    const proratedContainerFreight = (totalWeightKg / maxWeightKg) * stateSettings.flete;
+    freightUSDUnit = proratedContainerFreight / qty;
+    freightUSDTotal = proratedContainerFreight;
+  }
+
+  const fobTotal = fobUSD * qty;
+  const seguroUnit = stateSettings.incSeguro ? (fobUSD * (stateSettings.seguroPct / 100)) : 0;
+  const seguroTotal = seguroUnit * qty;
+
+  const cifUnit = fobUSD + (stateSettings.incFlete ? freightUSDUnit : 0) + seguroUnit;
+  const cifTotal = cifUnit * qty;
+
+  const arancelUnit = stateSettings.incArancel ? (cifUnit * (stateSettings.arancelPct / 100)) : 0;
+  const arancelTotal = arancelUnit * qty;
+
+  const tasaEstadUnit = stateSettings.incTasaEstad ? (cifUnit * (stateSettings.tasaEstadPct / 100)) : 0;
+  const tasaEstadTotal = tasaEstadUnit * qty;
+
+  const baseTaxUnit = cifUnit + arancelUnit + tasaEstadUnit;
+
+  const ivaUnit = stateSettings.incIVA ? (baseTaxUnit * (stateSettings.ivaPct / 100)) : 0;
+  const ivaTotal = ivaUnit * qty;
+
+  const ivaAdicUnit = stateSettings.incIVAAdic ? (baseTaxUnit * (stateSettings.ivaAdicPct / 100)) : 0;
+  const ivaAdicTotal = ivaAdicUnit * qty;
+
+  const gananciasUnit = stateSettings.incGanancias ? (baseTaxUnit * (stateSettings.gananciasPct / 100)) : 0;
+  const gananciasTotal = gananciasUnit * qty;
+
+  const iibbUnit = stateSettings.incIIBB ? (baseTaxUnit * (stateSettings.iibbPct / 100)) : 0;
+  const iibbTotal = iibbUnit * qty;
+
+  const despachanteUnit = stateSettings.incDespachante ? (cifUnit * (stateSettings.despachantePct / 100)) : 0;
+  const despachanteTotal = despachanteUnit * qty;
+
+  const desembolsoTotalUnit = cifUnit + arancelUnit + tasaEstadUnit + ivaUnit + ivaAdicUnit + gananciasUnit + iibbUnit + despachanteUnit;
+  const desembolsoTotalTotal = desembolsoTotalUnit * qty;
+
+  const costoIncididoUnit = cifUnit + arancelUnit + tasaEstadUnit + despachanteUnit;
+  const costoIncididoTotal = costoIncididoUnit * qty;
+
+  const rows = [
+    { name: '1. PRECIO FOB (China)', unit: fobUSD, total: fobTotal, isHeader: true },
+    { name: '2. Flete Marítimo (40\' Contenedor)', unit: stateSettings.incFlete ? freightUSDUnit : 0, total: stateSettings.incFlete ? freightUSDTotal : 0 },
+    { name: '3. Seguro Internacional (' + stateSettings.seguroPct + '%)', unit: seguroUnit, total: seguroTotal },
+    { name: 'VALOR CIF PUERTO AR', unit: cifUnit, total: cifTotal, isHeader: true },
+    { name: '4. Arancel Aduanero NCM (' + stateSettings.arancelPct + '%)', unit: arancelUnit, total: arancelTotal },
+    { name: '5. Tasa Estadística (' + stateSettings.tasaEstadPct + '%)', unit: tasaEstadUnit, total: tasaEstadTotal },
+    { name: '6. IVA General (' + stateSettings.ivaPct + '%)', unit: ivaUnit, total: ivaTotal },
+    { name: '7. IVA Adicional (' + stateSettings.ivaAdicPct + '%)', unit: ivaAdicUnit, total: ivaAdicTotal },
+    { name: '8. Percepción Ganancias (' + stateSettings.gananciasPct + '%)', unit: gananciasUnit, total: gananciasTotal },
+    { name: '9. Percepción II.BB. (' + stateSettings.iibbPct + '%)', unit: iibbUnit, total: iibbTotal },
+    { name: '10. Despachante & Gastos (' + stateSettings.despachantePct + '%)', unit: despachanteUnit, total: despachanteTotal },
+    { name: '💰 TOTAL DESEMBOLSO INICIAL', unit: desembolsoTotalUnit, total: desembolsoTotalTotal, isTotal: true },
+    { name: '🟢 COSTO INCIDIDO NETO DEPOSITO', unit: costoIncididoUnit, total: costoIncididoTotal, isIncidido: true }
+  ];
+
+  renderBreakdownTable(rows);
+}
+
+function renderBreakdownTable(rows) {
+  const tbody = document.getElementById('tblBreakdownBody');
+  if (!tbody) return;
+
+  tbody.innerHTML = rows.map(r => {
+    let cls = '';
+    if (r.isHeader) cls = 'class="header-row"';
+    else if (r.isTotal) cls = 'class="total-row"';
+    else if (r.isIncidido) cls = 'class="costo-incidido"';
+
+    return `
+      <tr ${cls}>
+        <td>${r.name}</td>
+        <td>-</td>
+        <td style="text-align: right;">${formatMoney(r.unit)}</td>
+        <td style="text-align: right;">${formatMoney(r.total)}</td>
+      </tr>
+    `;
+  }).join('');
+}
+
+// TAB 2: COTIZACIONES GUARDADAS
+function renderTab2List() {
+  const container = document.getElementById('savedArticlesList');
+  if (!container) return;
+
+  container.innerHTML = savedArticles.map((art, index) => {
+    const isExpanded = expandedCards.has(index);
+    const landedNetUSD = art.fob * 1.58; // Landed neto aproximado
+
+    return `
+      <div class="card" style="border-left: 4px solid var(--secondary-color);">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+          <div>
+            <strong style="font-size: 12px; color: var(--primary-color);">${art.name}</strong>
+            <div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">
+              Fábrica: ${art.supplier} • MOQ: ${art.moq} u. • ${art.port}
+            </div>
+          </div>
+          <div class="fob-tag">FOB: ${formatMoney(art.fob)}</div>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px; font-size: 10px;">
+          <div>Costo Landed Est: <strong style="color: var(--accent-color);">${formatMoney(landedNetUSD)}</strong></div>
+          <button class="btn-chip" onclick="toggleCardExpand(${index})">
+            ${isExpanded ? '▲ Ocultar Desglose' : '▼ Ver Desglose Landed'}
+          </button>
+        </div>
+
+        ${isExpanded ? `
+          <div style="margin-top: 10px; padding-top: 8px; border-top: 1px dashed #DDD; font-size: 9.5px;">
+            <div style="display: flex; justify-content: space-between; padding: 2px 0;"><span>FOB China:</span> <span>${formatMoney(art.fob)}</span></div>
+            <div style="display: flex; justify-content: space-between; padding: 2px 0;"><span>Flete Marítimo + Seguro:</span> <span>${formatMoney(art.fob * 0.18)}</span></div>
+            <div style="display: flex; justify-content: space-between; padding: 2px 0;"><span>Arancel Aduana (20%) + Estad:</span> <span>${formatMoney(art.fob * 0.23)}</span></div>
+            <div style="display: flex; justify-content: space-between; padding: 2px 0;"><span>Despachante & Gastos Puerto:</span> <span>${formatMoney(art.fob * 0.08)}</span></div>
+            <div style="display: flex; justify-content: space-between; padding: 4px 0; font-weight: bold; color: var(--accent-color); border-top: 1px solid #CCC;">
+              <span>COSTO INCIDIDO DEPOSITO:</span> <span>${formatMoney(landedNetUSD)}</span>
+            </div>
+            <button class="btn-primary" style="margin-top: 6px;" onclick="selectCantonForCompare(${index})">⚡ Usar para Comparar vs Flexxus BI</button>
+          </div>
+        ` : ''}
+      </div>
+    `;
+  }).join('');
+}
+
+function toggleCardExpand(index) {
+  if (expandedCards.has(index)) expandedCards.delete(index);
+  else expandedCards.add(index);
+  renderTab2List();
+}
+
+// SECCIÓN 3: BUSCADOR BASE SQL FLEXXUS PERREN (12.074 ARTÍCULOS)
+function renderSecSearchResults() {
+  const container = document.getElementById('secSearchResults');
+  if (!container) return;
+
+  const query = (document.getElementById('secSearchInput')?.value || '').toLowerCase();
+  
+  const filtered = perrenSqlDatabase.filter(item => {
+    const matchQuery = item.sku.toLowerCase().includes(query) ||
+                       item.description.toLowerCase().includes(query) ||
+                       item.brand.toLowerCase().includes(query) ||
+                       item.category.toLowerCase().includes(query);
+    const matchCat = activeCategoryFilter === 'TODOS' || item.category === activeCategoryFilter;
+    return matchQuery && matchCat;
+  });
+
+  if (filtered.length === 0) {
+    container.innerHTML = `<div class="card" style="text-align: center; font-size: 11px; color: var(--text-muted);">No se encontraron artículos en la base SQL para "${query}"</div>`;
+    return;
+  }
+
+  container.innerHTML = filtered.map(item => {
+    const costUSD = item.costNoVAT / stateSettings.tc;
+    return `
+      <div class="card" style="border-left: 4px solid var(--accent-color);">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+          <div>
+            <strong style="font-size: 12px; color: var(--primary-color);">${item.description}</strong>
+            <div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">
+              SKU: ${item.sku} • Marca: ${item.brand} • Rubro: ${item.category} • Clase: <span class="badge" style="background:#E3F2FD; color:#1565C0;">${item.abcClass}</span>
+            </div>
+          </div>
+          <div class="fob-tag" style="background: #E8F5E9; color: var(--accent-color);">
+            ${formatMoney(costUSD)}
+          </div>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px;">
+          <div style="font-size: 9.5px; color: var(--text-muted);">Costo Neto Flexxus ARS: $${item.costNoVAT.toLocaleString('es-AR')}</div>
+          <button class="btn-chip" onclick="selectPerrenItemFromSec('${item.sku}')" style="background: var(--secondary-color); color: white; border: none;">
+            ⚖️ Comparar vs Canton
+          </button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function filterCategory(btnEl, category) {
+  activeCategoryFilter = category;
+  document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('selected'));
+  btnEl.classList.add('selected');
+  renderSecSearchResults();
+}
+
+function selectPerrenItemFromSec(sku) {
+  selectedPerrenItem = perrenSqlDatabase.find(i => i.sku === sku);
+  switchMainSection('comparador');
+  switchTab(3);
+  renderSelectedPerrenCard();
+  renderComparisonResult();
+}
+
+// TAB 3: COMPARADOR EN VIVO
+function selectCantonForCompare(index) {
+  selectedCantonItem = savedArticles[index];
+  switchTab(3);
+  renderComparisonResult();
 }
 
 function switchTab(tabNum) {
   currentTab = tabNum;
-  [1, 2, 3].forEach(n => {
-    document.getElementById(`tabBtn${n}`).classList.toggle('active', n === tabNum);
-    document.getElementById(`tab${n}Content`).style.display = (n === tabNum) ? 'block' : 'none';
+  document.getElementById('tab1Content').style.display = tabNum === 1 ? 'block' : 'none';
+  document.getElementById('tab2Content').style.display = tabNum === 2 ? 'block' : 'none';
+  document.getElementById('tab3Content').style.display = tabNum === 3 ? 'block' : 'none';
+
+  [1, 2, 3].forEach(i => {
+    const btn = document.getElementById('tabBtn' + i);
+    if (btn) {
+      if (i === tabNum) btn.classList.add('active');
+      else btn.classList.remove('active');
+    }
   });
-  if (tabNum === 3) updateTab3Comparison();
 }
 
-function toggleWeightMode() {
-  weightModeEnabled = !weightModeEnabled;
-  const btn = document.getElementById('btnToggleWeightProrate');
-  btn.textContent = weightModeEnabled 
-    ? '⚖️ Prorratear Flete por Peso (ACTIVADO)' 
-    : '⚖️ Prorratear Flete por Peso (DESACTIVADO)';
-  btn.classList.toggle('active', weightModeEnabled);
-  calculateTab1();
-  renderTab2List();
+// TARJETERO & WHATSAPP DIRECTO
+function renderTarjetero() {
+  const container = document.getElementById('tarjeteroList');
+  if (!container) return;
+
+  container.innerHTML = localSuppliers.map(sup => {
+    const cleanPhone = sup.phone.replace(/[^0-9]/g, '');
+    const waLink = `https://wa.me/${cleanPhone}?text=Hola%20${encodeURIComponent(sup.contactName)},%20te%20contacto%20desde%20Perren%20%26%20C%C3%ADa.%20por%20la%20Feria%20de%20Cant%C3%B3n`;
+
+    return `
+      <div class="card" style="border-left: 4px solid #25D366;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+          <div>
+            <strong style="font-size: 13px; color: var(--primary-color);">${sup.companyName}</strong>
+            <div style="font-size: 10.5px; color: var(--text-muted); margin-top: 2px;">
+              📍 Stand: ${sup.stand} • Rubro: ${sup.category}
+            </div>
+            <div style="font-size: 11px; margin-top: 6px;">
+              👤 <strong>${sup.contactName}</strong> (${sup.phone})
+            </div>
+          </div>
+          <a href="${waLink}" target="_blank" class="btn-whatsapp">
+            💬 WhatsApp
+          </a>
+        </div>
+      </div>
+    `;
+  }).join('');
 }
 
-function calculateTab1() {
-  const fob = parseFloat(document.getElementById('t1Fob').value) || 10.0;
-  const qty = parseInt(document.getElementById('t1Qty').value) || 1000;
-  const weight = parseFloat(document.getElementById('t1Weight').value) || 0.0;
+// ALTA DE PROVEEDORES DESDE FORMULARIO
+function saveSupplierFromForm() {
+  const name = document.getElementById('pCompany').value;
+  const stand = document.getElementById('pStand').value;
+  const cat = document.getElementById('pCategory').value;
+  const contact = document.getElementById('pContact').value;
+  const phone = document.getElementById('pPhone').value;
+  const email = document.getElementById('pEmail').value;
 
-  const html = generateBreakdownTableHTML(fob, qty, weight, '(TAB 1 MANUAL)');
-  document.getElementById('t1BreakdownTable').innerHTML = html;
-}
-
-function generateBreakdownTableHTML(fobUnit, containerQty, itemWeightKg, titleSuffix) {
-  const s = stateSettings;
-  const qty = containerQty > 0 ? containerQty : 1;
-  const fobTotal = fobUnit * qty;
-
-  const baseFlete = s.incFlete ? s.flete : 0.0;
-  let effectiveFlete = baseFlete;
-  if (s.incFlete && weightModeEnabled && itemWeightKg > 0) {
-    const totalLotWeight = itemWeightKg * qty;
-    const ratio = Math.min(1.0, totalLotWeight / s.containerMaxWeightKg);
-    effectiveFlete = baseFlete * ratio;
+  if (!name) {
+    alert('Por favor ingresa el nombre de la empresa');
+    return;
   }
 
-  const seguroTotal = fobTotal * ((s.incSeguro ? s.seguroPct : 0) / 100.0);
-  const cifTotal = fobTotal + effectiveFlete + seguroTotal;
-  const derechosTotal = cifTotal * ((s.incArancel ? s.arancelPct : 0) / 100.0);
-  const tasaEstadTotal = cifTotal * ((s.incTasaEstad ? s.tasaEstadPct : 0) / 100.0);
-  const baseImponible = cifTotal + derechosTotal + tasaEstadTotal;
-  const ivaTotal = baseImponible * ((s.incIVA ? s.ivaPct : 0) / 100.0);
-  const ivaAdicTotal = baseImponible * ((s.incIVAAdic ? s.ivaAdicPct : 0) / 100.0);
-  const gananciasTotal = baseImponible * ((s.incGanancias ? s.gananciasPct : 0) / 100.0);
-  const iibbTotal = baseImponible * ((s.incIIBB ? s.iibbPct : 0) / 100.0);
-  const gastosDespachante = baseImponible * ((s.incDespachante ? s.despachantePct : 0) / 100.0);
-
-  const costoRealIncididoUSD = baseImponible + iibbTotal + gastosDespachante;
-  const unitCostoIncididoUSD = costoRealIncididoUSD / qty;
-
-  const totalLandedUSD = baseImponible + ivaTotal + ivaAdicTotal + gananciasTotal + iibbTotal + gastosDespachante;
-  const unitLandedUSD = totalLandedUSD / qty;
-
-  const mult = (currencyMode === 'ARS') ? s.tc : 1.0;
-  const curr = (currencyMode === 'ARS') ? 'ARS' : 'USD';
-
-  const fmt = (valUSD) => {
-    const v = valUSD * mult;
-    return (currencyMode === 'ARS')
-      ? `$ ${v.toLocaleString('es-AR', {minimumFractionDigits:2, maximumFractionDigits:2})}`
-      : `$ ${v.toFixed(2)}`;
-  };
-
-  const rows = [
-    { label: 'Valor FOB', pct: '', unit: fobUnit, total: fobTotal },
-    { label: weightModeEnabled ? 'Flete (Prorr. Peso)' : 'Flete Marítimo', pct: s.incFlete ? '' : 'OFF', unit: effectiveFlete / qty, total: effectiveFlete },
-    { label: 'Seguro', pct: s.incSeguro ? `${s.seguroPct}%` : 'OFF', unit: seguroTotal / qty, total: seguroTotal },
-    { label: 'CIF', pct: '', unit: cifTotal / qty, total: cifTotal, header: true },
-    { label: 'Derecho Impo', pct: s.incArancel ? `${s.arancelPct}%` : 'OFF', unit: derechosTotal / qty, total: derechosTotal },
-    { label: 'Tasa Estadística', pct: s.incTasaEstad ? `${s.tasaEstadPct}%` : 'OFF', unit: tasaEstadTotal / qty, total: tasaEstadTotal },
-    { label: 'Base Imponible', pct: '', unit: baseImponible / qty, total: baseImponible, header: true },
-    { label: 'IVA', pct: s.incIVA ? `${s.ivaPct}%` : 'OFF', unit: ivaTotal / qty, total: ivaTotal },
-    { label: 'IVA Adicional', pct: s.incIVAAdic ? `${s.ivaAdicPct}%` : 'OFF', unit: ivaAdicTotal / qty, total: ivaAdicTotal },
-    { label: 'Ganancias', pct: s.incGanancias ? `${s.gananciasPct}%` : 'OFF', unit: gananciasTotal / qty, total: gananciasTotal },
-    { label: 'II.BB', pct: s.incIIBB ? `${s.iibbPct}%` : 'OFF', unit: iibbTotal / qty, total: iibbTotal },
-    { label: 'Gastos Desp/Forw', pct: s.incDespachante ? `${s.despachantePct}%` : 'OFF', unit: gastosDespachante / qty, total: gastosDespachante },
-    { label: 'COSTO INCIDIDO NETO', pct: '', unit: unitCostoIncididoUSD, total: costoRealIncididoUSD, costNet: true },
-    { label: 'TOTAL DESEMBOLSO LOTE', pct: '', unit: unitLandedUSD, total: totalLandedUSD, totalOutlay: true }
-  ];
-
-  let rowsHTML = '';
-  rows.forEach(r => {
-    let cls = '';
-    if (r.totalOutlay) cls = 'row-total-outlay';
-    else if (r.costNet) cls = 'row-cost-net';
-    else if (r.header) cls = 'row-header';
-
-    rowsHTML += `
-      <tr class="${cls}">
-        <td>${r.label}</td>
-        <td style="text-align:center;">${r.pct}</td>
-        <td>${fmt(r.unit)}</td>
-        <td>${fmt(r.total)}</td>
-      </tr>
-    `;
+  localSuppliers.unshift({
+    id: 'SUP-' + (localSuppliers.length + 1),
+    companyName: name,
+    stand: stand || 'Stand s/d',
+    category: cat || 'General',
+    contactName: contact || 'Contacto',
+    phone: phone || '+86',
+    email: email || '',
+    articles: []
   });
 
-  return `
-    <div class="card" style="padding: 10px;">
-      <div style="display:flex; justify-content:space-between; align-items:center;">
-        <strong style="font-size:11px; color:var(--primary-color);">📋 DESGLOSE LANDED ${titleSuffix}</strong>
-        <span style="font-size:10px; font-weight:bold; color:var(--accent-color); background:#E8F5E9; padding:2px 6px; border-radius:4px;">Lote: ${qty} u</span>
+  document.getElementById('lblTotalSuppliers').textContent = localSuppliers.length;
+  renderTarjetero();
+  alert('✅ Proveedor guardado correctamente en la base local!');
+  switchMainSection('tarjetero');
+}
+
+// MODAL Y BÚSQUEDA EN PERREN (SQL)
+function openPerrenModal() {
+  document.getElementById('modalPerren').classList.add('open');
+  renderPerrenSearchResults();
+}
+
+function closePerrenModal() {
+  document.getElementById('modalPerren').classList.remove('open');
+}
+
+function renderPerrenSearchResults() {
+  const container = document.getElementById('perrenSearchResults');
+  if (!container) return;
+
+  const query = (document.getElementById('perrenSearchInput')?.value || '').toLowerCase();
+  const filtered = perrenSqlDatabase.filter(i => 
+    i.sku.toLowerCase().includes(query) || i.description.toLowerCase().includes(query) || i.brand.toLowerCase().includes(query)
+  );
+
+  container.innerHTML = filtered.map(item => `
+    <div style="padding: 8px; border-bottom: 1px solid #EEE; display: flex; justify-content: space-between; align-items: center;">
+      <div>
+        <strong style="font-size: 11px; color: var(--primary-color);">${item.description}</strong>
+        <div style="font-size: 9.5px; color: var(--text-muted);">${item.sku} • ${item.brand}</div>
       </div>
-      <div class="table-container">
-        <table class="breakdown-table">
-          <thead>
-            <tr>
-              <th>CONCEPTO</th>
-              <th style="text-align:center;">%</th>
-              <th>UNITARIO (${curr})</th>
-              <th>TOTAL LOTE (${curr})</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${rowsHTML}
-          </tbody>
-        </table>
+      <button class="btn-chip" onclick="selectPerrenFromModal('${item.sku}')">Seleccionar</button>
+    </div>
+  `).join('');
+}
+
+function selectPerrenFromModal(sku) {
+  selectedPerrenItem = perrenSqlDatabase.find(i => i.sku === sku);
+  closePerrenModal();
+  renderSelectedPerrenCard();
+  renderComparisonResult();
+}
+
+function renderSelectedPerrenCard() {
+  const container = document.getElementById('selectedPerrenCard');
+  if (!container || !selectedPerrenItem) return;
+
+  const costUSD = selectedPerrenItem.costNoVAT / stateSettings.tc;
+
+  container.innerHTML = `
+    <div style="background-color: #FFEBEE; padding: 10px; border-radius: 8px; border-left: 4px solid #D32F2F;">
+      <div style="font-size: 10px; color: #D32F2F; font-weight: bold;">🇦🇷 ARTÍCULO SELECCIONADO PERREN FLEXXUS:</div>
+      <strong style="font-size: 12px;">${selectedPerrenItem.description}</strong>
+      <div style="font-size: 10.5px; margin-top: 4px;">
+        Costo Neto (Sin IVA): <strong>$${selectedPerrenItem.costNoVAT.toLocaleString('es-AR')} ARS</strong> (${formatMoney(costUSD)})
       </div>
     </div>
   `;
 }
 
-function renderTab2List() {
-  const query = (document.getElementById('tab2Search').value || '').toLowerCase();
-  const listEl = document.getElementById('tab2List');
+function renderComparisonResult() {
+  const container = document.getElementById('comparisonResultCard');
+  if (!container) return;
 
-  let allArticles = [];
-  localSuppliers.forEach(sup => {
-    sup.articles.forEach(art => {
-      allArticles.push({ ...art, supplier: sup.companyName });
-    });
-  });
+  const chinaItem = selectedCantonItem || savedArticles[1];
+  const perrenItem = selectedPerrenItem || perrenSqlDatabase[3];
 
-  document.getElementById('savedCount').textContent = allArticles.length;
+  const chinaLandedUSD = chinaItem.fob * 1.58;
+  const perrenCostUSD = perrenItem.costNoVAT / stateSettings.tc;
 
-  const filtered = allArticles.filter(a => 
-    a.name.toLowerCase().includes(query) || a.code.toLowerCase().includes(query) || a.supplier.toLowerCase().includes(query)
-  );
+  const diffUSD = perrenCostUSD - chinaLandedUSD;
+  const diffPct = ((diffUSD / perrenCostUSD) * 100).toFixed(1);
+  const containerProfitUSD = diffUSD * (chinaItem.moq || 300);
 
-  if (filtered.length === 0) {
-    listEl.innerHTML = `<div class="card" style="text-align:center; padding:16px; color:#666;">No hay artículos guardados</div>`;
-    return;
-  }
-
-  let html = '';
-  filtered.forEach(art => {
-    const isExpanded = expandedCards.has(art.code);
-    const fobVal = (currencyMode === 'ARS') 
-      ? `$ ${(art.fob * stateSettings.tc).toLocaleString('es-AR', {minimumFractionDigits:2})} ARS`
-      : `$ ${art.fob.toFixed(2)} USD`;
-
-    html += `
-      <div class="card" style="border: 1px solid ${isExpanded ? 'var(--secondary-color)' : '#E0E0E0'};">
-        <div style="display:flex; justify-content:space-between; align-items:flex-start; cursor:pointer;" onclick="toggleCardExpand('${art.code}')">
-          <div>
-            <strong style="font-size:12px; color:var(--primary-color);">${art.name}</strong>
-            <div style="font-size:10px; color:var(--text-muted);">Proveedor: ${art.supplier} | Código: ${art.code}</div>
-          </div>
-          <span class="fob-tag">${fobVal}</span>
-        </div>
-
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:6px; font-size:10px; color:#444;">
-          <span>Puerto: ${art.port} | MOQ: ${art.moq} u</span>
-          <span style="color:var(--secondary-color); font-weight:bold;" onclick="toggleCardExpand('${art.code}')">
-            ${isExpanded ? '🔼 Ocultar Desglose' : '🔽 Ver Desglose Landed'}
-          </span>
-        </div>
-
-        ${isExpanded ? `
-          <hr style="margin:8px 0; border:none; border-top:1px solid #EEE;">
-          ${generateBreakdownTableHTML(art.fob, art.moq, art.weightKg, `(${art.supplier})`)}
-        ` : ''}
-
-        <button class="btn-success" onclick="selectForTab3('${art.code}')" style="margin-top:8px;">
-          📊 COMPARAR ESTE ARTÍCULO EN TAB 3
-        </button>
+  container.style.display = 'block';
+  container.innerHTML = `
+    <h3 style="font-size: 13px; color: var(--primary-color); margin-bottom: 8px;">⚡ RESULTADO COMPARATIVO</h3>
+    
+    <div class="row-2">
+      <div style="background: #FFEBEE; padding: 8px; border-radius: 6px; font-size: 10px;">
+        <strong>🇦🇷 Perren Argentina:</strong><br>
+        Costo Neto: ${formatMoney(perrenCostUSD)}
       </div>
-    `;
-  });
+      <div style="background: #E8F5E9; padding: 8px; border-radius: 6px; font-size: 10px;">
+        <strong>🇨🇳 Canton Landed:</strong><br>
+        Costo Puesto: ${formatMoney(chinaLandedUSD)}
+      </div>
+    </div>
 
-  listEl.innerHTML = html;
-}
-
-function toggleCardExpand(code) {
-  if (expandedCards.has(code)) expandedCards.delete(code);
-  else expandedCards.add(code);
-  renderTab2List();
-}
-
-function selectForTab3(code) {
-  let found = null;
-  localSuppliers.forEach(sup => {
-    sup.articles.forEach(art => {
-      if (art.code === code) found = { ...art, supplier: sup.companyName };
-    });
-  });
-  if (found) {
-    selectedCantonItem = found;
-    switchMainSection('comparador');
-    switchTab(3);
-  }
-}
-
-function sendTab1ToTab3() {
-  selectedCantonItem = {
-    code: 'MANUAL',
-    name: document.getElementById('t1Name').value,
-    fob: parseFloat(document.getElementById('t1Fob').value) || 10.0,
-    moq: parseInt(document.getElementById('t1Qty').value) || 1000,
-    port: document.getElementById('t1Port').value,
-    weightKg: parseFloat(document.getElementById('t1Weight').value) || 0.0,
-    supplier: 'Carga Manual'
-  };
-  switchTab(3);
-}
-
-function updateTab3Comparison() {
-  const item = selectedCantonItem || {
-    name: document.getElementById('t1Name').value,
-    fob: parseFloat(document.getElementById('t1Fob').value) || 10.0,
-    moq: parseInt(document.getElementById('t1Qty').value) || 1000,
-    weightKg: parseFloat(document.getElementById('t1Weight').value) || 0.0,
-    supplier: 'Carga Manual'
-  };
-
-  const perren = selectedPerrenProduct;
-  const perrenARS = perren.costNoVAT;
-  const perrenUSD = perrenARS / stateSettings.tc;
-
-  // Landed calculation for Canton item
-  const s = stateSettings;
-  const fobTotal = item.fob * item.moq;
-  const flete = s.incFlete ? s.flete : 0;
-  const seguro = fobTotal * (s.incSeguro ? s.seguroPct / 100 : 0);
-  const cif = fobTotal + flete + seguro;
-  const derechos = cif * (s.incArancel ? s.arancelPct / 100 : 0);
-  const tasaEstad = cif * (s.incTasaEstad ? s.tasaEstadPct / 100 : 0);
-  const base = cif + derechos + tasaEstad;
-  const iibb = base * (s.incIIBB ? s.iibbPct / 100 : 0);
-  const desp = base * (s.incDespachante ? s.despachantePct / 100 : 0);
-
-  const costoIncididoTotalUSD = base + iibb + desp;
-  const unitCostoIncididoUSD = costoIncididoTotalUSD / item.moq;
-  const unitCostoIncididoARS = unitCostoIncididoUSD * s.tc;
-
-  const ahorroUSD = perrenUSD - unitCostoIncididoUSD;
-  const ahorroARS = perrenARS - unitCostoIncididoARS;
-  const ahorroPct = (ahorroUSD / perrenUSD) * 100.0;
-
-  document.getElementById('perrenProductDetail').innerHTML = `
-    <strong>${perren.sku} - ${perren.description}</strong><br>
-    <span style="color:var(--text-muted);">Marca: ${perren.brand} | Rubro: ${perren.category}</span><br>
-    <span style="color:var(--text-muted);">Costo Nacional Sin IVA:</span> 
-    <strong id="perrenCostTxt">$ ${perrenARS.toLocaleString('es-AR', {minimumFractionDigits:2})} ARS ($ ${perrenUSD.toFixed(2)} USD)</strong>
+    <div style="margin-top: 10px; background: #E3F2FD; padding: 10px; border-radius: 8px; text-align: center;">
+      <div style="font-size: 11px; color: var(--secondary-color); font-weight: bold;">🎯 AHORRO DIRECTO ESTIMADO:</div>
+      <div style="font-size: 20px; font-weight: bold; color: var(--accent-color); margin: 2px 0;">
+        +${diffPct}% (${formatMoney(diffUSD)} / u.)
+      </div>
+      <div style="font-size: 10px; color: var(--text-muted);">
+        Ganancia estimada por embarque (${chinaItem.moq} u.): <strong style="color: var(--accent-color);">${formatMoney(containerProfitUSD)}</strong>
+      </div>
+    </div>
   `;
-
-  document.getElementById('cantonProductDetail').innerHTML = `
-    <strong>${item.name} (${item.supplier})</strong><br>
-    <span style="color:var(--text-muted);">Costo Puesto Incidido Landed:</span> 
-    <strong>$ ${unitCostoIncididoARS.toLocaleString('es-AR', {minimumFractionDigits:2})} ARS ($ ${unitCostoIncididoUSD.toFixed(2)} USD)</strong>
-  `;
-
-  document.getElementById('savingValTxt').textContent = `$ ${ahorroARS.toLocaleString('es-AR', {minimumFractionDigits:2})} ARS / u ($ ${ahorroUSD.toFixed(2)} USD)`;
-  document.getElementById('savingPctTxt').textContent = `Reducción de costo del ${ahorroPct.toFixed(1)}%`;
 }
 
-// Modales
-function openSettingsModal() { document.getElementById('modalSettings').classList.add('open'); }
-function closeSettingsModal() { 
+// MODAL AJUSTES
+function openSettingsModal() {
+  document.getElementById('modalSettings').classList.add('open');
+}
+
+function closeSettingsModal() {
   stateSettings.tc = parseFloat(document.getElementById('sTC').value) || 1350;
   stateSettings.flete = parseFloat(document.getElementById('sFlete').value) || 3400;
+  stateSettings.seguroPct = parseFloat(document.getElementById('sSeguro').value) || 1.2;
   stateSettings.arancelPct = parseFloat(document.getElementById('sArancel').value) || 20;
   stateSettings.tasaEstadPct = parseFloat(document.getElementById('sTasaEstad').value) || 3;
+  stateSettings.despachantePct = parseFloat(document.getElementById('sDespachante').value) || 8;
   stateSettings.ivaPct = parseFloat(document.getElementById('sIVA').value) || 21;
   stateSettings.ivaAdicPct = parseFloat(document.getElementById('sIVAAdic').value) || 20;
   stateSettings.gananciasPct = parseFloat(document.getElementById('sGanancias').value) || 6;
   stateSettings.iibbPct = parseFloat(document.getElementById('sIIBB').value) || 2.5;
 
-  document.getElementById('lblDolarTC').textContent = `Dólar TC: $ ${stateSettings.tc.toLocaleString('es-AR', {minimumFractionDigits:2})} ARS`;
-  document.getElementById('modalSettings').classList.remove('open'); 
+  document.getElementById('lblDolarTC').textContent = `Dólar TC: $${stateSettings.tc.toLocaleString('es-AR', { minimumFractionDigits: 2 })} ARS`;
+
+  document.getElementById('modalSettings').classList.remove('open');
   calculateTab1();
   renderTab2List();
-  updateTab3Comparison();
 }
-
-function openPerrenModal() { document.getElementById('modalPerren').classList.add('open'); renderPerrenSearchResults(); }
-function closePerrenModal() { document.getElementById('modalPerren').classList.remove('open'); }
 
 function toggleInc(key) {
   stateSettings[key] = !stateSettings[key];
-  document.getElementById(`chip_${key}`).classList.toggle('selected', stateSettings[key]);
+  const chip = document.getElementById('chip_' + key);
+  if (chip) chip.classList.toggle('selected', stateSettings[key]);
+  calculateTab1();
 }
 
-// Camera OCR & Photo Storage
-function openOcrCamera() { document.getElementById('modalOcr').classList.add('open'); }
-function closeOcrCamera() { document.getElementById('modalOcr').classList.remove('open'); }
+// MODAL CÁMARA OCR
+function openOcrCamera() {
+  document.getElementById('modalOcr').classList.add('open');
+}
+
+function closeOcrCamera() {
+  document.getElementById('modalOcr').classList.remove('open');
+}
 
 function processOcrImage(event) {
   const file = event.target.files[0];
   if (!file) return;
 
-  const statusEl = document.getElementById('ocrStatus');
-  const outEl = document.getElementById('ocrOutput');
-  statusEl.textContent = '⏳ Escaneando texto y precios con OCR...';
-  outEl.textContent = '';
+  const status = document.getElementById('ocrStatus');
+  const output = document.getElementById('ocrOutput');
 
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    if (db) {
-      const tx = db.transaction('photos', 'readwrite');
-      tx.objectStore('photos').add({ image: e.target.result, date: new Date().toISOString() });
+  status.textContent = '⏳ Analizando imagen con OCR (Tesseract.js)... Por favor aguarda...';
+  output.textContent = '';
+
+  Tesseract.recognize(file, 'eng+spa', {
+    logger: m => {
+      if (m.status === 'recognizing text') {
+        status.textContent = `⏳ Procesando texto OCR: ${Math.round(m.progress * 100)}%`;
+      }
     }
-  };
-  reader.readAsDataURL(file);
+  }).then(({ data: { text } }) => {
+    status.textContent = '✅ Texto extraído correctamente:';
+    output.textContent = text;
 
-  Tesseract.recognize(file, 'eng+spa', { logger: m => console.log(m) })
-    .then(({ data: { text } }) => {
-      statusEl.textContent = '✅ Reconocimiento OCR Completado!';
-      outEl.textContent = text;
+    // Save image to IndexedDB
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      if (db) {
+        const tx = db.transaction('photos', 'readwrite');
+        tx.objectStore('photos').add({ image: e.target.result, date: new Date().toISOString(), text });
+      }
+    };
+    reader.readAsDataURL(file);
 
-      const numbers = text.match(/\d+(\.\d+)?/g);
-      if (numbers && numbers.length > 0) {
-        document.getElementById('t1Fob').value = numbers[0];
+    // Auto-detect numbers / prices
+    const matches = text.match(/\$?\d+[\.,]\d{2}/g);
+    if (matches && matches.length > 0) {
+      const detectedPrice = parseFloat(matches[0].replace('$', '').replace(',', '.'));
+      if (detectedPrice > 0) {
+        document.getElementById('t1Fob').value = detectedPrice;
         calculateTab1();
       }
-    })
-    .catch(err => {
-      statusEl.textContent = '⚠️ Error en OCR';
-      console.error(err);
-    });
+    }
+  }).catch(err => {
+    status.textContent = '❌ Error al procesar la imagen: ' + err.message;
+  });
 }
