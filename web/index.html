@@ -23,12 +23,13 @@
 </head>
 <body>
 
-  <!-- PANTALLA DE LOGIN CON FIREBASE AUTH WEB -->
-  <div class="login-overlay" id="loginOverlay">
+  <!-- ================= 1. PANTALLA DE LOGIN AUTÓNOMA (BLOQUEO COMPLETO HASTA INICIAR SESIÓN) ================= -->
+  <div class="login-overlay" id="loginScreen">
     <div class="login-card">
-      <div class="login-logo">🔥</div>
+      <div class="login-logo">🏢</div>
       <h2>PERREN & CÍA.</h2>
-      <p>Canton Fair 2026 • Firebase Authentication Cloud</p>
+      <p style="font-weight: bold; color: var(--primary-color);">Canton Fair 2026 • Acceso Protegido</p>
+      <p>Inicia sesión con Firebase Cloud para ingresar a la app:</p>
 
       <div class="form-group" style="text-align: left;">
         <label>Correo Electrónico (Firebase Auth):</label>
@@ -41,360 +42,366 @@
       </div>
 
       <button class="btn-primary" onclick="handleFirebaseAuthLogin()" style="padding: 12px; font-size: 13px; margin-top: 8px;">
-        🔥 INICIAR SESIÓN CON FIREBASE
+        🔐 INGRESAR A LA APLICACIÓN
       </button>
 
       <div style="font-size: 9.5px; color: var(--text-muted); margin-top: 14px;" id="fbAuthStatus">
-        🟢 Firebase Project: <strong>perrenycia-crm</strong>
+        🟢 Servidor Firebase: <strong>perrenycia-crm</strong>
       </div>
     </div>
   </div>
 
-  <!-- HEADER PRINCIPAL -->
-  <header class="app-header">
-    <div class="app-title">
-      <h1>⚖️ PERREN & CÍA. - CANTON FAIR 2026</h1>
-      <p id="userStatusLbl">Firebase User: comprador@perren.com.ar</p>
-    </div>
-    <div style="display: flex; gap: 6px;">
-      <button class="btn-settings" id="btnOpenSettings">⚙️ Ajustes</button>
-      <button style="background: rgba(255,255,255,0.2); color: white; border: none; padding: 5px 8px; border-radius: 6px; font-size: 10px; cursor: pointer;" onclick="handleFirebaseLogout()">🚪 Salir</button>
-    </div>
-  </header>
 
-  <!-- CONTROLES GLOBALES DE MONEDA -->
-  <div class="global-bar">
-    <div class="currency-bar">
-      <div>
-        <div class="currency-label">💱 MONEDA DE VISUALIZACIÓN:</div>
-        <div class="currency-sub" id="lblDolarTC">Dólar TC: $1.350,00 ARS</div>
+  <!-- ================= 2. CONTENEDOR PRINCIPAL DE LA APLICACIÓN (OCULTO HASTA LOGUEARSE) ================= -->
+  <div id="appContainer" style="display: none;">
+
+    <!-- HEADER PRINCIPAL -->
+    <header class="app-header">
+      <div class="app-title">
+        <h1>⚖️ PERREN & CÍA. - CANTON FAIR 2026</h1>
+        <p id="userStatusLbl">Firebase User: comprador@perren.com.ar</p>
       </div>
-      <div class="currency-toggle">
-        <button class="btn-chip active" id="btnCurrARS">💵 Pesos ($ ARS)</button>
-        <button class="btn-chip" id="btnCurrUSD">💲 Dólares ($ USD)</button>
+      <div style="display: flex; gap: 6px;">
+        <button class="btn-settings" id="btnOpenSettings">⚙️ Ajustes</button>
+        <button style="background: rgba(255,255,255,0.2); color: white; border: none; padding: 5px 8px; border-radius: 6px; font-size: 10px; cursor: pointer;" onclick="handleFirebaseLogout()">🚪 Salir</button>
       </div>
-    </div>
-  </div>
+    </header>
 
-  <!-- CONTENEDOR PRINCIPAL DE SECCIONES -->
-  <main class="container">
-
-    <!-- ================= SECCIÓN 1: INICIO (DASHBOARD) ================= -->
-    <section id="secInicio">
-      <div class="card" style="background: linear-gradient(135deg, #1B365D 0%, #1565C0 100%); color: white;">
-        <h2 style="font-size: 15px; margin-bottom: 4px;">👋 ¡Bienvenido a Canton Fair 2026!</h2>
-        <p style="font-size: 10.5px; opacity: 0.9;">Plataforma de evaluación de proveedores, costos Landed y comparación con Flexxus BI (Firebase Cloud Connected).</p>
-      </div>
-
-      <!-- Métricas Rápidas -->
-      <div class="row-2">
-        <div class="card" style="text-align: center; border-left: 4px solid var(--secondary-color);">
-          <div style="font-size: 20px; font-weight: bold; color: var(--secondary-color);" id="lblTotalSuppliers">2</div>
-          <div style="font-size: 10px; color: var(--text-muted);">Proveedores Firestore</div>
+    <!-- CONTROLES GLOBALES DE MONEDA -->
+    <div class="global-bar">
+      <div class="currency-bar">
+        <div>
+          <div class="currency-label">💱 MONEDA DE VISUALIZACIÓN:</div>
+          <div class="currency-sub" id="lblDolarTC">Dólar TC: $1.350,00 ARS</div>
         </div>
-        <div class="card" style="text-align: center; border-left: 4px solid var(--accent-color);">
-          <div style="font-size: 20px; font-weight: bold; color: var(--accent-color);" id="lblTotalArticles">2</div>
-          <div style="font-size: 10px; color: var(--text-muted);">Artículos Cotizados</div>
+        <div class="currency-toggle">
+          <button class="btn-chip active" id="btnCurrARS">💵 Pesos ($ ARS)</button>
+          <button class="btn-chip" id="btnCurrUSD">💲 Dólares ($ USD)</button>
         </div>
       </div>
+    </div>
 
-      <!-- Accesos Directos -->
-      <div class="card">
-        <strong style="font-size: 12px; color: var(--primary-color);">🚀 Acceso Rápido a Funciones:</strong>
-        <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 10px;">
-          <button class="btn-primary" onclick="switchMainSection('comparador')">⚖️ Abrir Módulo Comparador Landed (3 Solapas)</button>
-          <button class="btn-success" onclick="switchMainSection('addProveedor')">➕ Cargar Nuevo Proveedor y Cotización</button>
-          <button class="btn-chip" onclick="switchMainSection('costos')" style="padding: 10px; font-size: 11px;">🔍 Buscar en Base SQL Perren (12.074 Artículos)</button>
-          <button class="btn-chip" onclick="switchMainSection('tarjetero')" style="padding: 10px; font-size: 11px; border-color: #25D366; color: #25D366;">📇 Tarjetero & WhatsApp Directo</button>
+    <!-- CONTENEDOR PRINCIPAL DE SECCIONES -->
+    <main class="container">
+
+      <!-- ================= SECCIÓN 1: INICIO (DASHBOARD) ================= -->
+      <section id="secInicio">
+        <div class="card" style="background: linear-gradient(135deg, #1B365D 0%, #1565C0 100%); color: white;">
+          <h2 style="font-size: 15px; margin-bottom: 4px;">👋 ¡Bienvenido a Canton Fair 2026!</h2>
+          <p style="font-size: 10.5px; opacity: 0.9;">Plataforma de evaluación de proveedores, costos Landed y comparación con Flexxus BI (Firebase Cloud Connected).</p>
         </div>
-      </div>
-    </section>
 
-    <!-- ================= SECCIÓN 2: + PROVEEDOR (ALTA PROVEEDOR & COTIZACIÓN) ================= -->
-    <section id="secAddProveedor" style="display: none;">
-      <div class="card">
-        <h3 style="font-size: 13px; color: var(--primary-color); margin-bottom: 4px;">➕ ALTA DE PROVEEDOR DE FERIA</h3>
-        <p style="font-size: 10px; color: var(--text-muted); margin-bottom: 10px;">Ingresa los datos de la fábrica y contacto que te atendió (Sincroniza con Firestore):</p>
+        <!-- Métricas Rápidas -->
+        <div class="row-2">
+          <div class="card" style="text-align: center; border-left: 4px solid var(--secondary-color);">
+            <div style="font-size: 20px; font-weight: bold; color: var(--secondary-color);" id="lblTotalSuppliers">2</div>
+            <div style="font-size: 10px; color: var(--text-muted);">Proveedores Firestore</div>
+          </div>
+          <div class="card" style="text-align: center; border-left: 4px solid var(--accent-color);">
+            <div style="font-size: 20px; font-weight: bold; color: var(--accent-color);" id="lblTotalArticles">2</div>
+            <div style="font-size: 10px; color: var(--text-muted);">Artículos Cotizados</div>
+          </div>
+        </div>
 
-        <div class="form-group">
-          <label>Nombre de la Empresa (English / Chinese)</label>
-          <input type="text" id="pCompany" class="form-control" placeholder="Ej: Foshan Ceramics Co. Ltd">
+        <!-- Accesos Directos -->
+        <div class="card">
+          <strong style="font-size: 12px; color: var(--primary-color);">🚀 Acceso Rápido a Funciones:</strong>
+          <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 10px;">
+            <button class="btn-primary" onclick="switchMainSection('comparador')">⚖️ Abrir Módulo Comparador Landed (3 Solapas)</button>
+            <button class="btn-success" onclick="switchMainSection('addProveedor')">➕ Cargar Nuevo Proveedor y Cotización</button>
+            <button class="btn-chip" onclick="switchMainSection('costos')" style="padding: 10px; font-size: 11px;">🔍 Buscar en Base SQL Perren (12.074 Artículos)</button>
+            <button class="btn-chip" onclick="switchMainSection('tarjetero')" style="padding: 10px; font-size: 11px; border-color: #25D366; color: #25D366;">📇 Tarjetero & WhatsApp Directo</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= SECCIÓN 2: + PROVEEDOR (ALTA PROVEEDOR & COTIZACIÓN) ================= -->
+      <section id="secAddProveedor" style="display: none;">
+        <div class="card">
+          <h3 style="font-size: 13px; color: var(--primary-color); margin-bottom: 4px;">➕ ALTA DE PROVEEDOR DE FERIA</h3>
+          <p style="font-size: 10px; color: var(--text-muted); margin-bottom: 10px;">Ingresa los datos de la fábrica y contacto que te atendió (Sincroniza con Firestore):</p>
+
+          <div class="form-group">
+            <label>Nombre de la Empresa (English / Chinese)</label>
+            <input type="text" id="pCompany" class="form-control" placeholder="Ej: Foshan Ceramics Co. Ltd">
+          </div>
+
+          <div class="row-2">
+            <div class="form-group">
+              <label>Código Proveedor / Stand</label>
+              <input type="text" id="pStand" class="form-control" placeholder="Ej: Hall 9.2 - Stand C14">
+            </div>
+            <div class="form-group">
+              <label>Categoría / Rubro</label>
+              <input type="text" id="pCategory" class="form-control" placeholder="Ej: Cerámicos y Azulejos">
+            </div>
+          </div>
+
+          <div class="row-2">
+            <div class="form-group">
+              <label>Nombre del Contacto</label>
+              <input type="text" id="pContact" class="form-control" placeholder="Ej: Jacky Zhang">
+            </div>
+            <div class="form-group">
+              <label>Teléfono / WhatsApp</label>
+              <input type="text" id="pPhone" class="form-control" placeholder="Ej: +86 138 0000 0000">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Email de Contacto</label>
+            <input type="email" id="pEmail" class="form-control" placeholder="sales@supplier.cn">
+          </div>
+
+          <button class="btn-success" onclick="saveSupplierFromForm()">💾 GUARDAR PROVEEDOR EN FIRESTORE</button>
+        </div>
+      </section>
+
+      <!-- ================= SECCIÓN 3: BUSCADOR SQL PERREN (12.074 ARTÍCULOS) ================= -->
+      <section id="secCostos" style="display: none;">
+        <div class="card">
+          <h3 style="font-size: 13px; color: var(--primary-color); margin-bottom: 4px;">🔍 BASE DE DATOS SQL PERREN FLEXXUS BI</h3>
+          <p style="font-size: 10px; color: var(--text-muted); margin-bottom: 10px;">Consulta directa de 12.074 artículos con costo neto sin IVA:</p>
+
+          <input type="text" id="secSearchInput" class="form-control" placeholder="Buscar por SKU, descripción, marca o categoría..." oninput="renderSecSearchResults()">
+          
+          <div class="chip-grid" style="margin-top: 8px;">
+            <span class="filter-chip selected" onclick="filterCategory(this, 'TODOS')">Todos</span>
+            <span class="filter-chip" onclick="filterCategory(this, 'Sanitarios')">Sanitarios</span>
+            <span class="filter-chip" onclick="filterCategory(this, 'Grifería')">Grifería</span>
+            <span class="filter-chip" onclick="filterCategory(this, 'Porcelanatos')">Porcelanatos</span>
+            <span class="filter-chip" onclick="filterCategory(this, 'Revestimientos')">Revestimientos</span>
+          </div>
+        </div>
+
+        <div id="secSearchResults"></div>
+      </section>
+
+      <!-- ================= SECCIÓN 4: COMPARADOR LANDED (3 SUB-TABS) ================= -->
+      <section id="secComparador" style="display: none;">
+
+        <!-- Sub-Tabs Navigation -->
+        <nav class="nav-tabs" style="margin: -12px -12px 12px -12px;">
+          <button class="tab-btn active" id="tabBtn1" onclick="switchTab(1)">✍️ Tab 1: Carga Manual</button>
+          <button class="tab-btn" id="tabBtn2" onclick="switchTab(2)">📦 Tab 2: Guardados (<span id="savedCount">2</span>)</button>
+          <button class="tab-btn" id="tabBtn3" onclick="switchTab(3)">⚡ Tab 3: Comparador</button>
+        </nav>
+
+        <!-- TAB 1: CARGA MANUAL -->
+        <div id="tab1Content">
+          <div class="card">
+            <div class="card-title">
+              <span>✍️ COTIZACIÓN DE CHINA (FOB)</span>
+              <button class="btn-whatsapp" onclick="openOcrCamera()">📷 Escanear con Cámara (OCR)</button>
+            </div>
+
+            <div class="form-group">
+              <label>Descripción / Producto Cotizado</label>
+              <input type="text" id="t1Name" class="form-control" value="Porcelanato Foshan 60x60 Pulido">
+            </div>
+
+            <div class="row-2">
+              <div class="form-group">
+                <label>Precio FOB Unitario (USD)</label>
+                <input type="number" step="0.01" id="t1Fob" class="form-control" value="4.50">
+              </div>
+              <div class="form-group">
+                <label>Cantidad / MOQ (Unidades)</label>
+                <input type="number" id="t1Qty" class="form-control" value="2000">
+              </div>
+            </div>
+
+            <div class="row-2">
+              <div class="form-group">
+                <label>Peso Unitario (kg)</label>
+                <input type="number" step="0.1" id="t1Weight" class="form-control" value="3.2" placeholder="Ej: 3.2 kg">
+              </div>
+              <div class="form-group">
+                <label>Puerto de Origen</label>
+                <input type="text" id="t1Port" class="form-control" value="Foshan, China">
+              </div>
+            </div>
+
+            <!-- Weight Prorating Control -->
+            <div class="currency-bar" style="margin-top: 6px; background-color: #FFF3E0; border: 1px solid #FFE0B2;">
+              <div>
+                <div class="currency-label" style="color: #E65100;">⚖️ PRORRATEO DE FLETE POR PESO (KG)</div>
+                <div class="currency-sub" id="lblWeightDetail">2000 u. × 3.2 kg = 6.400 kg (24.6% de 26.000 kg cont.)</div>
+              </div>
+              <button class="btn-chip" id="btnToggleWeightMode" onclick="toggleWeightProrating()" style="border-color: #E65100; color: #E65100;">PROBAR PESO</button>
+            </div>
+          </div>
+
+          <!-- Tabla Desglose Landed -->
+          <div class="card">
+            <div class="card-title">
+              <span>📊 DESGLOSE DE COSTO LANDED PUESTO EN DEPOSITO</span>
+            </div>
+
+            <table class="breakdown-table">
+              <thead>
+                <tr>
+                  <th>CONCEPTO TRIBUTARIO</th>
+                  <th>%</th>
+                  <th style="text-align: right;" id="thColUnit">UNITARIO</th>
+                  <th style="text-align: right;" id="thColTotal">TOTAL EMBARQUE</th>
+                </tr>
+              </thead>
+              <tbody id="tblBreakdownBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- TAB 2: GUARDADOS -->
+        <div id="tab2Content" style="display: none;">
+          <div class="card" style="background-color: var(--info-bg); font-size: 11px; color: var(--secondary-color);">
+            ℹ️ Cotizaciones guardadas durante el recorrido de feria. Toca en cada tarjeta para ver su desglose Landed completo.
+          </div>
+          <div id="savedArticlesList"></div>
+        </div>
+
+        <!-- TAB 3: COMPARADOR EN VIVO -->
+        <div id="tab3Content" style="display: none;">
+          <div class="card">
+            <h3 style="font-size: 12px; color: var(--primary-color); margin-bottom: 8px;">🔍 SELECCIONAR ARTÍCULO FLEXXUS BI DE PERREN</h3>
+            <button class="btn-primary" onclick="openPerrenModal()">📂 Abrir Buscador Perren (12.074 Artículos)</button>
+            <div id="selectedPerrenCard" style="margin-top: 10px;"></div>
+          </div>
+
+          <div class="card" id="comparisonResultCard" style="display: none;"></div>
+        </div>
+      </section>
+
+      <!-- ================= SECCIÓN 5: TARJETERO (CONTACTOS & WHATSAPP DIRECTO) ================= -->
+      <section id="secTarjetero" style="display: none;">
+        <div class="card">
+          <h3 style="font-size: 13px; color: var(--primary-color); margin-bottom: 4px;">📇 TARJETERO DIGITAL DE PROVEEDORES</h3>
+          <p style="font-size: 10px; color: var(--text-muted); margin-bottom: 10px;">Contactos relevados con enlace directo a WhatsApp sin agendar número:</p>
+          <button class="btn-success" onclick="openOcrCamera()" style="margin-bottom: 10px;">📷 ESCANEAR NUEVA TARJETA (OCR)</button>
+        </div>
+
+        <div id="tarjeteroList"></div>
+      </section>
+
+    </main>
+
+    <!-- BARRA DE NAVEGACIÓN INFERIOR FIJA (BOTTOM NAVIGATION BAR) -->
+    <nav class="bottom-nav" id="mainBottomNav">
+      <button class="nav-item active" id="navInicio" onclick="switchMainSection('inicio')">
+        <span class="nav-icon">🏠</span>
+        <span>Inicio</span>
+      </button>
+      <button class="nav-item" id="navAddProveedor" onclick="switchMainSection('addProveedor')">
+        <span class="nav-icon">➕</span>
+        <span>+ Proveedor</span>
+      </button>
+      <button class="nav-item" id="navCostos" onclick="switchMainSection('costos')">
+        <span class="nav-icon">🔍</span>
+        <span>Buscador SQL</span>
+      </button>
+      <button class="nav-item" id="navComparador" onclick="switchMainSection('comparador')">
+        <span class="nav-icon">⚖️</span>
+        <span>Comparador</span>
+      </button>
+      <button class="nav-item" id="navTarjetero" onclick="switchMainSection('tarjetero')">
+        <span class="nav-icon">📇</span>
+        <span>Tarjetero</span>
+      </button>
+    </nav>
+
+    <!-- MODAL AJUSTES IMPORTACIÓN -->
+    <div class="modal" id="modalSettings">
+      <div class="modal-content">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+          <h3 style="font-size: 13px; color: var(--primary-color);">⚙️ PARÁMETROS TRIBUTARIOS Y NCM</h3>
+          <button style="background: none; border: none; font-size: 16px; cursor: pointer;" onclick="closeSettingsModal()">✖️</button>
         </div>
 
         <div class="row-2">
-          <div class="form-group">
-            <label>Código Proveedor / Stand</label>
-            <input type="text" id="pStand" class="form-control" placeholder="Ej: Hall 9.2 - Stand C14">
-          </div>
-          <div class="form-group">
-            <label>Categoría / Rubro</label>
-            <input type="text" id="pCategory" class="form-control" placeholder="Ej: Cerámicos y Azulejos">
-          </div>
+          <div class="form-group"><label>Tipo de Cambio ARS/USD</label><input type="number" id="sTC" class="form-control" value="1350"></div>
+          <div class="form-group"><label>Flete Contenedor (USD)</label><input type="number" id="sFlete" class="form-control" value="3400"></div>
         </div>
 
         <div class="row-2">
-          <div class="form-group">
-            <label>Nombre del Contacto</label>
-            <input type="text" id="pContact" class="form-control" placeholder="Ej: Jacky Zhang">
-          </div>
-          <div class="form-group">
-            <label>Teléfono / WhatsApp</label>
-            <input type="text" id="pPhone" class="form-control" placeholder="Ej: +86 138 0000 0000">
-          </div>
+          <div class="form-group"><label>Seguro %</label><input type="number" id="sSeguro" class="form-control" value="1.2"></div>
+          <div class="form-group"><label>Arancel NCM %</label><input type="number" id="sArancel" class="form-control" value="20"></div>
         </div>
 
-        <div class="form-group">
-          <label>Email de Contacto</label>
-          <input type="email" id="pEmail" class="form-control" placeholder="sales@supplier.cn">
+        <div class="row-2">
+          <div class="form-group"><label>Tasa Estadística %</label><input type="number" id="sTasaEstad" class="form-control" value="3"></div>
+          <div class="form-group"><label>Despachante %</label><input type="number" id="sDespachante" class="form-control" value="8"></div>
         </div>
 
-        <button class="btn-success" onclick="saveSupplierFromForm()">💾 GUARDAR PROVEEDOR EN FIRESTORE</button>
+        <div class="row-2">
+          <div class="form-group"><label>IVA General %</label><input type="number" id="sIVA" class="form-control" value="21"></div>
+          <div class="form-group"><label>IVA Adicional %</label><input type="number" id="sIVAAdic" class="form-control" value="20"></div>
+        </div>
+
+        <div class="row-2">
+          <div class="form-group"><label>Ganancias %</label><input type="number" id="sGanancias" class="form-control" value="6"></div>
+          <div class="form-group"><label>II.BB %</label><input type="number" id="sIIBB" class="form-control" value="2.5"></div>
+        </div>
+
+        <hr style="margin: 10px 0; border: none; border-top: 1px solid #EEEEEE;">
+        <strong style="font-size: 11px; color: #E65100;">☑️ SELECCIONAR RENGLONES A CALCULAR</strong>
+        <div class="chip-grid">
+          <span class="filter-chip selected" id="chip_incFlete" onclick="toggleInc('incFlete')">🚚 Flete</span>
+          <span class="filter-chip selected" id="chip_incSeguro" onclick="toggleInc('incSeguro')">🛡️ Seguro</span>
+          <span class="filter-chip selected" id="chip_incArancel" onclick="toggleInc('incArancel')">🏛️ Arancel</span>
+          <span class="filter-chip selected" id="chip_incTasaEstad" onclick="toggleInc('incTasaEstad')">📊 Tasa Estad</span>
+          <span class="filter-chip selected" id="chip_incIVA" onclick="toggleInc('incIVA')">💵 IVA 21%</span>
+          <span class="filter-chip selected" id="chip_incIVAAdic" onclick="toggleInc('incIVAAdic')">➕ IVA Adic 20%</span>
+          <span class="filter-chip selected" id="chip_incGanancias" onclick="toggleInc('incGanancias')">📈 Ganancias 6%</span>
+          <span class="filter-chip selected" id="chip_incIIBB" onclick="toggleInc('incIIBB')">🏙️ II.BB 2.5%</span>
+          <span class="filter-chip selected" id="chip_incDespachante" onclick="toggleInc('incDespachante')">📦 Despachante 8%</span>
+        </div>
+
+        <div class="card" style="background-color: var(--warning-bg); margin-top: 10px; font-size: 9px; color: var(--warning-text);">
+          <strong>ℹ️ Capacidad Útil por Tipo de Contenedor:</strong><br>
+          • 20' DV (20 pies): 27 a 28 Toneladas (27.000-28.000 kg). Max ~30,4 Tn incl. tara.<br>
+          • 40' DV/HC (40 pies): 26 a 29 Toneladas (26.000-29.000 kg) por resistencia de piso.<br>
+          • Límite Balanza Puerto AR: 26.000 kg netos recomendados sin sobretasa.
+        </div>
+
+        <button class="btn-primary" onclick="closeSettingsModal()">GUARDAR Y RECALCULAR</button>
       </div>
-    </section>
+    </div>
 
-    <!-- ================= SECCIÓN 3: BUSCADOR SQL PERREN (12.074 ARTÍCULOS) ================= -->
-    <section id="secCostos" style="display: none;">
-      <div class="card">
-        <h3 style="font-size: 13px; color: var(--primary-color); margin-bottom: 4px;">🔍 BASE DE DATOS SQL PERREN FLEXXUS BI</h3>
-        <p style="font-size: 10px; color: var(--text-muted); margin-bottom: 10px;">Consulta directa de 12.074 artículos con costo neto sin IVA:</p>
+    <!-- MODAL BUSCAR PERREN (SQLITE 12.074 ARTÍCULOS) -->
+    <div class="modal" id="modalPerren">
+      <div class="modal-content">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+          <h3 style="font-size: 13px; color: var(--secondary-color);">🔍 BASE DE DATOS SQL PERREN (12.074 ARTÍCULOS)</h3>
+          <button style="background: none; border: none; font-size: 16px; cursor: pointer;" onclick="closePerrenModal()">✖️</button>
+        </div>
 
-        <input type="text" id="secSearchInput" class="form-control" placeholder="Buscar por SKU, descripción, marca o categoría..." oninput="renderSecSearchResults()">
+        <input type="text" id="perrenSearchInput" class="form-control" placeholder="Buscar por SKU, descripción, marca o rubro..." oninput="renderPerrenSearchResults()">
         
-        <div class="chip-grid" style="margin-top: 8px;">
-          <span class="filter-chip selected" onclick="filterCategory(this, 'TODOS')">Todos</span>
-          <span class="filter-chip" onclick="filterCategory(this, 'Sanitarios')">Sanitarios</span>
-          <span class="filter-chip" onclick="filterCategory(this, 'Grifería')">Grifería</span>
-          <span class="filter-chip" onclick="filterCategory(this, 'Porcelanatos')">Porcelanatos</span>
-          <span class="filter-chip" onclick="filterCategory(this, 'Revestimientos')">Revestimientos</span>
-        </div>
+        <div id="perrenSearchResults" style="margin-top: 10px; max-height: 300px; overflow-y: auto;"></div>
       </div>
-
-      <div id="secSearchResults"></div>
-    </section>
-
-    <!-- ================= SECCIÓN 4: COMPARADOR LANDED (3 SUB-TABS) ================= -->
-    <section id="secComparador" style="display: none;">
-
-      <!-- Sub-Tabs Navigation -->
-      <nav class="nav-tabs" style="margin: -12px -12px 12px -12px;">
-        <button class="tab-btn active" id="tabBtn1" onclick="switchTab(1)">✍️ Tab 1: Carga Manual</button>
-        <button class="tab-btn" id="tabBtn2" onclick="switchTab(2)">📦 Tab 2: Guardados (<span id="savedCount">2</span>)</button>
-        <button class="tab-btn" id="tabBtn3" onclick="switchTab(3)">⚡ Tab 3: Comparador</button>
-      </nav>
-
-      <!-- TAB 1: CARGA MANUAL -->
-      <div id="tab1Content">
-        <div class="card">
-          <div class="card-title">
-            <span>✍️ COTIZACIÓN DE CHINA (FOB)</span>
-            <button class="btn-whatsapp" onclick="openOcrCamera()">📷 Escanear con Cámara (OCR)</button>
-          </div>
-
-          <div class="form-group">
-            <label>Descripción / Producto Cotizado</label>
-            <input type="text" id="t1Name" class="form-control" value="Porcelanato Foshan 60x60 Pulido">
-          </div>
-
-          <div class="row-2">
-            <div class="form-group">
-              <label>Precio FOB Unitario (USD)</label>
-              <input type="number" step="0.01" id="t1Fob" class="form-control" value="4.50">
-            </div>
-            <div class="form-group">
-              <label>Cantidad / MOQ (Unidades)</label>
-              <input type="number" id="t1Qty" class="form-control" value="2000">
-            </div>
-          </div>
-
-          <div class="row-2">
-            <div class="form-group">
-              <label>Peso Unitario (kg)</label>
-              <input type="number" step="0.1" id="t1Weight" class="form-control" value="3.2" placeholder="Ej: 3.2 kg">
-            </div>
-            <div class="form-group">
-              <label>Puerto de Origen</label>
-              <input type="text" id="t1Port" class="form-control" value="Foshan, China">
-            </div>
-          </div>
-
-          <!-- Weight Prorating Control -->
-          <div class="currency-bar" style="margin-top: 6px; background-color: #FFF3E0; border: 1px solid #FFE0B2;">
-            <div>
-              <div class="currency-label" style="color: #E65100;">⚖️ PRORRATEO DE FLETE POR PESO (KG)</div>
-              <div class="currency-sub" id="lblWeightDetail">2000 u. × 3.2 kg = 6.400 kg (24.6% de 26.000 kg cont.)</div>
-            </div>
-            <button class="btn-chip" id="btnToggleWeightMode" onclick="toggleWeightProrating()" style="border-color: #E65100; color: #E65100;">PROBAR PESO</button>
-          </div>
-        </div>
-
-        <!-- Tabla Desglose Landed -->
-        <div class="card">
-          <div class="card-title">
-            <span>📊 DESGLOSE DE COSTO LANDED PUESTO EN DEPOSITO</span>
-          </div>
-
-          <table class="breakdown-table">
-            <thead>
-              <tr>
-                <th>CONCEPTO TRIBUTARIO</th>
-                <th>%</th>
-                <th style="text-align: right;" id="thColUnit">UNITARIO</th>
-                <th style="text-align: right;" id="thColTotal">TOTAL EMBARQUE</th>
-              </tr>
-            </thead>
-            <tbody id="tblBreakdownBody"></tbody>
-          </table>
-        </div>
-      </div>
-
-      <!-- TAB 2: GUARDADOS -->
-      <div id="tab2Content" style="display: none;">
-        <div class="card" style="background-color: var(--info-bg); font-size: 11px; color: var(--secondary-color);">
-          ℹ️ Cotizaciones guardadas durante el recorrido de feria. Toca en cada tarjeta para ver su desglose Landed completo.
-        </div>
-        <div id="savedArticlesList"></div>
-      </div>
-
-      <!-- TAB 3: COMPARADOR EN VIVO -->
-      <div id="tab3Content" style="display: none;">
-        <div class="card">
-          <h3 style="font-size: 12px; color: var(--primary-color); margin-bottom: 8px;">🔍 SELECCIONAR ARTÍCULO FLEXXUS BI DE PERREN</h3>
-          <button class="btn-primary" onclick="openPerrenModal()">📂 Abrir Buscador Perren (12.074 Artículos)</button>
-          <div id="selectedPerrenCard" style="margin-top: 10px;"></div>
-        </div>
-
-        <div class="card" id="comparisonResultCard" style="display: none;"></div>
-      </div>
-    </section>
-
-    <!-- ================= SECCIÓN 5: TARJETERO (CONTACTOS & WHATSAPP DIRECTO) ================= -->
-    <section id="secTarjetero" style="display: none;">
-      <div class="card">
-        <h3 style="font-size: 13px; color: var(--primary-color); margin-bottom: 4px;">📇 TARJETERO DIGITAL DE PROVEEDORES</h3>
-        <p style="font-size: 10px; color: var(--text-muted); margin-bottom: 10px;">Contactos relevados con enlace directo a WhatsApp sin agendar número:</p>
-        <button class="btn-success" onclick="openOcrCamera()" style="margin-bottom: 10px;">📷 ESCANEAR NUEVA TARJETA (OCR)</button>
-      </div>
-
-      <div id="tarjeteroList"></div>
-    </section>
-
-  </main>
-
-  <!-- BARRA DE NAVEGACIÓN INFERIOR FIJA (BOTTOM NAVIGATION BAR) -->
-  <nav class="bottom-nav" id="mainBottomNav">
-    <button class="nav-item active" id="navInicio" onclick="switchMainSection('inicio')">
-      <span class="nav-icon">🏠</span>
-      <span>Inicio</span>
-    </button>
-    <button class="nav-item" id="navAddProveedor" onclick="switchMainSection('addProveedor')">
-      <span class="nav-icon">➕</span>
-      <span>+ Proveedor</span>
-    </button>
-    <button class="nav-item" id="navCostos" onclick="switchMainSection('costos')">
-      <span class="nav-icon">🔍</span>
-      <span>Buscador SQL</span>
-    </button>
-    <button class="nav-item" id="navComparador" onclick="switchMainSection('comparador')">
-      <span class="nav-icon">⚖️</span>
-      <span>Comparador</span>
-    </button>
-    <button class="nav-item" id="navTarjetero" onclick="switchMainSection('tarjetero')">
-      <span class="nav-icon">📇</span>
-      <span>Tarjetero</span>
-    </button>
-  </nav>
-
-  <!-- MODAL AJUSTES IMPORTACIÓN -->
-  <div class="modal" id="modalSettings">
-    <div class="modal-content">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-        <h3 style="font-size: 13px; color: var(--primary-color);">⚙️ PARÁMETROS TRIBUTARIOS Y NCM</h3>
-        <button style="background: none; border: none; font-size: 16px; cursor: pointer;" onclick="closeSettingsModal()">✖️</button>
-      </div>
-
-      <div class="row-2">
-        <div class="form-group"><label>Tipo de Cambio ARS/USD</label><input type="number" id="sTC" class="form-control" value="1350"></div>
-        <div class="form-group"><label>Flete Contenedor (USD)</label><input type="number" id="sFlete" class="form-control" value="3400"></div>
-      </div>
-
-      <div class="row-2">
-        <div class="form-group"><label>Seguro %</label><input type="number" id="sSeguro" class="form-control" value="1.2"></div>
-        <div class="form-group"><label>Arancel NCM %</label><input type="number" id="sArancel" class="form-control" value="20"></div>
-      </div>
-
-      <div class="row-2">
-        <div class="form-group"><label>Tasa Estadística %</label><input type="number" id="sTasaEstad" class="form-control" value="3"></div>
-        <div class="form-group"><label>Despachante %</label><input type="number" id="sDespachante" class="form-control" value="8"></div>
-      </div>
-
-      <div class="row-2">
-        <div class="form-group"><label>IVA General %</label><input type="number" id="sIVA" class="form-control" value="21"></div>
-        <div class="form-group"><label>IVA Adicional %</label><input type="number" id="sIVAAdic" class="form-control" value="20"></div>
-      </div>
-
-      <div class="row-2">
-        <div class="form-group"><label>Ganancias %</label><input type="number" id="sGanancias" class="form-control" value="6"></div>
-        <div class="form-group"><label>II.BB %</label><input type="number" id="sIIBB" class="form-control" value="2.5"></div>
-      </div>
-
-      <hr style="margin: 10px 0; border: none; border-top: 1px solid #EEEEEE;">
-      <strong style="font-size: 11px; color: #E65100;">☑️ SELECCIONAR RENGLONES A CALCULAR</strong>
-      <div class="chip-grid">
-        <span class="filter-chip selected" id="chip_incFlete" onclick="toggleInc('incFlete')">🚚 Flete</span>
-        <span class="filter-chip selected" id="chip_incSeguro" onclick="toggleInc('incSeguro')">🛡️ Seguro</span>
-        <span class="filter-chip selected" id="chip_incArancel" onclick="toggleInc('incArancel')">🏛️ Arancel</span>
-        <span class="filter-chip selected" id="chip_incTasaEstad" onclick="toggleInc('incTasaEstad')">📊 Tasa Estad</span>
-        <span class="filter-chip selected" id="chip_incIVA" onclick="toggleInc('incIVA')">💵 IVA 21%</span>
-        <span class="filter-chip selected" id="chip_incIVAAdic" onclick="toggleInc('incIVAAdic')">➕ IVA Adic 20%</span>
-        <span class="filter-chip selected" id="chip_incGanancias" onclick="toggleInc('incGanancias')">📈 Ganancias 6%</span>
-        <span class="filter-chip selected" id="chip_incIIBB" onclick="toggleInc('incIIBB')">🏙️ II.BB 2.5%</span>
-        <span class="filter-chip selected" id="chip_incDespachante" onclick="toggleInc('incDespachante')">📦 Despachante 8%</span>
-      </div>
-
-      <div class="card" style="background-color: var(--warning-bg); margin-top: 10px; font-size: 9px; color: var(--warning-text);">
-        <strong>ℹ️ Capacidad Útil por Tipo de Contenedor:</strong><br>
-        • 20' DV (20 pies): 27 a 28 Toneladas (27.000-28.000 kg). Max ~30,4 Tn incl. tara.<br>
-        • 40' DV/HC (40 pies): 26 a 29 Toneladas (26.000-29.000 kg) por resistencia de piso.<br>
-        • Límite Balanza Puerto AR: 26.000 kg netos recomendados sin sobretasa.
-      </div>
-
-      <button class="btn-primary" onclick="closeSettingsModal()">GUARDAR Y RECALCULAR</button>
     </div>
-  </div>
 
-  <!-- MODAL BUSCAR PERREN (SQLITE 12.074 ARTÍCULOS) -->
-  <div class="modal" id="modalPerren">
-    <div class="modal-content">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-        <h3 style="font-size: 13px; color: var(--secondary-color);">🔍 BASE DE DATOS SQL PERREN (12.074 ARTÍCULOS)</h3>
-        <button style="background: none; border: none; font-size: 16px; cursor: pointer;" onclick="closePerrenModal()">✖️</button>
+    <!-- MODAL CÁMARA OCR -->
+    <div class="modal" id="modalOcr">
+      <div class="modal-content">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+          <h3 style="font-size: 13px; color: var(--primary-color);">📷 ESCÁNER OCR POR CÁMARA</h3>
+          <button style="background: none; border: none; font-size: 16px; cursor: pointer;" onclick="closeOcrCamera()">✖️</button>
+        </div>
+
+        <input type="file" id="cameraInput" accept="image/*" capture="environment" onchange="processOcrImage(event)" style="display: none;">
+        
+        <button class="btn-success" onclick="document.getElementById('cameraInput').click()">📸 ABRIR CÁMARA / ELEGIR FOTO</button>
+        
+        <div id="ocrStatus" style="font-size: 11px; margin-top: 10px; color: var(--text-muted); text-align: center;">
+          Toma una foto de la etiqueta o cotización para reconocer texto y precios.
+        </div>
+
+        <div id="ocrOutput" style="font-size: 10px; background: #F5F5F5; padding: 8px; border-radius: 6px; margin-top: 8px; max-height: 120px; overflow-y: auto;"></div>
       </div>
-
-      <input type="text" id="perrenSearchInput" class="form-control" placeholder="Buscar por SKU, descripción, marca o rubro..." oninput="renderPerrenSearchResults()">
-      
-      <div id="perrenSearchResults" style="margin-top: 10px; max-height: 300px; overflow-y: auto;"></div>
     </div>
-  </div>
 
-  <!-- MODAL CÁMARA OCR -->
-  <div class="modal" id="modalOcr">
-    <div class="modal-content">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-        <h3 style="font-size: 13px; color: var(--primary-color);">📷 ESCÁNER OCR POR CÁMARA</h3>
-        <button style="background: none; border: none; font-size: 16px; cursor: pointer;" onclick="closeOcrCamera()">✖️</button>
-      </div>
-
-      <input type="file" id="cameraInput" accept="image/*" capture="environment" onchange="processOcrImage(event)" style="display: none;">
-      
-      <button class="btn-success" onclick="document.getElementById('cameraInput').click()">📸 ABRIR CÁMARA / ELEGIR FOTO</button>
-      
-      <div id="ocrStatus" style="font-size: 11px; margin-top: 10px; color: var(--text-muted); text-align: center;">
-        Toma una foto de la etiqueta o cotización para reconocer texto y precios.
-      </div>
-
-      <div id="ocrOutput" style="font-size: 10px; background: #F5F5F5; padding: 8px; border-radius: 6px; margin-top: 8px; max-height: 120px; overflow-y: auto;"></div>
-    </div>
-  </div>
+  </div> <!-- FIN DE #appContainer -->
 
   <script src="app.js"></script>
 </body>
