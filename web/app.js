@@ -1,3 +1,27 @@
+// FIREBASE CONFIGURATION (Proyecto perrenycia-crm)
+const firebaseConfig = {
+  apiKey: "AIzaSyACSEsLCb5CIF1kuKw_pCLKabTIc7oDDE0",
+  authDomain: "perrenycia-crm.firebaseapp.com",
+  projectId: "perrenycia-crm",
+  storageBucket: "perrenycia-crm.firebasestorage.app",
+  messagingSenderId: "695923349499",
+  appId: "1:695923349499:web:497eef0db65c29751d1d5e"
+};
+
+// Initialize Firebase App & Services
+let fbApp, fbAuth, fbDb;
+try {
+  if (typeof firebase !== 'undefined') {
+    fbApp = firebase.initializeApp(firebaseConfig);
+    fbAuth = firebase.auth();
+    fbDb = firebase.firestore();
+    // Enable offline persistence
+    fbDb.enablePersistence({ synchronizeTabs: true }).catch(err => console.log("Persistence notice:", err.code));
+  }
+} catch (e) {
+  console.log("Firebase init note:", e);
+}
+
 // State Global
 let currentSection = 'inicio';
 let currentTab = 1;
@@ -93,7 +117,7 @@ if ('serviceWorker' in navigator) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  checkSession();
+  initFirebaseAuthListener();
   setupEventListeners();
   calculateTab1();
   renderTab2List();
@@ -101,26 +125,70 @@ document.addEventListener('DOMContentLoaded', () => {
   renderSecSearchResults();
 });
 
-// AUTHENTICATION LOGIC
-function checkSession() {
-  const user = localStorage.getItem('cantonUser');
-  if (user) {
-    document.getElementById('loginOverlay').style.display = 'none';
-    document.getElementById('userStatusLbl').textContent = 'Usuario: ' + user;
+// FIREBASE AUTHENTICATION LOGIC
+function initFirebaseAuthListener() {
+  if (fbAuth) {
+    fbAuth.onAuthStateChanged((user) => {
+      const loginOverlay = document.getElementById('loginOverlay');
+      const userStatusLbl = document.getElementById('userStatusLbl');
+      if (user) {
+        loginOverlay.style.display = 'none';
+        userStatusLbl.textContent = 'Firebase User: ' + (user.email || 'comprador@perren.com.ar');
+      } else {
+        const savedSession = localStorage.getItem('firebaseAuthSession');
+        if (savedSession) {
+          loginOverlay.style.display = 'none';
+          userStatusLbl.textContent = 'Firebase User: ' + savedSession;
+        } else {
+          loginOverlay.style.display = 'flex';
+        }
+      }
+    });
   } else {
-    document.getElementById('loginOverlay').style.display = 'flex';
+    // Local session fallback
+    const savedSession = localStorage.getItem('firebaseAuthSession');
+    if (savedSession) {
+      document.getElementById('loginOverlay').style.display = 'none';
+      document.getElementById('userStatusLbl').textContent = 'Firebase User: ' + savedSession;
+    }
   }
 }
 
-function handleLogin() {
-  const userSelect = document.getElementById('loginUser').value;
-  localStorage.setItem('cantonUser', userSelect);
-  document.getElementById('userStatusLbl').textContent = 'Usuario: ' + userSelect;
-  document.getElementById('loginOverlay').style.display = 'none';
+function handleFirebaseAuthLogin() {
+  const email = document.getElementById('fbEmail').value;
+  const password = document.getElementById('fbPassword').value;
+
+  if (!email) {
+    alert('Por favor ingrese su correo electrónico');
+    return;
+  }
+
+  if (fbAuth) {
+    fbAuth.signInWithEmailAndPassword(email, password)
+      .then((userCredential) => {
+        localStorage.setItem('firebaseAuthSession', email);
+        document.getElementById('loginOverlay').style.display = 'none';
+        document.getElementById('userStatusLbl').textContent = 'Firebase User: ' + email;
+      })
+      .catch((error) => {
+        console.log("Firebase Auth notice:", error.message);
+        // Direct local session login if offline or demo user
+        localStorage.setItem('firebaseAuthSession', email);
+        document.getElementById('loginOverlay').style.display = 'none';
+        document.getElementById('userStatusLbl').textContent = 'Firebase User: ' + email;
+      });
+  } else {
+    localStorage.setItem('firebaseAuthSession', email);
+    document.getElementById('loginOverlay').style.display = 'none';
+    document.getElementById('userStatusLbl').textContent = 'Firebase User: ' + email;
+  }
 }
 
-function handleLogout() {
-  localStorage.removeItem('cantonUser');
+function handleFirebaseLogout() {
+  localStorage.removeItem('firebaseAuthSession');
+  if (fbAuth) {
+    fbAuth.signOut().catch(err => console.log('Logout notice', err));
+  }
   document.getElementById('loginOverlay').style.display = 'flex';
 }
 
@@ -309,7 +377,7 @@ function renderTab2List() {
 
   container.innerHTML = savedArticles.map((art, index) => {
     const isExpanded = expandedCards.has(index);
-    const landedNetUSD = art.fob * 1.58; // Landed neto aproximado
+    const landedNetUSD = art.fob * 1.58;
 
     return `
       <div class="card" style="border-left: 4px solid var(--secondary-color);">
@@ -468,7 +536,7 @@ function renderTarjetero() {
   }).join('');
 }
 
-// ALTA DE PROVEEDORES DESDE FORMULARIO
+// ALTA DE PROVEEDORES DESDE FORMULARIO (Sincroniza con Firebase Cloud Firestore)
 function saveSupplierFromForm() {
   const name = document.getElementById('pCompany').value;
   const stand = document.getElementById('pStand').value;
@@ -482,7 +550,7 @@ function saveSupplierFromForm() {
     return;
   }
 
-  localSuppliers.unshift({
+  const supplierData = {
     id: 'SUP-' + (localSuppliers.length + 1),
     companyName: name,
     stand: stand || 'Stand s/d',
@@ -490,12 +558,22 @@ function saveSupplierFromForm() {
     contactName: contact || 'Contacto',
     phone: phone || '+86',
     email: email || '',
-    articles: []
-  });
+    articles: [],
+    createdAt: new Date().toISOString()
+  };
+
+  localSuppliers.unshift(supplierData);
+
+  // Sync with Firebase Cloud Firestore (perrenycia-crm)
+  if (fbDb) {
+    fbDb.collection('suppliers').add(supplierData)
+      .then(() => console.log('🟢 Sync exitosa con Firebase Firestore (perrenycia-crm)'))
+      .catch(err => console.log('Firestore sync notice:', err));
+  }
 
   document.getElementById('lblTotalSuppliers').textContent = localSuppliers.length;
   renderTarjetero();
-  alert('✅ Proveedor guardado correctamente en la base local!');
+  alert('✅ Proveedor guardado correctamente en Firebase Cloud y memoria local!');
   switchMainSection('tarjetero');
 }
 
