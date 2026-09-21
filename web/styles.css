@@ -1,0 +1,326 @@
+:root {
+  --primary-color: #1B365D;
+  --secondary-color: #1565C0;
+  --accent-color: #2E7D32;
+  --bg-color: #F8F9FA;
+  --card-bg: #FFFFFF;
+  --border-color: #CFD8DC;
+  --text-color: #212121;
+  --text-muted: #666666;
+  --warning-bg: #FFF3E0;
+  --warning-text: #E65100;
+  --success-bg: #E8F5E9;
+  --info-bg: #E3F2FD;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  max-width: 600px;
+  margin: 0 auto;
+  min-height: 100vh;
+  padding-bottom: 40px;
+}
+
+/* Header */
+.app-header {
+  background-color: var(--primary-color);
+  color: white;
+  padding: 14px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.app-title h1 {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.app-title p {
+  font-size: 10px;
+  opacity: 0.8;
+}
+
+/* Global Controls Bar */
+.global-bar {
+  background-color: white;
+  padding: 10px 14px;
+  border-bottom: 1px solid #E0E0E0;
+}
+
+.global-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.currency-bar {
+  background-color: var(--info-bg);
+  border-radius: 8px;
+  padding: 6px 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.currency-label {
+  font-size: 11px;
+  font-weight: bold;
+  color: var(--secondary-color);
+}
+
+.currency-sub {
+  font-size: 9.5px;
+  color: var(--text-muted);
+}
+
+.currency-toggle {
+  display: flex;
+  gap: 4px;
+}
+
+.btn-chip {
+  padding: 4px 10px;
+  border-radius: 14px;
+  border: 1px solid var(--secondary-color);
+  background-color: white;
+  color: var(--secondary-color);
+  font-size: 10px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.btn-chip.active {
+  background-color: var(--primary-color);
+  color: white;
+  border-color: var(--primary-color);
+}
+
+.btn-settings {
+  background-color: #E65100;
+  color: white;
+  border: none;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 10.5px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+/* Tabs Navigation */
+.nav-tabs {
+  display: flex;
+  background-color: white;
+  border-bottom: 2px solid #E0E0E0;
+}
+
+.tab-btn {
+  flex: 1;
+  padding: 10px 4px;
+  text-align: center;
+  background: none;
+  border: none;
+  font-size: 11px;
+  font-weight: bold;
+  color: var(--text-muted);
+  border-bottom: 3px solid transparent;
+  cursor: pointer;
+}
+
+.tab-btn.active {
+  color: var(--primary-color);
+  border-bottom-color: var(--primary-color);
+}
+
+/* Content Container */
+.container {
+  padding: 12px;
+}
+
+.card {
+  background-color: var(--card-bg);
+  border-radius: 10px;
+  padding: 12px;
+  margin-bottom: 12px;
+  border: 1px solid #E0E0E0;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.form-group {
+  margin-bottom: 8px;
+}
+
+.form-group label {
+  display: block;
+  font-size: 10px;
+  font-weight: bold;
+  color: var(--text-muted);
+  margin-bottom: 2px;
+}
+
+.form-control {
+  width: 100%;
+  padding: 8px;
+  border-radius: 6px;
+  border: 1px solid #CCCCCC;
+  font-size: 12px;
+}
+
+.row-2 {
+  display: flex;
+  gap: 8px;
+}
+
+.row-2 > div {
+  flex: 1;
+}
+
+/* Filter Chips Grid */
+.chip-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.filter-chip {
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 9.5px;
+  background-color: #F0F0F0;
+  border: 1px solid #CCCCCC;
+  cursor: pointer;
+}
+
+.filter-chip.selected {
+  background-color: #E3F2FD;
+  border-color: var(--secondary-color);
+  color: var(--secondary-color);
+  font-weight: bold;
+}
+
+/* Table Breakdown */
+.table-container {
+  overflow-x: auto;
+  margin-top: 8px;
+}
+
+table.breakdown-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 10px;
+}
+
+table.breakdown-table th {
+  background-color: #E1F5FE;
+  color: #01579B;
+  font-weight: bold;
+  padding: 6px 4px;
+  text-align: right;
+}
+
+table.breakdown-table th:first-child {
+  text-align: left;
+}
+
+table.breakdown-table td {
+  padding: 5px 4px;
+  border-bottom: 1px solid #ECEFF1;
+  text-align: right;
+}
+
+table.breakdown-table td:first-child {
+  text-align: left;
+}
+
+.row-header {
+  background-color: #FFF8E1;
+  font-weight: bold;
+}
+
+.row-cost-net {
+  background-color: #E3F2FD;
+  font-weight: bold;
+  color: #1565C0;
+}
+
+.row-total-outlay {
+  background-color: #E8F5E9;
+  font-weight: bold;
+  color: #2E7D32;
+}
+
+/* Modal */
+.modal {
+  display: none;
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 200;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.modal.open {
+  display: flex;
+}
+
+.modal-content {
+  background: white;
+  border-radius: 12px;
+  padding: 16px;
+  width: 100%;
+  max-width: 500px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.btn-primary {
+  background-color: var(--secondary-color);
+  color: white;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: bold;
+  width: 100%;
+  cursor: pointer;
+  margin-top: 6px;
+}
+
+.btn-success {
+  background-color: var(--accent-color);
+  color: white;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: bold;
+  width: 100%;
+  cursor: pointer;
+  margin-top: 6px;
+}
+
+.fob-tag {
+  background-color: var(--info-bg);
+  color: var(--secondary-color);
+  font-weight: bold;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+}

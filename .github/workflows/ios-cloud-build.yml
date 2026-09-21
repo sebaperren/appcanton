@@ -1,4 +1,4 @@
-name: 🚀 iOS & Android Cloud Build (Apple Silicon M1/M2 Runner)
+name: 🚀 iOS, Android & Web App (PWA Cloud Build)
 
 on:
   push:
@@ -8,6 +8,19 @@ on:
   workflow_dispatch:
 
 jobs:
+  build-web-pwa:
+    name: 🌐 Publicar Web App PWA (iPhone / Chrome)
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout del Código
+        uses: actions/checkout@v4
+
+      - name: 📦 Guardar Artefacto Web PWA
+        uses: actions/upload-artifact@v4
+        with:
+          name: canton-web-app-pwa
+          path: web/
+
   build-android:
     name: 🤖 Compilar Android APK
     runs-on: ubuntu-latest

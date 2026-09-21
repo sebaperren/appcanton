@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Perren & Cía. - Canton Fair 2026</title>
+  
+  <!-- iOS PWA Meta Tags -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Canton App">
+  <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3135/3135715.png">
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="styles.css">
+
+  <!-- OCR & Storage Libraries -->
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
+</head>
+<body>
+
+  <!-- Header Sticky -->
+  <header class="app-header">
+    <div class="app-title">
+      <h1>⚖️ PERREN & CÍA. - CANTON FAIR 2026</h1>
+      <p>Módulo de Comparación Landed & Evaluación de Costos</p>
+    </div>
+    <button class="btn-settings" id="btnOpenSettings">⚙️ Ajustes</button>
+  </header>
+
+  <!-- Global Currency Control Bar -->
+  <div class="global-bar">
+    <div class="currency-bar">
+      <div>
+        <div class="currency-label">💱 VER EN MONEDA:</div>
+        <div class="currency-sub" id="lblDolarTC">Dólar TC: $1.350,00 ARS</div>
+      </div>
+      <div class="currency-toggle">
+        <button class="btn-chip active" id="btnCurrARS">💵 Pesos ($ ARS)</button>
+        <button class="btn-chip" id="btnCurrUSD">💲 Dólares ($ USD)</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Navigation Sub-Tabs -->
+  <nav class="nav-tabs">
+    <button class="tab-btn active" id="tabBtn1" onclick="switchTab(1)">✍️ Tab 1: Carga Manual</button>
+    <button class="tab-btn" id="tabBtn2" onclick="switchTab(2)">📦 Tab 2: Guardados (<span id="savedCount">2</span>)</button>
+    <button class="tab-btn" id="tabBtn3" onclick="switchTab(3)">⚖️ Tab 3: Compara</button>
+  </nav>
+
+  <!-- Main Container -->
+  <main class="container">
+
+    <!-- ================= TAB 1: CARGA MANUAL ================= -->
+    <section id="tab1Content">
+      <div class="card">
+        <h3 style="font-size: 13px; color: var(--primary-color); margin-bottom: 4px;">✍️ TAB 1: CARGA MANUAL DEL ARTÍCULO (FOB CHINA)</h3>
+        <p style="font-size: 10px; color: var(--text-muted); margin-bottom: 10px;">Ingresa los datos para calcular el costo puesto landed:</p>
+
+        <div class="form-group">
+          <label>Nombre / Descripción del Artículo</label>
+          <input type="text" id="t1Name" class="form-control" value="Artículo Importado Manual">
+        </div>
+
+        <div class="row-2">
+          <div class="form-group">
+            <label>Precio FOB ($ USD / u)</label>
+            <input type="number" id="t1Fob" class="form-control" value="10.00" step="0.01">
+          </div>
+          <div class="form-group">
+            <label>Cantidad (MOQ Lote)</label>
+            <input type="number" id="t1Qty" class="form-control" value="1000">
+          </div>
+        </div>
+
+        <div class="row-2">
+          <div class="form-group">
+            <label>Puerto de Embarque</label>
+            <input type="text" id="t1Port" class="form-control" value="Shenzhen">
+          </div>
+          <div class="form-group">
+            <label>Peso Unitario (kg / u)</label>
+            <input type="number" id="t1Weight" class="form-control" value="2.5" step="0.1">
+          </div>
+        </div>
+
+        <div style="margin-top: 6px;">
+          <button class="btn-chip" id="btnToggleWeightProrate" onclick="toggleWeightMode()">
+            ⚖️ Prorratear Flete por Peso (DESACTIVADO)
+          </button>
+        </div>
+
+        <div style="margin-top: 10px; display: flex; gap: 8px;">
+          <button class="btn-chip" onclick="openOcrCamera()" style="background: #E8F5E9; border-color: #2E7D32; color: #2E7D32; font-weight: bold;">
+            📷 Escanear con Cámara (OCR)
+          </button>
+        </div>
+      </div>
+
+      <!-- Tabla Desglose Landed Tab 1 -->
+      <div id="t1BreakdownTable"></div>
+
+      <button class="btn-primary" onclick="sendTab1ToTab3()">➡️ ENVIAR A TAB 3 (COMPARA ARTÍCULOS)</button>
+    </section>
+
+    <!-- ================= TAB 2: GUARDADOS ================= -->
+    <section id="tab2Content" style="display: none;">
+      <div class="card">
+        <h3 style="font-size: 13px; color: var(--primary-color); margin-bottom: 4px;">📦 TAB 2: CATÁLOGOS Y ARTÍCULOS GUARDADOS POR PROVEEDORES</h3>
+        <p style="font-size: 10px; color: var(--text-muted); margin-bottom: 8px;">Selecciona un artículo guardado para evaluar su desglose o enviarlo al comparador:</p>
+        
+        <input type="text" id="tab2Search" class="form-control" placeholder="🔍 Filtrar por artículo o proveedor..." oninput="renderTab2List()">
+      </div>
+
+      <div id="tab2List"></div>
+    </section>
+
+    <!-- ================= TAB 3: COMPARA ================= -->
+    <section id="tab3Content" style="display: none;">
+      <div class="card">
+        <h3 style="font-size: 13px; color: var(--primary-color); margin-bottom: 4px;">⚖️ TAB 3: COMPARA ARTÍCULOS EN TIEMPO REAL (FLEXXUS VS CANTON)</h3>
+        <p style="font-size: 10px; color: var(--text-muted);">Evaluación de Ahorro y Rentabilidad:</p>
+      </div>
+
+      <!-- Comparador Dual -->
+      <div class="card" style="border-left: 4px solid var(--secondary-color);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+          <strong style="font-size: 12px; color: var(--secondary-color);">🇦🇷 ARTÍCULO PERREN (SQLITE / FLEXUS)</strong>
+          <button class="btn-chip" onclick="openPerrenModal()">🔍 BUSCAR PERREN</button>
+        </div>
+        <div id="perrenProductDetail" style="font-size: 11px;">
+          <strong>PERREN-1042 - Azulejo cerámico 20x20 Blanco</strong><br>
+          <span style="color: var(--text-muted);">Costo Nacional Sin IVA:</span> <strong id="perrenCostTxt">$ 14.175,00 ARS ($ 10,50 USD)</strong>
+        </div>
+      </div>
+
+      <div class="card" style="border-left: 4px solid var(--accent-color);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+          <strong style="font-size: 12px; color: var(--accent-color);">🇨🇳 ARTÍCULO CANTON FAIR (CHINA LANDED)</strong>
+          <button class="btn-chip" onclick="switchTab(2)">📦 ELEGIR DE GUARDADOS</button>
+        </div>
+        <div id="cantonProductDetail" style="font-size: 11px;">
+          <strong>Artículo Importado Manual (China)</strong><br>
+          <span style="color: var(--text-muted);">Costo Puesto Incidido Landed:</span> <strong id="cantonCostTxt">$ 9.952,00 ARS ($ 7,37 USD)</strong>
+        </div>
+      </div>
+
+      <!-- Resumen de Ahorro -->
+      <div class="card" style="background-color: var(--success-bg); border-color: var(--accent-color); text-align: center;">
+        <div style="font-size: 11px; font-weight: bold; color: var(--accent-color);">💰 AHORRO LANDED ESTIMADO</div>
+        <div style="font-size: 18px; font-weight: bold; color: var(--accent-color); margin: 4px 0;" id="savingValTxt">$ 4.223,00 ARS / u ($ 3,13 USD)</div>
+        <div style="font-size: 11px; color: var(--accent-color);" id="savingPctTxt">Reducción de costo del 29.8%</div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- MODAL AJUSTES CONFIGURABLES -->
+  <div class="modal" id="modalSettings">
+    <div class="modal-content">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+        <h3 style="font-size: 13px; color: #E65100;">⚙️ PARÁMETROS DE IMPORTACIÓN</h3>
+        <button style="background: none; border: none; font-size: 16px; cursor: pointer;" onclick="closeSettingsModal()">✖️</button>
+      </div>
+
+      <div class="row-2">
+        <div class="form-group"><label>Dólar TC ($ ARS)</label><input type="number" id="sTC" class="form-control" value="1350"></div>
+        <div class="form-group"><label>Flete Marítimo ($ USD)</label><input type="number" id="sFlete" class="form-control" value="3400"></div>
+      </div>
+      <div class="row-2">
+        <div class="form-group"><label>Arancel %</label><input type="number" id="sArancel" class="form-control" value="20"></div>
+        <div class="form-group"><label>Tasa Estadística %</label><input type="number" id="sTasaEstad" class="form-control" value="3"></div>
+      </div>
+      <div class="row-2">
+        <div class="form-group"><label>IVA General %</label><input type="number" id="sIVA" class="form-control" value="21"></div>
+        <div class="form-group"><label>IVA Adicional %</label><input type="number" id="sIVAAdic" class="form-control" value="20"></div>
+      </div>
+      <div class="row-2">
+        <div class="form-group"><label>Ganancias %</label><input type="number" id="sGanancias" class="form-control" value="6"></div>
+        <div class="form-group"><label>II.BB %</label><input type="number" id="sIIBB" class="form-control" value="2.5"></div>
+      </div>
+
+      <hr style="margin: 10px 0; border: none; border-top: 1px solid #EEEEEE;">
+      <strong style="font-size: 11px; color: #E65100;">☑️ SELECCIONAR RENGLONES A CALCULAR</strong>
+      <div class="chip-grid">
+        <span class="filter-chip selected" id="chip_incFlete" onclick="toggleInc('incFlete')">🚚 Flete</span>
+        <span class="filter-chip selected" id="chip_incSeguro" onclick="toggleInc('incSeguro')">🛡️ Seguro</span>
+        <span class="filter-chip selected" id="chip_incArancel" onclick="toggleInc('incArancel')">🏛️ Arancel</span>
+        <span class="filter-chip selected" id="chip_incTasaEstad" onclick="toggleInc('incTasaEstad')">📊 Tasa Estad</span>
+        <span class="filter-chip selected" id="chip_incIVA" onclick="toggleInc('incIVA')">💵 IVA 21%</span>
+        <span class="filter-chip selected" id="chip_incIVAAdic" onclick="toggleInc('incIVAAdic')">➕ IVA Adic 20%</span>
+        <span class="filter-chip selected" id="chip_incGanancias" onclick="toggleInc('incGanancias')">📈 Ganancias 6%</span>
+        <span class="filter-chip selected" id="chip_incIIBB" onclick="toggleInc('incIIBB')">🏙️ II.BB 2.5%</span>
+        <span class="filter-chip selected" id="chip_incDespachante" onclick="toggleInc('incDespachante')">📦 Despachante 8%</span>
+      </div>
+
+      <div class="card" style="background-color: var(--warning-bg); margin-top: 10px; font-size: 9px; color: var(--warning-text);">
+        <strong>ℹ️ Capacidad Útil por Tipo de Contenedor:</strong><br>
+        • 20' DV (20 pies): 27 a 28 Toneladas (27.000-28.000 kg). Max ~30,4 Tn incl. tara.<br>
+        • 40' DV/HC (40 pies): 26 a 29 Toneladas (26.000-29.000 kg) por resistencia de piso.<br>
+        • Límite Balanza Puerto AR: 26.000 kg netos recomendados sin sobretasa.
+      </div>
+
+      <button class="btn-primary" onclick="closeSettingsModal()">GUARDAR Y RECALCULAR</button>
+    </div>
+  </div>
+
+  <!-- MODAL CAMARA OCR -->
+  <div class="modal" id="modalOcr">
+    <div class="modal-content">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+        <h3 style="font-size: 13px; color: var(--primary-color);">📷 ESCÁNER OCR POR CÁMARA</h3>
+        <button style="background: none; border: none; font-size: 16px; cursor: pointer;" onclick="closeOcrCamera()">✖️</button>
+      </div>
+
+      <input type="file" id="cameraInput" accept="image/*" capture="environment" onchange="processOcrImage(event)" style="display: none;">
+      
+      <button class="btn-success" onclick="document.getElementById('cameraInput').click()">📸 ABRIR CÁMARA / ELEGIR FOTO</button>
+      
+      <div id="ocrStatus" style="font-size: 11px; margin-top: 10px; color: var(--text-muted); text-align: center;">
+        Toma una foto de la etiqueta o cotización para reconocer texto y precios.
+      </div>
+
+      <div id="ocrOutput" style="font-size: 10px; background: #F5F5F5; padding: 8px; border-radius: 6px; margin-top: 8px; max-height: 120px; overflow-y: auto;"></div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
