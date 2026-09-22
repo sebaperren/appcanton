@@ -191,6 +191,62 @@ function deleteSupplier(supplierId) {
   renderTarjetero();
 }
 
+// Background sync listener for offline-first architecture
+window.addEventListener('online', () => {
+  console.log('🌐 Conexión restablecida. Sincronizando proveedores pendientes con Firebase...');
+  syncPendingSuppliersToFirebase();
+});
+
+async function syncPendingSuppliersToFirebase() {
+  if (!fbDb || !navigator.onLine) return;
+
+  const pending = localSuppliers.filter(s => s.syncState === 'pending');
+  if (pending.length === 0) return;
+
+  console.log(`🔄 Auto-sincronizando ${pending.length} proveedores pendientes a Firestore...`);
+
+  for (const supplier of pending) {
+    const cleanArticlesForFirestore = (supplier.articles || []).map(art => {
+      const artCopy = { ...art };
+      if (artCopy.photos && artCopy.photos.length > 0) {
+        artCopy.photos = artCopy.photos.slice(0, 2).map(p => {
+          return p.length > 150000 ? (p.substring(0, 50) + '...[truncated_for_cloud]') : p;
+        });
+      }
+      if (artCopy.voiceNoteUrl && artCopy.voiceNoteUrl.length > 250000) {
+        artCopy.voiceNoteUrl = artCopy.voiceNoteUrl.substring(0, 50) + '...[truncated_for_cloud]';
+      }
+      return artCopy;
+    });
+
+    const payload = {
+      id: supplier.id,
+      companyName: supplier.companyName || '',
+      companyNameChinese: supplier.companyNameChinese || '',
+      stand: supplier.stand || 'Stand s/d',
+      category: supplier.category || 'General',
+      contactName: supplier.contactName || 'Contacto',
+      weChat: supplier.weChat || '',
+      phone: supplier.phone || '+86',
+      email: supplier.email || '',
+      articles: cleanArticlesForFirestore,
+      createdAt: supplier.createdAt || new Date().toISOString()
+    };
+
+    try {
+      const docRef = await fbDb.collection('suppliers').add(payload);
+      supplier.syncState = 'synced';
+      supplier.firestoreId = docRef.id;
+      console.log(`🟢 Proveedor ${supplier.companyName} sincronizado en Firestore:`, docRef.id);
+    } catch (err) {
+      console.error(`❌ Error al auto-sincronizar ${supplier.companyName}:`, err);
+    }
+  }
+
+  saveLocalSuppliers();
+  renderTarjetero();
+}
+
 // Initialize PWA Service Worker
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('./sw.js').catch(err => console.log('SW reg error', err));
@@ -205,7 +261,10 @@ document.addEventListener('DOMContentLoaded', () => {
   calculateTab1();
   renderTab2List();
   renderTarjetero();
-  setTimeout(() => loadFlexxusCsvDatabase(), 100);
+  setTimeout(() => {
+    loadFlexxusCsvDatabase();
+    syncPendingSuppliersToFirebase();
+  }, 100);
 });
 
 function initFirestoreSuppliersListener() {
@@ -955,13 +1014,17 @@ function renderTarjetero() {
     const cleanPhone = (sup.phone || '').replace(/[^0-9]/g, '');
     const waLink = `https://wa.me/${cleanPhone}?text=Hola%20${encodeURIComponent(sup.contactName || 'contacto')},%20te%20contacto%20desde%20Perren%20%26%20C%C3%ADa.%20por%20la%20Feria%20de%20Cant%C3%B3n`;
     const articles = sup.articles || [];
+    const isSynced = sup.syncState === 'synced' || sup.firestoreId;
+    const syncBadge = isSynced 
+      ? `<span style="font-size: 9px; background: #E8F5E9; color: #2E7D32; padding: 2px 6px; border-radius: 4px; border: 1px solid #C8E6C9; margin-left: 6px;">🟢 Nube (Firebase)</span>` 
+      : `<span style="font-size: 9px; background: #FFF3E0; color: #E65100; padding: 2px 6px; border-radius: 4px; border: 1px solid #FFE0B2; margin-left: 6px;">📱 Local (IndexedDB)</span>`;
 
     return `
       <div class="card" style="border-left: 4px solid #25D366; margin-bottom: 12px;">
         <div style="display: flex; justify-content: space-between; align-items: flex-start;">
           <div>
-            <strong style="font-size: 14px; color: var(--primary-color);">${sup.companyName}</strong>
-            ${sup.companyNameChinese ? `<div style="font-size: 11px; color: var(--secondary-color); font-weight: bold;">🇨🇳 ${sup.companyNameChinese}</div>` : ''}
+            <strong style="font-size: 14px; color: var(--primary-color);">${sup.companyName}</strong> ${syncBadge}
+            ${sup.companyNameChinese ? `<div style="font-size: 11px; color: var(--secondary-color); font-weight: bold; margin-top: 2px;">🇨🇳 ${sup.companyNameChinese}</div>` : ''}
             
             <div style="font-size: 10.5px; color: var(--text-muted); margin-top: 4px;">
               📍 <strong>Stand:</strong> ${sup.stand || 's/d'} • 🏷️ <strong>Rubro:</strong> ${sup.category || 'General'}
@@ -1583,21 +1646,8 @@ async function saveSupplierFromForm() {
     return;
   }
 
-  const cleanArticlesForFirestore = currentSupplierArticles.map(art => {
-    const artCopy = { ...art };
-    if (artCopy.photos && artCopy.photos.length > 0) {
-      artCopy.photos = artCopy.photos.slice(0, 2).map(p => {
-        return p.length > 150000 ? (p.substring(0, 50) + '...[truncated_for_cloud]') : p;
-      });
-    }
-    if (artCopy.voiceNoteUrl && artCopy.voiceNoteUrl.length > 250000) {
-      artCopy.voiceNoteUrl = artCopy.voiceNoteUrl.substring(0, 50) + '...[truncated_for_cloud]';
-    }
-    return artCopy;
-  });
-
   const supplierData = {
-    id: 'SUP-' + (localSuppliers.length + 1),
+    id: 'SUP-' + Date.now(),
     companyName: name,
     companyNameChinese: companyChinese || '',
     stand: stand || 'Stand s/d',
@@ -1607,31 +1657,15 @@ async function saveSupplierFromForm() {
     phone: phone || '+86',
     email: email || '',
     articles: [...currentSupplierArticles],
+    syncState: 'pending',
     createdAt: new Date().toISOString()
   };
 
-  const firestoreSupplierData = {
-    ...supplierData,
-    articles: cleanArticlesForFirestore
-  };
-
+  // 1. PASO PRIMARIO: GUARDADO LOCAL INMEDIATO (IndexedDB / LocalStorage)
   localSuppliers.unshift(supplierData);
   saveLocalSuppliers();
 
-  let syncSuccess = false;
-  let syncError = '';
-
-  if (fbDb) {
-    try {
-      const docRef = await fbDb.collection('suppliers').add(firestoreSupplierData);
-      console.log('🟢 Sync exitosa con Firebase Firestore (perrenycia-crm):', docRef.id);
-      syncSuccess = true;
-    } catch (err) {
-      console.error('Firestore sync error:', err);
-      syncError = err.message;
-    }
-  }
-
+  // Limpiar campos del formulario
   document.getElementById('pCompany').value = '';
   document.getElementById('pCompanyChinese').value = '';
   document.getElementById('pStand').value = '';
@@ -1654,15 +1688,11 @@ async function saveSupplierFromForm() {
   if (lblSuppliers) lblSuppliers.textContent = localSuppliers.length;
   renderTarjetero();
 
-  if (syncSuccess) {
-    alert('✅ Proveedor guardado correctamente en Firebase Cloud (perrenycia-crm) y local!');
-  } else if (syncError) {
-    alert('⚠️ Guardado en memoria local de la app. Notificación de Firebase: ' + syncError);
-  } else {
-    alert('✅ Proveedor guardado localmente!');
-  }
-
+  alert('💾 Guardado primero en la base local (IndexedDB) con éxito. Iniciando sincronización en la nube...');
   switchMainSection('tarjetero');
+
+  // 2. PASO SECUNDARIO: SINCRONIZACIÓN CON FIRESTORE CLOUD
+  await syncPendingSuppliersToFirebase();
 }
 
 // MODAL Y BÚSQUEDA EN PERREN (SQL)
