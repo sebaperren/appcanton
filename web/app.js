@@ -1351,12 +1351,26 @@ function renderPerrenSearchResults() {
   if (!container) return;
 
   const query = (document.getElementById('perrenSearchInput')?.value || '').toLowerCase().trim();
+
+  if (!query) {
+    container.innerHTML = `
+      <div style="text-align: center; font-size: 11px; color: var(--text-muted); padding: 20px;">
+        🔍 Escribe un término en el buscador arriba (SKU, descripción o marca) para consultar la base SQL de Perren (${perrenSqlDatabase.length.toLocaleString('es-AR')} artículos).
+      </div>
+    `;
+    return;
+  }
+
   const filtered = perrenSqlDatabase.filter(i => 
-    !query || 
     (i.sku && i.sku.toLowerCase().includes(query)) || 
     (i.description && i.description.toLowerCase().includes(query)) || 
     (i.brand && i.brand.toLowerCase().includes(query))
   );
+
+  if (filtered.length === 0) {
+    container.innerHTML = `<div style="text-align: center; font-size: 11px; color: var(--text-muted); padding: 15px;">No se encontraron artículos en la base para "${query}"</div>`;
+    return;
+  }
 
   const display = filtered.slice(0, 30);
 
@@ -1411,6 +1425,31 @@ function openCantonSelectModal() {
 function closeCantonSelectModal() {
   const modal = document.getElementById('modalCantonSelect');
   if (modal) modal.classList.remove('open');
+}
+
+function selectQuickCantonArticle() {
+  const name = document.getElementById('mCantonQuickName')?.value || 'Producto Cotizado Cantón';
+  const fob = parseFloat(document.getElementById('mCantonQuickFob')?.value) || 0;
+  const moq = parseInt(document.getElementById('mCantonQuickMoq')?.value) || 1;
+
+  if (fob <= 0) {
+    alert('Por favor ingresa un precio FOB válido en USD');
+    return;
+  }
+
+  selectedCantonItem = {
+    code: 'ART-QUICK-' + Date.now(),
+    name: name,
+    supplier: 'Cotización Directa',
+    fob: fob,
+    moq: moq,
+    port: 'Foshan, China',
+    weightKg: 3.2
+  };
+
+  closeCantonSelectModal();
+  renderSelectedCantonCard();
+  renderComparisonResult();
 }
 
 function renderCantonSelectResults() {
