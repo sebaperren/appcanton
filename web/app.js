@@ -1378,18 +1378,129 @@ function selectPerrenFromModal(sku) {
   renderComparisonResult();
 }
 
+function getAllCantonArticles() {
+  const list = [];
+  savedArticles.forEach((sa, idx) => {
+    list.push({ ...sa, source: 'saved', index: idx });
+  });
+  localSuppliers.forEach(sup => {
+    (sup.articles || []).forEach((art, aIdx) => {
+      list.push({
+        code: art.code || ('ART-CN-' + aIdx),
+        name: art.name || art.description || 'Artículo Cotizado',
+        supplier: sup.companyName || 'Proveedor Cantón',
+        fob: parseFloat(art.fob) || 0,
+        moq: parseInt(art.moq) || 1,
+        port: art.port || 'Foshan, China',
+        weightKg: parseFloat(art.weightKg) || 3.2,
+        source: 'supplier'
+      });
+    });
+  });
+  return list;
+}
+
+function openCantonSelectModal() {
+  const modal = document.getElementById('modalCantonSelect');
+  if (modal) {
+    modal.classList.add('open');
+    renderCantonSelectResults();
+  }
+}
+
+function closeCantonSelectModal() {
+  const modal = document.getElementById('modalCantonSelect');
+  if (modal) modal.classList.remove('open');
+}
+
+function renderCantonSelectResults() {
+  const container = document.getElementById('cantonSelectSearchResults');
+  if (!container) return;
+
+  const query = (document.getElementById('cantonSelectSearchInput')?.value || '').toLowerCase().trim();
+  const allArticles = getAllCantonArticles();
+
+  const filtered = allArticles.filter(art => 
+    !query || 
+    (art.name && art.name.toLowerCase().includes(query)) ||
+    (art.code && art.code.toLowerCase().includes(query)) ||
+    (art.supplier && art.supplier.toLowerCase().includes(query)) ||
+    (art.port && art.port.toLowerCase().includes(query))
+  );
+
+  if (filtered.length === 0) {
+    container.innerHTML = `<div style="text-align: center; font-size: 11px; color: var(--text-muted); padding: 15px;">No hay artículos cotizados en Cantón aún. Puedes cargar más en la pestaña <strong>"+ Proveedor"</strong>.</div>`;
+    return;
+  }
+
+  container.innerHTML = filtered.map((item, idx) => `
+    <div style="padding: 10px; border-bottom: 1px solid #EEE; display: flex; justify-content: space-between; align-items: center;">
+      <div>
+        <strong style="font-size: 11.5px; color: var(--primary-color);">${item.name}</strong>
+        <div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">
+          Fábrica: <strong>${item.supplier}</strong> • FOB: <strong>$${item.fob.toFixed(2)} USD</strong> • MOQ: ${item.moq} u. • Puerto: ${item.port}
+        </div>
+      </div>
+      <button class="btn-chip" onclick="selectCantonItemFromIndex(${idx})" style="background: var(--accent-color); color: white; border: none; padding: 4px 8px;">Seleccionar</button>
+    </div>
+  `).join('');
+}
+
+function selectCantonItemFromIndex(index) {
+  const allArticles = getAllCantonArticles();
+  if (allArticles[index]) {
+    selectedCantonItem = allArticles[index];
+    renderSelectedCantonCard();
+    renderComparisonResult();
+  }
+  closeCantonSelectModal();
+}
+
+function renderSelectedCantonCard() {
+  const container = document.getElementById('selectedCantonCard');
+  if (!container) return;
+
+  if (!selectedCantonItem) {
+    container.innerHTML = `
+      <div style="font-size: 11px; color: var(--text-muted); font-style: italic;">
+        Haz clic en "📦 Elegir Artículo Cotizado" para seleccionar un producto de Cantón.
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = `
+    <div style="background-color: #E8F5E9; padding: 10px; border-radius: 8px; border-left: 4px solid var(--accent-color);">
+      <div style="font-size: 10px; color: var(--accent-color); font-weight: bold;">🇨🇳 ARTÍCULO SELECCIONADO CANTÓN (CHINA):</div>
+      <strong style="font-size: 12px; color: var(--primary-color);">${selectedCantonItem.name}</strong>
+      <div style="font-size: 10.5px; margin-top: 4px;">
+        Fábrica: <strong>${selectedCantonItem.supplier || 'Proveedor Cantón'}</strong> • FOB: <strong>$${selectedCantonItem.fob.toFixed(2)} USD</strong> • MOQ: <strong>${selectedCantonItem.moq} u.</strong> • Puerto: <strong>${selectedCantonItem.port || 'China'}</strong>
+      </div>
+    </div>
+  `;
+}
+
 function renderSelectedPerrenCard() {
   const container = document.getElementById('selectedPerrenCard');
-  if (!container || !selectedPerrenItem) return;
+  if (!container) return;
+
+  if (!selectedPerrenItem) {
+    container.innerHTML = `
+      <div style="font-size: 11px; color: var(--text-muted); font-style: italic;">
+        Haz clic en "📂 Buscar en Base SQL" para elegir un artículo de Perren.
+      </div>
+    `;
+    return;
+  }
 
   const costUSD = selectedPerrenItem.costNoVAT / stateSettings.tc;
 
   container.innerHTML = `
     <div style="background-color: #FFEBEE; padding: 10px; border-radius: 8px; border-left: 4px solid #D32F2F;">
-      <div style="font-size: 10px; color: #D32F2F; font-weight: bold;">🇦🇷 ARTÍCULO SELECCIONADO PERREN FLEXXUS:</div>
-      <strong style="font-size: 12px;">${selectedPerrenItem.description}</strong>
+      <div style="font-size: 10px; color: #D32F2F; font-weight: bold;">🇦🇷 ARTÍCULO SELECCIONADO PERREN FLEXXUS (ARGENTINA):</div>
+      <strong style="font-size: 12px; color: var(--primary-color);">${selectedPerrenItem.description}</strong>
       <div style="font-size: 10.5px; margin-top: 4px;">
-        Costo Neto (Sin IVA): <strong>$${selectedPerrenItem.costNoVAT.toLocaleString('es-AR')} ARS</strong> (${formatMoney(costUSD)})
+        SKU: <strong>${selectedPerrenItem.sku}</strong> • Marca: <strong>${selectedPerrenItem.brand || 'Varios'}</strong> • Costo Neto: <strong>$${selectedPerrenItem.costNoVAT.toLocaleString('es-AR')} ARS</strong> (${formatMoney(costUSD)})
       </div>
     </div>
   `;
@@ -1399,39 +1510,112 @@ function renderComparisonResult() {
   const container = document.getElementById('comparisonResultCard');
   if (!container) return;
 
-  const chinaItem = selectedCantonItem || savedArticles[1];
-  const perrenItem = selectedPerrenItem || perrenSqlDatabase[0];
-
-  const chinaLandedUSD = chinaItem.fob * 1.58;
-  const perrenCostUSD = perrenItem.costNoVAT / stateSettings.tc;
-
-  const diffUSD = perrenCostUSD - chinaLandedUSD;
-  const diffPct = ((diffUSD / perrenCostUSD) * 100).toFixed(1);
-  const containerProfitUSD = diffUSD * (chinaItem.moq || 300);
+  if (!selectedPerrenItem && !selectedCantonItem) {
+    container.style.display = 'none';
+    return;
+  }
 
   container.style.display = 'block';
-  container.innerHTML = `
-    <h3 style="font-size: 13px; color: var(--primary-color); margin-bottom: 8px;">⚡ RESULTADO COMPARATIVO</h3>
-    
-    <div class="row-2">
-      <div style="background: #FFEBEE; padding: 8px; border-radius: 6px; font-size: 10px;">
-        <strong>🇦🇷 Perren Argentina:</strong><br>
-        Costo Neto: ${formatMoney(perrenCostUSD)}
+
+  if (!selectedPerrenItem || !selectedCantonItem) {
+    container.innerHTML = `
+      <div style="text-align: center; font-size: 11px; color: var(--text-muted); padding: 12px;">
+        💡 Selecciona ambos artículos arriba (1 de Perren Argentina y 1 de Cantón China) para ver el desglose transparente de costos y el ahorro directo.
       </div>
-      <div style="background: #E8F5E9; padding: 8px; border-radius: 6px; font-size: 10px;">
-        <strong>🇨🇳 Canton Landed:</strong><br>
-        Costo Puesto: ${formatMoney(chinaLandedUSD)}
+    `;
+    return;
+  }
+
+  // Cálculo completo transparente de costos de Cantón (China)
+  const cantonBreakdown = calculateLandedBreakdown(
+    selectedCantonItem.fob, 
+    selectedCantonItem.moq || 2000, 
+    selectedCantonItem.weightKg || 3.2
+  );
+
+  const cantonLandedUnitUSD = cantonBreakdown.costoIncididoUnit;
+  const perrenCostUSD = selectedPerrenItem.costNoVAT / stateSettings.tc;
+  const perrenCostARS = selectedPerrenItem.costNoVAT;
+
+  const diffUSD = perrenCostUSD - cantonLandedUnitUSD;
+  const diffPct = perrenCostUSD > 0 ? ((diffUSD / perrenCostUSD) * 100).toFixed(1) : '0';
+  const totalShipmentQty = selectedCantonItem.moq || 1;
+  const totalProfitUSD = diffUSD * totalShipmentQty;
+
+  container.innerHTML = `
+    <h3 style="font-size: 13px; color: var(--primary-color); margin-bottom: 10px;">⚡ ANÁLISIS COMPARATIVO DETALLADO DE COSTOS</h3>
+
+    <!-- Resumen Comparativo de Costos Unitarios -->
+    <div class="row-2" style="margin-bottom: 12px;">
+      <div style="background: #FFEBEE; padding: 10px; border-radius: 8px; border-left: 4px solid #D32F2F;">
+        <strong style="font-size: 11px; color: #D32F2F;">🇦🇷 COSTO NETO PERREN (ARGENTINA):</strong>
+        <div style="font-size: 16px; font-weight: bold; color: #D32F2F; margin-top: 2px;">
+          ${formatMoney(perrenCostUSD)}
+        </div>
+        <div style="font-size: 9.5px; color: #666;">
+          $${perrenCostARS.toLocaleString('es-AR', { minimumFractionDigits: 2 })} ARS (Sin IVA)
+        </div>
+      </div>
+
+      <div style="background: #E8F5E9; padding: 10px; border-radius: 8px; border-left: 4px solid var(--accent-color);">
+        <strong style="font-size: 11px; color: var(--accent-color);">🇨🇳 COSTO LANDED CANTÓN (CHINA):</strong>
+        <div style="font-size: 16px; font-weight: bold; color: var(--accent-color); margin-top: 2px;">
+          ${formatMoney(cantonLandedUnitUSD)}
+        </div>
+        <div style="font-size: 9.5px; color: #666;">
+          Puesto en Depósito (Incluye Flete, Seguro, Arancel y Despacho)
+        </div>
       </div>
     </div>
 
-    <div style="margin-top: 10px; background: #E3F2FD; padding: 10px; border-radius: 8px; text-align: center;">
-      <div style="font-size: 11px; color: var(--secondary-color); font-weight: bold;">🎯 AHORRO DIRECTO ESTIMADO:</div>
-      <div style="font-size: 20px; font-weight: bold; color: var(--accent-color); margin: 2px 0;">
-        +${diffPct}% (${formatMoney(diffUSD)} / u.)
+    <!-- Indicador de Ahorro y Ganancia -->
+    <div style="background: linear-gradient(135deg, #1565C0 0%, #0D47A1 100%); color: white; padding: 12px; border-radius: 8px; text-align: center; margin-bottom: 15px;">
+      <div style="font-size: 11px; opacity: 0.9; text-transform: uppercase; letter-spacing: 0.5px;">🎯 AHORRO DIRECTO ESTIMADO:</div>
+      <div style="font-size: 24px; font-weight: bold; margin: 4px 0; color: #69F0AE;">
+        +${diffPct}% (${formatMoney(diffUSD)} / unidad)
       </div>
-      <div style="font-size: 10px; color: var(--text-muted);">
-        Ganancia estimada por embarque (${chinaItem.moq} u.): <strong style="color: var(--accent-color);">${formatMoney(containerProfitUSD)}</strong>
+      <div style="font-size: 11px; opacity: 0.95;">
+        Ganancia estimada por embarque de <strong>${totalShipmentQty.toLocaleString()} u.</strong>: 
+        <strong style="color: #FFD54F; font-size: 13px;">${formatMoney(totalProfitUSD)}</strong>
       </div>
+    </div>
+
+    <!-- Desglose Paso a Paso de Costos de China (Explicación transparente) -->
+    <div style="margin-top: 10px;">
+      <h4 style="font-size: 12px; color: var(--primary-color); margin-bottom: 4px;">
+        📊 DESGLOSE PASO A PASO CÓMO SE CALCULA EL COSTO LANDED DE CANTÓN:
+      </h4>
+      <p style="font-size: 10px; color: var(--text-muted); margin-bottom: 8px;">
+        Cálculo basado en FOB $${selectedCantonItem.fob.toFixed(2)} USD, MOQ ${totalShipmentQty} u., peso ${(selectedCantonItem.weightKg || 3.2)} kg y Dólar TC $${stateSettings.tc.toLocaleString('es-AR')} ARS:
+      </p>
+
+      <table class="breakdown-table" style="width: 100%;">
+        <thead>
+          <tr>
+            <th>CONCEPTO TRIBUTARIO / LOGÍSTICO</th>
+            <th>%</th>
+            <th style="text-align: right;">UNITARIO</th>
+            <th style="text-align: right;">TOTAL EMBARQUE (${totalShipmentQty} u.)</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${cantonBreakdown.rows.map(r => {
+            let cls = '';
+            if (r.isHeader) cls = 'class="header-row"';
+            else if (r.isTotal) cls = 'class="total-row"';
+            else if (r.isIncidido) cls = 'class="costo-incidido"';
+
+            return `
+              <tr ${cls}>
+                <td>${r.name}</td>
+                <td>-</td>
+                <td style="text-align: right;">${formatMoney(r.unit)}</td>
+                <td style="text-align: right;">${formatMoney(r.total)}</td>
+              </tr>
+            `;
+          }).join('')}
+        </tbody>
+      </table>
     </div>
   `;
 }

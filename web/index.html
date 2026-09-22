@@ -378,12 +378,34 @@
 
         <!-- TAB 3: COMPARADOR EN VIVO -->
         <div id="tab3Content" style="display: none;">
-          <div class="card">
-            <h3 style="font-size: 12px; color: var(--primary-color); margin-bottom: 8px;">🔍 SELECCIONAR ARTÍCULO FLEXXUS BI DE PERREN</h3>
-            <button class="btn-primary" onclick="openPerrenModal()">📂 Abrir Buscador Perren (12.074 Artículos)</button>
-            <div id="selectedPerrenCard" style="margin-top: 10px;"></div>
+          
+          <!-- Selector 1: Artículo Perren Argentina -->
+          <div class="card" style="border-left: 4px solid #D32F2F;">
+            <div class="card-title">
+              <span>🇦🇷 1. SELECCIONAR ARTÍCULO FLEXXUS (PERREN)</span>
+              <button class="btn-primary" onclick="openPerrenModal()" style="font-size: 11px; padding: 6px 10px;">📂 Buscar en Base SQL (12.074)</button>
+            </div>
+            <div id="selectedPerrenCard" style="margin-top: 8px;">
+              <div style="font-size: 11px; color: var(--text-muted); font-style: italic;">
+                Haz clic en "📂 Buscar en Base SQL" para elegir un artículo del catálogo de Perren.
+              </div>
+            </div>
           </div>
 
+          <!-- Selector 2: Artículo Cantón China -->
+          <div class="card" style="border-left: 4px solid var(--secondary-color);">
+            <div class="card-title">
+              <span>🇨🇳 2. SELECCIONAR ARTÍCULO DE CANTÓN (CHINA)</span>
+              <button class="btn-success" onclick="openCantonSelectModal()" style="font-size: 11px; padding: 6px 10px;">📦 Elegir Artículo Cotizado</button>
+            </div>
+            <div id="selectedCantonCard" style="margin-top: 8px;">
+              <div style="font-size: 11px; color: var(--text-muted); font-style: italic;">
+                Haz clic en "📦 Elegir Artículo Cotizado" o cotiza un producto en "+ Proveedor".
+              </div>
+            </div>
+          </div>
+
+          <!-- Resultado y Desglose Detallado Completo paso a paso -->
           <div class="card" id="comparisonResultCard" style="display: none;"></div>
         </div>
       </section>
@@ -579,6 +601,20 @@
         </div>
 
         <button class="btn-success" onclick="saveArticleFromModal()" style="margin-top: 10px;">💾 AGREGAR ARTÍCULO AL PROVEEDOR</button>
+      </div>
+    </div>
+
+    <!-- MODAL SELECCIONAR ARTÍCULO CANTÓN PARA COMPARADOR -->
+    <div class="modal" id="modalCantonSelect">
+      <div class="modal-content">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+          <h3 style="font-size: 13px; color: var(--secondary-color);">🇨🇳 SELECCIONAR ARTÍCULO COTIZADO DE CANTÓN</h3>
+          <button style="background: none; border: none; font-size: 16px; cursor: pointer;" onclick="closeCantonSelectModal()">✖️</button>
+        </div>
+
+        <input type="text" id="cantonSelectSearchInput" class="form-control" placeholder="Buscar por producto, proveedor o puerto..." oninput="renderCantonSelectResults()">
+        
+        <div id="cantonSelectSearchResults" style="margin-top: 10px; max-height: 300px; overflow-y: auto;"></div>
       </div>
     </div>
 
