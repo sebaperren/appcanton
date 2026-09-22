@@ -715,20 +715,29 @@ function calculateLandedBreakdown(fobUSD, qty, weightKg) {
     costoIncididoTotal,
     desembolsoTotalUnit,
     desembolsoTotalTotal,
+  return {
+    fobUSD,
+    qty,
+    weightKg,
+    totalWeightKg,
+    costoIncididoUnit,
+    costoIncididoTotal,
+    desembolsoTotalUnit,
+    desembolsoTotalTotal,
     rows: [
-      { name: '1. PRECIO FOB (China)', unit: fobUSD, total: fobTotal, isHeader: true },
-      { name: '2. Flete Marítimo (40\' Contenedor)', unit: stateSettings.incFlete ? freightUSDUnit : 0, total: stateSettings.incFlete ? freightUSDTotal : 0 },
-      { name: '3. Seguro Internacional (' + stateSettings.seguroPct + '%)', unit: seguroUnit, total: seguroTotal },
-      { name: 'VALOR CIF PUERTO AR', unit: cifUnit, total: cifTotal, isHeader: true },
-      { name: '4. Arancel Aduanero NCM (' + stateSettings.arancelPct + '%)', unit: arancelUnit, total: arancelTotal },
-      { name: '5. Tasa Estadística (' + stateSettings.tasaEstadPct + '%)', unit: tasaEstadUnit, total: tasaEstadTotal },
-      { name: '6. IVA General (' + stateSettings.ivaPct + '%)', unit: ivaUnit, total: ivaTotal },
-      { name: '7. IVA Adicional (' + stateSettings.ivaAdicPct + '%)', unit: ivaAdicUnit, total: ivaAdicTotal },
-      { name: '8. Percepción Ganancias (' + stateSettings.gananciasPct + '%)', unit: gananciasUnit, total: gananciasTotal },
-      { name: '9. Percepción II.BB. (' + stateSettings.iibbPct + '%)', unit: iibbUnit, total: iibbTotal },
-      { name: '10. Despachante & Gastos (' + stateSettings.despachantePct + '%)', unit: despachanteUnit, total: despachanteTotal },
-      { name: '💰 TOTAL DESEMBOLSO INICIAL', unit: desembolsoTotalUnit, total: desembolsoTotalTotal, isTotal: true },
-      { name: '🟢 COSTO INCIDIDO NETO DEPOSITO', unit: costoIncididoUnit, total: costoIncididoTotal, isIncidido: true }
+      { key: null, name: '1. PRECIO FOB (China)', unit: fobUSD, total: fobTotal, isHeader: true },
+      { key: 'incFlete', name: '2. Flete Marítimo (40\' Contenedor)', unit: stateSettings.incFlete ? freightUSDUnit : 0, total: stateSettings.incFlete ? freightUSDTotal : 0, isInc: stateSettings.incFlete },
+      { key: 'incSeguro', name: '3. Seguro Internacional (' + stateSettings.seguroPct + '%)', unit: seguroUnit, total: seguroTotal, isInc: stateSettings.incSeguro },
+      { key: null, name: 'VALOR CIF PUERTO AR', unit: cifUnit, total: cifTotal, isHeader: true },
+      { key: 'incArancel', name: '4. Arancel Aduanero NCM (' + stateSettings.arancelPct + '%)', unit: arancelUnit, total: arancelTotal, isInc: stateSettings.incArancel },
+      { key: 'incTasaEstad', name: '5. Tasa Estadística (' + stateSettings.tasaEstadPct + '%)', unit: tasaEstadUnit, total: tasaEstadTotal, isInc: stateSettings.incTasaEstad },
+      { key: 'incIVA', name: '6. IVA General (' + stateSettings.ivaPct + '%)', unit: ivaUnit, total: ivaTotal, isInc: stateSettings.incIVA },
+      { key: 'incIVAAdic', name: '7. IVA Adicional (' + stateSettings.ivaAdicPct + '%)', unit: ivaAdicUnit, total: ivaAdicTotal, isInc: stateSettings.incIVAAdic },
+      { key: 'incGanancias', name: '8. Percepción Ganancias (' + stateSettings.gananciasPct + '%)', unit: gananciasUnit, total: gananciasTotal, isInc: stateSettings.incGanancias },
+      { key: 'incIIBB', name: '9. Percepción II.BB. (' + stateSettings.iibbPct + '%)', unit: iibbUnit, total: iibbTotal, isInc: stateSettings.incIIBB },
+      { key: 'incDespachante', name: '10. Despachante & Gastos (' + stateSettings.despachantePct + '%)', unit: despachanteUnit, total: despachanteTotal, isInc: stateSettings.incDespachante },
+      { key: null, name: '💰 TOTAL DESEMBOLSO INICIAL', unit: desembolsoTotalUnit, total: desembolsoTotalTotal, isTotal: true },
+      { key: null, name: '🟢 COSTO INCIDIDO NETO DEPOSITO', unit: costoIncididoUnit, total: costoIncididoTotal, isIncidido: true }
     ]
   };
 }
@@ -752,25 +761,41 @@ function calculateTab1() {
   renderBreakdownTable(res.rows);
 }
 
-function renderBreakdownTable(rows) {
-  const tbody = document.getElementById('tblBreakdownBody');
-  if (!tbody) return;
-
-  tbody.innerHTML = rows.map(r => {
+function renderBreakdownRowsHtml(rows) {
+  return rows.map(r => {
     let cls = '';
     if (r.isHeader) cls = 'class="header-row"';
     else if (r.isTotal) cls = 'class="total-row"';
     else if (r.isIncidido) cls = 'class="costo-incidido"';
 
+    const hasKey = !!r.key;
+    const isInc = r.isInc;
+    const titleStyle = (hasKey && !isInc) ? 'text-decoration: line-through; opacity: 0.5;' : '';
+    const valStyle = (hasKey && !isInc) ? 'text-decoration: line-through; opacity: 0.5; color: #999;' : '';
+
+    const checkboxHtml = hasKey ? `
+      <input type="checkbox" ${isInc ? 'checked' : ''} 
+             onclick="event.stopPropagation(); toggleInc('${r.key}')" 
+             style="margin-right: 6px; cursor: pointer; transform: scale(1.15);">
+    ` : '';
+
     return `
-      <tr ${cls}>
-        <td>${r.name}</td>
-        <td>-</td>
-        <td style="text-align: right;">${formatMoney(r.unit)}</td>
-        <td style="text-align: right;">${formatMoney(r.total)}</td>
+      <tr ${cls} ${hasKey ? `onclick="toggleInc('${r.key}')" style="cursor: pointer;"` : ''}>
+        <td style="${titleStyle}">
+          ${checkboxHtml}${r.name}
+        </td>
+        <td style="text-align: center;">${hasKey ? (isInc ? '✔' : '✖') : '-'}</td>
+        <td style="text-align: right; ${valStyle}">${formatMoney(r.unit)}</td>
+        <td style="text-align: right; ${valStyle}">${formatMoney(r.total)}</td>
       </tr>
     `;
   }).join('');
+}
+
+function renderBreakdownTable(rows) {
+  const tbody = document.getElementById('tblBreakdownBody');
+  if (!tbody) return;
+  tbody.innerHTML = renderBreakdownRowsHtml(rows);
 }
 
 // TAB 2: COTIZACIONES GUARDADAS CON EDICIÓN DE CAMPOS Y TABLA LANDED COMPLETA
@@ -797,7 +822,7 @@ function renderTab2List() {
           <div>
             <strong style="font-size: 13px; color: var(--primary-color);">${art.name}</strong>
             <div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">
-              Fábrica: <strong>${art.supplier || 'Feria Cantón'}</strong> • MOQ: ${art.moq} u. • ${art.port || 'China'}
+              Fábrica: <strong>${art.supplier || 'Feria Cantón'}</strong> • MOQ: <strong>${art.moq} u.</strong> • Puerto: <strong>${art.port || 'China'}</strong> • Peso: <strong>${weightVal} kg</strong>
             </div>
           </div>
           <div class="fob-tag" style="background: #E3F2FD; color: var(--secondary-color); font-weight: bold; padding: 4px 8px; border-radius: 6px; font-size: 11px;">
@@ -808,70 +833,47 @@ function renderTab2List() {
         <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px; font-size: 11px; background: #E8F5E9; padding: 8px; border-radius: 6px;">
           <div>Costo Landed Est: <strong style="color: var(--accent-color); font-size: 12.5px;">${formatMoney(breakdown.costoIncididoUnit)}</strong> / u.</div>
           <button class="btn-chip" onclick="toggleCardExpand(${index})" style="background: var(--primary-color); color: white; border: none; padding: 4px 8px;">
-            ${isExpanded ? '▲ Ocultar Editar / Desglose' : '▼ Editar Datos / Ver Desglose Landed'}
+            ${isExpanded ? '▲ Ocultar Desglose' : '📊 Ver Desglose y Tildar Impuestos'}
           </button>
         </div>
 
         ${isExpanded ? `
           <div style="margin-top: 12px; padding-top: 10px; border-top: 1px dashed #CCC;">
             
-            <strong style="font-size: 11px; color: var(--primary-color);">✏️ EDITAR PARÁMETROS DEL ARTÍCULO GUARDADO</strong>
-            
-            <div class="row-2" style="margin-top: 6px;">
-              <div class="form-group">
-                <label style="font-size: 10px;">Precio FOB Unitario (USD)</label>
-                <input type="number" step="0.01" value="${art.fob}" onchange="updateSavedArticleField(${index}, 'fob', this.value)" class="form-control" style="font-size: 11px;">
-              </div>
-              <div class="form-group">
-                <label style="font-size: 10px;">Cantidad / MOQ (Unidades)</label>
-                <input type="number" value="${art.moq}" onchange="updateSavedArticleField(${index}, 'moq', this.value)" class="form-control" style="font-size: 11px;">
-              </div>
+            <div style="font-size: 10px; color: var(--text-muted); margin-bottom: 6px;">
+              💡 Haz clic en los casilleros ☑️ de la tabla o en los botones para incluir o excluir impuestos del cálculo:
             </div>
 
-            <div class="row-2">
-              <div class="form-group">
-                <label style="font-size: 10px;">Peso Unitario (kg)</label>
-                <input type="number" step="0.1" value="${weightVal}" onchange="updateSavedArticleField(${index}, 'weightKg', this.value)" class="form-control" style="font-size: 11px;">
-              </div>
-              <div class="form-group">
-                <label style="font-size: 10px;">Puerto de Origen</label>
-                <input type="text" value="${art.port || 'Foshan, China'}" onchange="updateSavedArticleField(${index}, 'port', this.value)" class="form-control" style="font-size: 11px;">
-              </div>
+            <!-- Botones Rápidos de Impuestos Tildables -->
+            <div style="display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px;">
+              <span class="btn-chip ${stateSettings.incArancel ? 'selected' : ''}" onclick="toggleInc('incArancel')" style="font-size: 10px; padding: 2px 6px;">${stateSettings.incArancel ? '☑️' : '☐'} Arancel (${stateSettings.arancelPct}%)</span>
+              <span class="btn-chip ${stateSettings.incTasaEstad ? 'selected' : ''}" onclick="toggleInc('incTasaEstad')" style="font-size: 10px; padding: 2px 6px;">${stateSettings.incTasaEstad ? '☑️' : '☐'} Tasa Estad. (${stateSettings.tasaEstadPct}%)</span>
+              <span class="btn-chip ${stateSettings.incIVA ? 'selected' : ''}" onclick="toggleInc('incIVA')" style="font-size: 10px; padding: 2px 6px;">${stateSettings.incIVA ? '☑️' : '☐'} IVA (${stateSettings.ivaPct}%)</span>
+              <span class="btn-chip ${stateSettings.incIVAAdic ? 'selected' : ''}" onclick="toggleInc('incIVAAdic')" style="font-size: 10px; padding: 2px 6px;">${stateSettings.incIVAAdic ? '☑️' : '☐'} IVA Adic. (${stateSettings.ivaAdicPct}%)</span>
+              <span class="btn-chip ${stateSettings.incGanancias ? 'selected' : ''}" onclick="toggleInc('incGanancias')" style="font-size: 10px; padding: 2px 6px;">${stateSettings.incGanancias ? '☑️' : '☐'} Ganancias (${stateSettings.gananciasPct}%)</span>
+              <span class="btn-chip ${stateSettings.incIIBB ? 'selected' : ''}" onclick="toggleInc('incIIBB')" style="font-size: 10px; padding: 2px 6px;">${stateSettings.incIIBB ? '☑️' : '☐'} II.BB. (${stateSettings.iibbPct}%)</span>
+              <span class="btn-chip ${stateSettings.incDespachante ? 'selected' : ''}" onclick="toggleInc('incDespachante')" style="font-size: 10px; padding: 2px 6px;">${stateSettings.incDespachante ? '☑️' : '☐'} Despachante (${stateSettings.despachantePct}%)</span>
             </div>
 
-            <!-- Tabla Desglose Completo Landed (Idéntica a Foto 1) -->
-            <div style="margin-top: 10px;">
+            <!-- Tabla Desglose Completo Landed con Checkboxes -->
+            <div style="margin-top: 6px;">
               <strong style="font-size: 11px; color: var(--primary-color);">📊 DESGLOSE DE COSTO LANDED PUESTO EN DEPOSITO</strong>
               <table class="breakdown-table" style="margin-top: 6px; width: 100%;">
                 <thead>
                   <tr>
                     <th>CONCEPTO TRIBUTARIO</th>
-                    <th>%</th>
+                    <th style="text-align: center;">ESTADO</th>
                     <th style="text-align: right;">UNITARIO</th>
                     <th style="text-align: right;">TOTAL EMBARQUE</th>
                   </tr>
                 </thead>
                 <tbody>
-                  ${breakdown.rows.map(r => {
-                    let cls = '';
-                    if (r.isHeader) cls = 'class="header-row"';
-                    else if (r.isTotal) cls = 'class="total-row"';
-                    else if (r.isIncidido) cls = 'class="costo-incidido"';
-
-                    return `
-                      <tr ${cls}>
-                        <td>${r.name}</td>
-                        <td>-</td>
-                        <td style="text-align: right;">${formatMoney(r.unit)}</td>
-                        <td style="text-align: right;">${formatMoney(r.total)}</td>
-                      </tr>
-                    `;
-                  }).join('')}
+                  ${renderBreakdownRowsHtml(breakdown.rows)}
                 </tbody>
               </table>
             </div>
 
-            <button class="btn-primary" style="margin-top: 10px; width: 100%;" onclick="selectCantonForCompare(${index})">⚡ Usar para Comparar vs Flexxus BI</button>
+            <button class="btn-primary" style="margin-top: 10px; width: 100%;" onclick="selectCantonForCompare(${index})">⚡ Usar en Calculadora vs Flexxus BI</button>
           </div>
         ` : ''}
       </div>
@@ -1978,40 +1980,37 @@ function renderComparisonResult() {
       </div>
     </div>
 
-    <!-- Desglose Paso a Paso de Costos de China (Explicación transparente) -->
+    <!-- Desglose Paso a Paso de Costos de China con Checkboxes de Impuestos -->
     <div style="margin-top: 10px;">
       <h4 style="font-size: 12px; color: var(--primary-color); margin-bottom: 4px;">
         📊 DESGLOSE PASO A PASO CÓMO SE CALCULA EL COSTO LANDED DE CANTÓN:
       </h4>
       <p style="font-size: 10px; color: var(--text-muted); margin-bottom: 8px;">
-        Cálculo basado en FOB $${selectedCantonItem.fob.toFixed(2)} USD, MOQ ${totalShipmentQty} u., peso ${(selectedCantonItem.weightKg || 3.2)} kg y Dólar TC $${stateSettings.tc.toLocaleString('es-AR')} ARS:
+        Cálculo basado en FOB $${selectedCantonItem.fob.toFixed(2)} USD, MOQ ${totalShipmentQty} u., peso ${(selectedCantonItem.weightKg || 3.2)} kg y Dólar TC $${stateSettings.tc.toLocaleString('es-AR')} ARS (Haz clic en ☑️ para incluir/excluir impuestos):
       </p>
+
+      <!-- Botones Rápidos de Impuestos Tildables -->
+      <div style="display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px;">
+        <span class="btn-chip ${stateSettings.incArancel ? 'selected' : ''}" onclick="toggleInc('incArancel')" style="font-size: 10px; padding: 2px 6px;">${stateSettings.incArancel ? '☑️' : '☐'} Arancel (${stateSettings.arancelPct}%)</span>
+        <span class="btn-chip ${stateSettings.incTasaEstad ? 'selected' : ''}" onclick="toggleInc('incTasaEstad')" style="font-size: 10px; padding: 2px 6px;">${stateSettings.incTasaEstad ? '☑️' : '☐'} Tasa Estad. (${stateSettings.tasaEstadPct}%)</span>
+        <span class="btn-chip ${stateSettings.incIVA ? 'selected' : ''}" onclick="toggleInc('incIVA')" style="font-size: 10px; padding: 2px 6px;">${stateSettings.incIVA ? '☑️' : '☐'} IVA (${stateSettings.ivaPct}%)</span>
+        <span class="btn-chip ${stateSettings.incIVAAdic ? 'selected' : ''}" onclick="toggleInc('incIVAAdic')" style="font-size: 10px; padding: 2px 6px;">${stateSettings.incIVAAdic ? '☑️' : '☐'} IVA Adic. (${stateSettings.ivaAdicPct}%)</span>
+        <span class="btn-chip ${stateSettings.incGanancias ? 'selected' : ''}" onclick="toggleInc('incGanancias')" style="font-size: 10px; padding: 2px 6px;">${stateSettings.incGanancias ? '☑️' : '☐'} Ganancias (${stateSettings.gananciasPct}%)</span>
+        <span class="btn-chip ${stateSettings.incIIBB ? 'selected' : ''}" onclick="toggleInc('incIIBB')" style="font-size: 10px; padding: 2px 6px;">${stateSettings.incIIBB ? '☑️' : '☐'} II.BB. (${stateSettings.iibbPct}%)</span>
+        <span class="btn-chip ${stateSettings.incDespachante ? 'selected' : ''}" onclick="toggleInc('incDespachante')" style="font-size: 10px; padding: 2px 6px;">${stateSettings.incDespachante ? '☑️' : '☐'} Despachante (${stateSettings.despachantePct}%)</span>
+      </div>
 
       <table class="breakdown-table" style="width: 100%;">
         <thead>
           <tr>
             <th>CONCEPTO TRIBUTARIO / LOGÍSTICO</th>
-            <th>%</th>
+            <th style="text-align: center;">ESTADO</th>
             <th style="text-align: right;">UNITARIO</th>
             <th style="text-align: right;">TOTAL EMBARQUE (${totalShipmentQty} u.)</th>
           </tr>
         </thead>
         <tbody>
-          ${cantonBreakdown.rows.map(r => {
-            let cls = '';
-            if (r.isHeader) cls = 'class="header-row"';
-            else if (r.isTotal) cls = 'class="total-row"';
-            else if (r.isIncidido) cls = 'class="costo-incidido"';
-
-            return `
-              <tr ${cls}>
-                <td>${r.name}</td>
-                <td>-</td>
-                <td style="text-align: right;">${formatMoney(r.unit)}</td>
-                <td style="text-align: right;">${formatMoney(r.total)}</td>
-              </tr>
-            `;
-          }).join('')}
+          ${renderBreakdownRowsHtml(cantonBreakdown.rows)}
         </tbody>
       </table>
     </div>
