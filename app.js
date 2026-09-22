@@ -51,48 +51,12 @@ let stateSettings = {
   incDespachante: true
 };
 
-// Base de Datos Perren Flexxus BI (Se carga desde articulos_flexxus_perren.csv - 12.074 artículos)
-let perrenSqlDatabase = [
-  { sku: 'CO1999', description: '* 25 KG* LOMA NEGRA CEMENTO COMPUESTO CPC40', brand: 'Loma Negra', category: 'Albañileria', subcategory: 'Morteros', costNoVAT: 3868.65, abcClass: 'A' },
-  { sku: 'CO0377', description: 'LADRILLO CERAMICO HUECO 18X18X33 6.20KG', brand: 'Ladrillo', category: 'Albañileria', subcategory: 'Ladrillos', costNoVAT: 370.99, abcClass: 'A' },
-  { sku: 'CO1123', description: 'HORMIGON ELABORADO H21', brand: 'Hormigon', category: 'Albañileria', subcategory: 'Hormigon', costNoVAT: 79834.22, abcClass: 'A' },
-  { sku: 'CO0187', description: 'HIERRO NERVADO CONSTRUCCION BARRA 10 MM', brand: 'Hierro', category: 'Siderurgia', subcategory: 'Hierros', costNoVAT: 8270.44, abcClass: 'A' },
-  { sku: 'AR0155', description: 'TERMOTANQUE SHERMAN 80 LTS BAJO CONSUMO', brand: 'Termotanque', category: 'Agua Caliente', subcategory: 'Termotanques', costNoVAT: 193225.02, abcClass: 'A' },
-  { sku: 'CO0338', description: 'KLAUKOL ADHESIVO IMPERMEABLE POTENCIADO X 25 KG', brand: 'Klaukol', category: 'Pisos Y Revestimientos', subcategory: 'Adhesivos', costNoVAT: 7451.90, abcClass: 'A' }
-];
+// Base de Datos Perren Flexxus BI (Se carga dinámicamente desde articulos_flexxus_perren.csv - 12.074 artículos)
+let perrenSqlDatabase = [];
 
-// Proveedores Guardados y Cotizaciones Chinas
-let localSuppliers = [
-  {
-    id: 'SUP-01',
-    companyName: 'Foshan Ceramics Co. Ltd',
-    stand: 'Hall 9.2 - Stand C14',
-    category: 'Cerámicos y Azulejos',
-    contactName: 'Jacky Zhang',
-    phone: '+86 138 0000 8888',
-    email: 'jacky@foshanceramics.cn',
-    articles: [
-      { code: 'ART-CN-101', name: 'Cerámico Foshan 60x60 Pulido', fob: 4.50, moq: 2000, port: 'Foshan', weightKg: 3.2 }
-    ]
-  },
-  {
-    id: 'SUP-02',
-    companyName: 'Zhejiang Sanitary Ware Co.',
-    stand: 'Hall 10.1 - Stand B23',
-    category: 'Sanitarios y Grifería',
-    contactName: 'Wei Chen',
-    phone: '+86 139 1111 2222',
-    email: 'sales@zjsanitary.cn',
-    articles: [
-      { code: 'ART-CN-204', name: 'Inodoro Rimless Monobloc Foshan', fob: 38.00, moq: 300, port: 'Ningbo', weightKg: 28.5 }
-    ]
-  }
-];
-
-let savedArticles = [
-  { code: 'ART-CN-101', name: 'Cerámico Foshan 60x60 Pulido', supplier: 'Foshan Ceramics Co.', fob: 4.50, moq: 2000, port: 'Foshan', weightKg: 3.2 },
-  { code: 'ART-CN-204', name: 'Inodoro Rimless Monobloc Foshan', supplier: 'Zhejiang Sanitary Ware', fob: 38.00, moq: 300, port: 'Ningbo', weightKg: 28.5 }
-];
+// Proveedores Guardados y Cotizaciones Chinas (Se cargan dinámicamente desde Firestore / IndexedDB)
+let localSuppliers = [];
+let savedArticles = [];
 
 let expandedCards = new Set();
 let selectedCantonItem = null;
@@ -770,6 +734,15 @@ function renderSecSearchResults() {
 
   const rawQuery = (document.getElementById('secSearchInput')?.value || '').toLowerCase().trim();
   
+  if (!rawQuery && activeCategoryFilter === 'TODOS') {
+    container.innerHTML = `
+      <div class="card" style="text-align: center; font-size: 11px; color: var(--text-muted); padding: 15px;">
+        🔍 Escribe en el buscador arriba (SKU, descripción o marca) o selecciona un rubro para consultar la base SQL de Perren (${perrenSqlDatabase.length.toLocaleString('es-AR')} artículos).
+      </div>
+    `;
+    return;
+  }
+
   const filtered = perrenSqlDatabase.filter(item => {
     const matchQuery = !rawQuery || 
                        (item.sku && item.sku.toLowerCase().includes(rawQuery)) ||
