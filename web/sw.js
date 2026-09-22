@@ -1,9 +1,10 @@
-const CACHE_NAME = 'canton-app-v1';
+const CACHE_NAME = 'canton-app-v2';
 const ASSETS = [
   './index.html',
   './styles.css',
   './app.js',
-  './manifest.json'
+  './manifest.json',
+  './articulos_flexxus_perren.csv'
 ];
 
 self.addEventListener('install', (e) => {
