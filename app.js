@@ -299,49 +299,104 @@ function initFirebaseAuthListener() {
   if (fbAuth) {
     fbAuth.onAuthStateChanged((user) => {
       if (user) {
-        showAuthenticatedApp(user.email || 'comprador@perren.com.ar');
+        localStorage.setItem('firebaseAuthSession', user.email);
+        showAuthenticatedApp(user.email);
       } else {
-        const savedSession = localStorage.getItem('firebaseAuthSession');
-        if (savedSession) {
-          showAuthenticatedApp(savedSession);
-        } else {
-          showUnauthenticatedLogin();
-        }
+        localStorage.removeItem('firebaseAuthSession');
+        showUnauthenticatedLogin();
       }
     });
   } else {
-    const savedSession = localStorage.getItem('firebaseAuthSession');
-    if (savedSession) {
-      showAuthenticatedApp(savedSession);
-    } else {
-      showUnauthenticatedLogin();
-    }
+    showUnauthenticatedLogin();
   }
 }
 
 function handleFirebaseAuthLogin() {
-  const email = document.getElementById('fbEmail').value;
-  const password = document.getElementById('fbPassword').value;
+  const emailInput = document.getElementById('fbEmail');
+  const passwordInput = document.getElementById('fbPassword');
+  const statusEl = document.getElementById('fbAuthStatus');
 
-  if (!email) {
-    alert('Por favor ingrese su correo electrónico');
+  const email = (emailInput?.value || '').trim();
+  const password = (passwordInput?.value || '').trim();
+
+  if (!email || !password) {
+    alert('Por favor ingrese correo electrónico y contraseña.');
     return;
   }
+
+  if (statusEl) statusEl.textContent = '⏳ Verificando credenciales en Firebase Cloud...';
 
   if (fbAuth) {
     fbAuth.signInWithEmailAndPassword(email, password)
       .then((userCredential) => {
-        localStorage.setItem('firebaseAuthSession', email);
-        showAuthenticatedApp(email);
+        const user = userCredential.user;
+        localStorage.setItem('firebaseAuthSession', user.email || email);
+        if (statusEl) statusEl.textContent = '🟢 Autenticado con Firebase: ' + (user.email || email);
+        showAuthenticatedApp(user.email || email);
       })
       .catch((error) => {
-        console.log("Firebase Auth notice:", error.message);
-        localStorage.setItem('firebaseAuthSession', email);
-        showAuthenticatedApp(email);
+        console.error("Firebase Auth Error:", error.code, error.message);
+        let errorMsg = 'Error de inicio de sesión';
+        if (error.code === 'auth/user-not-found') {
+          errorMsg = '❌ El correo electrónico no está registrado en Firebase. Hacé clic en CREAR CUENTA.';
+        } else if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+          errorMsg = '❌ Contraseña incorrecta. Verificá tu clave de Firebase.';
+        } else if (error.code === 'auth/invalid-email') {
+          errorMsg = '❌ Formato de correo electrónico no válido.';
+        } else if (error.code === 'auth/too-many-requests') {
+          errorMsg = '⚠️ Demasiados intentos fallidos. Aguardá unos instantes.';
+        } else {
+          errorMsg = '❌ Error de autenticación: ' + error.message;
+        }
+
+        if (statusEl) statusEl.textContent = errorMsg;
+        alert(errorMsg);
       });
   } else {
-    localStorage.setItem('firebaseAuthSession', email);
-    showAuthenticatedApp(email);
+    alert('❌ Error: El servicio Firebase Auth no está activo. Verificá tu conexión a internet.');
+  }
+}
+
+function handleFirebaseRegister() {
+  const emailInput = document.getElementById('fbEmail');
+  const passwordInput = document.getElementById('fbPassword');
+  const statusEl = document.getElementById('fbAuthStatus');
+
+  const email = (emailInput?.value || '').trim();
+  const password = (passwordInput?.value || '').trim();
+
+  if (!email || !password) {
+    alert('Por favor ingrese correo electrónico y contraseña para registrarse.');
+    return;
+  }
+
+  if (password.length < 6) {
+    alert('La contraseña de Firebase debe tener al menos 6 caracteres.');
+    return;
+  }
+
+  if (statusEl) statusEl.textContent = '⏳ Registrando nuevo usuario en Firebase Cloud...';
+
+  if (fbAuth) {
+    fbAuth.createUserWithEmailAndPassword(email, password)
+      .then((userCredential) => {
+        const user = userCredential.user;
+        localStorage.setItem('firebaseAuthSession', user.email || email);
+        alert('✅ Usuario creado y autenticado correctamente en Firebase!');
+        showAuthenticatedApp(user.email || email);
+      })
+      .catch((error) => {
+        let errStr = 'Error al registrar: ';
+        if (error.code === 'auth/email-already-in-use') {
+          errStr = '⚠️ El correo electrónico ya está registrado. Tocá INICIAR SESIÓN.';
+        } else {
+          errStr += error.message;
+        }
+        if (statusEl) statusEl.textContent = errStr;
+        alert(errStr);
+      });
+  } else {
+    alert('❌ Error: Servicio de Firebase no disponible.');
   }
 }
 
