@@ -63,9 +63,9 @@ let selectedCantonItem = null;
 let selectedPerrenItem = null;
 let activeCategoryFilter = 'TODOS';
 
-// IndexedDB Storage setup for Photo Backup & 12.074 Flexxus CSV Products
+// IndexedDB Storage setup for Photo Backup, Flexxus Products & Local Suppliers
 let db;
-const request = indexedDB.open('CantonAppDB', 2);
+const request = indexedDB.open('CantonAppDB', 3);
 request.onupgradeneeded = (e) => {
   db = e.target.result;
   if (!db.objectStoreNames.contains('photos')) {
@@ -74,14 +74,122 @@ request.onupgradeneeded = (e) => {
   if (!db.objectStoreNames.contains('flexxus_products')) {
     db.createObjectStore('flexxus_products', { keyPath: 'sku' });
   }
+  if (!db.objectStoreNames.contains('suppliers_store')) {
+    db.createObjectStore('suppliers_store', { keyPath: 'id' });
+  }
 };
 request.onsuccess = (e) => { 
   db = e.target.result; 
   loadFlexxusCsvDatabase();
+  loadSuppliersFromIndexedDB();
 };
 request.onerror = () => {
   loadFlexxusCsvDatabase();
 };
+
+// LocalStorage & IndexedDB Persistence Helpers
+function saveLocalSuppliers() {
+  try {
+    localStorage.setItem('canton_local_suppliers', JSON.stringify(localSuppliers));
+    if (db && db.objectStoreNames.contains('suppliers_store')) {
+      const tx = db.transaction('suppliers_store', 'readwrite');
+      const store = tx.objectStore('suppliers_store');
+      localSuppliers.forEach(sup => store.put(sup));
+    }
+  } catch (e) {
+    console.log('Error saving local suppliers:', e);
+  }
+}
+
+function loadLocalSuppliers() {
+  try {
+    const data = localStorage.getItem('canton_local_suppliers');
+    if (data) {
+      const parsed = JSON.parse(data);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        localSuppliers = parsed;
+        const lbl = document.getElementById('lblTotalSuppliers');
+        if (lbl) lbl.textContent = localSuppliers.length;
+        renderTarjetero();
+      }
+    }
+  } catch (e) {
+    console.log('Error loading local suppliers:', e);
+  }
+}
+
+function loadSuppliersFromIndexedDB() {
+  if (!db || !db.objectStoreNames.contains('suppliers_store')) return;
+  try {
+    const tx = db.transaction('suppliers_store', 'readonly');
+    const store = tx.objectStore('suppliers_store');
+    const req = store.getAll();
+    req.onsuccess = () => {
+      const items = req.result;
+      if (items && items.length > 0) {
+        items.forEach(idbSup => {
+          const idx = localSuppliers.findIndex(ls => ls.id === idbSup.id);
+          if (idx >= 0) localSuppliers[idx] = idbSup;
+          else localSuppliers.unshift(idbSup);
+        });
+        saveLocalSuppliers();
+        const lbl = document.getElementById('lblTotalSuppliers');
+        if (lbl) lbl.textContent = localSuppliers.length;
+        renderTarjetero();
+      }
+    };
+  } catch (e) {
+    console.log('Error reading IndexedDB suppliers:', e);
+  }
+}
+
+function saveSavedArticles() {
+  try {
+    localStorage.setItem('canton_saved_articles', JSON.stringify(savedArticles));
+  } catch (e) {
+    console.log('Error saving articles:', e);
+  }
+}
+
+function loadSavedArticles() {
+  try {
+    const data = localStorage.getItem('canton_saved_articles');
+    if (data) {
+      const parsed = JSON.parse(data);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        savedArticles = parsed;
+        const lbl = document.getElementById('lblTotalArticles');
+        if (lbl) lbl.textContent = savedArticles.length;
+        renderTab2List();
+      }
+    }
+  } catch (e) {
+    console.log('Error loading saved articles:', e);
+  }
+}
+
+function deleteSupplier(supplierId) {
+  if (!confirm('¿Estás seguro de eliminar este proveedor?')) return;
+  
+  const supToDelete = localSuppliers.find(s => s.id === supplierId || s.firestoreId === supplierId);
+  localSuppliers = localSuppliers.filter(s => s.id !== supplierId && s.firestoreId !== supplierId);
+  saveLocalSuppliers();
+  
+  if (fbDb && supToDelete && supToDelete.firestoreId) {
+    fbDb.collection('suppliers').doc(supToDelete.firestoreId).delete().catch(err => console.log('Firestore delete notice:', err));
+  }
+
+  if (db && db.objectStoreNames.contains('suppliers_store')) {
+    try {
+      const tx = db.transaction('suppliers_store', 'readwrite');
+      tx.objectStore('suppliers_store').delete(supplierId);
+    } catch (_) {}
+  }
+  
+  const lbl = document.getElementById('lblTotalSuppliers');
+  if (lbl) lbl.textContent = localSuppliers.length;
+  renderTarjetero();
+}
 
 // Initialize PWA Service Worker
 if ('serviceWorker' in navigator) {
@@ -89,6 +197,8 @@ if ('serviceWorker' in navigator) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+  loadLocalSuppliers();
+  loadSavedArticles();
   initFirebaseAuthListener();
   initFirestoreSuppliersListener();
   setupEventListeners();
@@ -115,6 +225,7 @@ function initFirestoreSuppliersListener() {
           localSuppliers.unshift(fsSup);
         }
       });
+      saveLocalSuppliers();
       const lblSuppliers = document.getElementById('lblTotalSuppliers');
       if (lblSuppliers) lblSuppliers.textContent = localSuppliers.length;
       renderTarjetero();
@@ -865,9 +976,12 @@ function renderTarjetero() {
             </div>
           </div>
 
-          <a href="${waLink}" target="_blank" class="btn-whatsapp" style="white-space: nowrap;">
-            💬 WhatsApp
-          </a>
+          <div style="display: flex; flex-direction: column; gap: 6px; align-items: flex-end;">
+            <a href="${waLink}" target="_blank" class="btn-whatsapp" style="white-space: nowrap;">
+              💬 WhatsApp
+            </a>
+            <button onclick="deleteSupplier('${sup.id}')" class="btn-chip" style="color: #D32F2F; border-color: #D32F2F; font-size: 10px; padding: 2px 6px;">🗑️ Eliminar</button>
+          </div>
         </div>
 
         ${articles.length > 0 ? `
@@ -1340,6 +1454,7 @@ function saveInlineArticle() {
     port: newArticle.port,
     weightKg: 5.0
   });
+  saveSavedArticles();
 
   // Limpiar campos del formulario inline
   if (document.getElementById('inlineArtName')) document.getElementById('inlineArtName').value = '';
@@ -1397,6 +1512,7 @@ function saveArticleFromModal() {
     port: newArticle.port,
     weightKg: 5.0
   });
+  saveSavedArticles();
 
   renderSupplierArticlesList();
   renderTab2List();
@@ -1500,6 +1616,7 @@ async function saveSupplierFromForm() {
   };
 
   localSuppliers.unshift(supplierData);
+  saveLocalSuppliers();
 
   let syncSuccess = false;
   let syncError = '';
@@ -1978,4 +2095,6 @@ if (typeof window !== 'undefined') {
   window.handleArticlePhotosUpload = handleArticlePhotosUpload;
   window.removeArticlePhoto = removeArticlePhoto;
   window.removeSupplierArticle = removeSupplierArticle;
+  window.deleteSupplier = deleteSupplier;
+  window.saveLocalSuppliers = saveLocalSuppliers;
 }
