@@ -15,7 +15,6 @@ try {
     fbApp = firebase.initializeApp(firebaseConfig);
     fbAuth = firebase.auth();
     fbDb = firebase.firestore();
-    // Enable offline persistence
     fbDb.enablePersistence({ synchronizeTabs: true }).catch(err => console.log("Persistence notice:", err.code));
   }
 } catch (e) {
@@ -54,12 +53,12 @@ let stateSettings = {
 
 // Base de Datos Perren Flexxus BI (Se carga desde articulos_flexxus_perren.csv - 12.074 artículos)
 let perrenSqlDatabase = [
-  { sku: 'PERREN-1042', description: 'Azulejo cerámico 20x20 Blanco Satinado', brand: 'Cortines', category: 'Revestimientos', costNoVAT: 14175.0, priceVAT: 21500.0, abcClass: 'A' },
-  { sku: 'PERREN-2088', description: 'Porcelanato 60x60 Gris Pulido San Lorenzo', brand: 'San Lorenzo', category: 'Porcelanatos', costNoVAT: 28500.0, priceVAT: 42000.0, abcClass: 'A' },
-  { sku: 'PERREN-3015', description: 'Grifería Monocomando FV Cocina Bronce', brand: 'FV', category: 'Grifería', costNoVAT: 48900.0, priceVAT: 74000.0, abcClass: 'B' },
-  { sku: 'PERREN-4090', description: 'Inodoro Largo Ferrum Bari Blanco', brand: 'Ferrum', category: 'Sanitarios', costNoVAT: 89000.0, priceVAT: 135000.0, abcClass: 'A' },
-  { sku: 'PERREN-5012', description: 'Bidet 3 Orificios Ferrum Bari Blanco', brand: 'Ferrum', category: 'Sanitarios', costNoVAT: 65000.0, priceVAT: 98000.0, abcClass: 'B' },
-  { sku: 'PERREN-6045', description: 'Pegamento Weber Keraflor 30kg', brand: 'Weber', category: 'Adhesivos', costNoVAT: 8500.0, priceVAT: 12900.0, abcClass: 'C' }
+  { sku: 'CO1999', description: '* 25 KG* LOMA NEGRA CEMENTO COMPUESTO CPC40', brand: 'Loma Negra', category: 'Albañileria', subcategory: 'Morteros', costNoVAT: 3868.65, abcClass: 'A' },
+  { sku: 'CO0377', description: 'LADRILLO CERAMICO HUECO 18X18X33 6.20KG', brand: 'Ladrillo', category: 'Albañileria', subcategory: 'Ladrillos', costNoVAT: 370.99, abcClass: 'A' },
+  { sku: 'CO1123', description: 'HORMIGON ELABORADO H21', brand: 'Hormigon', category: 'Albañileria', subcategory: 'Hormigon', costNoVAT: 79834.22, abcClass: 'A' },
+  { sku: 'CO0187', description: 'HIERRO NERVADO CONSTRUCCION BARRA 10 MM', brand: 'Hierro', category: 'Siderurgia', subcategory: 'Hierros', costNoVAT: 8270.44, abcClass: 'A' },
+  { sku: 'AR0155', description: 'TERMOTANQUE SHERMAN 80 LTS BAJO CONSUMO', brand: 'Termotanque', category: 'Agua Caliente', subcategory: 'Termotanques', costNoVAT: 193225.02, abcClass: 'A' },
+  { sku: 'CO0338', description: 'KLAUKOL ADHESIVO IMPERMEABLE POTENCIADO X 25 KG', brand: 'Klaukol', category: 'Pisos Y Revestimientos', subcategory: 'Adhesivos', costNoVAT: 7451.90, abcClass: 'A' }
 ];
 
 // Proveedores Guardados y Cotizaciones Chinas
@@ -102,7 +101,7 @@ let activeCategoryFilter = 'TODOS';
 
 // IndexedDB Storage setup for Photo Backup & 12.074 Flexxus CSV Products
 let db;
-const request = indexedDB.open('CantonAppDB', 2); // Version 2 with flexxus_products
+const request = indexedDB.open('CantonAppDB', 2);
 request.onupgradeneeded = (e) => {
   db = e.target.result;
   if (!db.objectStoreNames.contains('photos')) {
@@ -114,6 +113,9 @@ request.onupgradeneeded = (e) => {
 };
 request.onsuccess = (e) => { 
   db = e.target.result; 
+  loadFlexxusCsvDatabase();
+};
+request.onerror = () => {
   loadFlexxusCsvDatabase();
 };
 
@@ -128,7 +130,7 @@ document.addEventListener('DOMContentLoaded', () => {
   calculateTab1();
   renderTab2List();
   renderTarjetero();
-  renderSecSearchResults();
+  setTimeout(() => loadFlexxusCsvDatabase(), 100);
 });
 
 // CSV PARSER & INDEXEDDB CACHING LOGIC
@@ -153,22 +155,36 @@ function parseCSVLine(line) {
 
 async function loadFlexxusCsvDatabase() {
   const statusEl = document.getElementById('flexxusDbStatus');
-  if (statusEl) statusEl.textContent = '⏳ Verificando catálogo Flexxus (12.074 artículos)...';
+  if (statusEl) statusEl.textContent = '⏳ Cargando catálogo Flexxus (12.074 artículos)...';
 
   try {
-    // 1. Intentar cargar desde IndexedDB local para máxima velocidad offline
+    // 1. Intentar cargar desde IndexedDB local primero
     const cachedProducts = await getProductsFromIndexedDB();
-    if (cachedProducts && cachedProducts.length > 1000) {
+    if (cachedProducts && cachedProducts.length > 5000) {
       perrenSqlDatabase = cachedProducts;
-      if (statusEl) statusEl.textContent = `🟢 Base SQL Flexxus BI: ${perrenSqlDatabase.length.toLocaleString('es-AR')} artículos listos (Offline IndexedDB)`;
+      if (statusEl) statusEl.textContent = `🟢 Base SQL Flexxus BI: ${perrenSqlDatabase.length.toLocaleString('es-AR')} artículos listos (Offline)`;
+      renderCategoryChips();
       renderSecSearchResults();
       return;
     }
 
-    // 2. Descargar y parsear articulos_flexxus_perren.csv
-    if (statusEl) statusEl.textContent = '⏳ Cargando articulos_flexxus_perren.csv (1.8 MB)...';
-    const response = await fetch('./articulos_flexxus_perren.csv');
-    if (!response.ok) throw new Error('No se pudo acceder a articulos_flexxus_perren.csv');
+    // 2. Probar rutas posibles para articulos_flexxus_perren.csv
+    let response = null;
+    const paths = ['articulos_flexxus_perren.csv', './articulos_flexxus_perren.csv', 'web/articulos_flexxus_perren.csv', './web/articulos_flexxus_perren.csv'];
+    
+    for (const p of paths) {
+      try {
+        const res = await fetch(p);
+        if (res.ok) {
+          response = res;
+          break;
+        }
+      } catch (_) {}
+    }
+
+    if (!response) {
+      throw new Error('Archivo CSV no encontrado');
+    }
 
     const text = await response.text();
     const lines = text.split(/\r?\n/);
@@ -199,11 +215,14 @@ async function loadFlexxusCsvDatabase() {
       perrenSqlDatabase = parsed;
       if (statusEl) statusEl.textContent = `🟢 Base SQL Flexxus BI: ${perrenSqlDatabase.length.toLocaleString('es-AR')} artículos cargados`;
       saveProductsToIndexedDB(parsed);
+      renderCategoryChips();
       renderSecSearchResults();
     }
   } catch (err) {
     console.log('Flexxus CSV Notice:', err);
-    if (statusEl) statusEl.textContent = `🟢 Base SQL Flexxus BI: ${perrenSqlDatabase.length.toLocaleString('es-AR')} artículos precargados`;
+    if (statusEl) statusEl.textContent = `🟢 Base SQL Flexxus BI: ${perrenSqlDatabase.length.toLocaleString('es-AR')} artículos listos`;
+    renderCategoryChips();
+    renderSecSearchResults();
   }
 }
 
@@ -233,6 +252,28 @@ function getProductsFromIndexedDB() {
       resolve([]);
     }
   });
+}
+
+function renderCategoryChips() {
+  const container = document.getElementById('categoryChipsContainer');
+  if (!container) return;
+
+  const categories = new Set();
+  perrenSqlDatabase.forEach(p => {
+    if (p.category && p.category.trim() && p.category !== 'General' && p.category !== '35"') {
+      categories.add(p.category.trim());
+    }
+  });
+
+  const sortedCat = Array.from(categories).sort().slice(0, 15);
+
+  container.innerHTML = `
+    <span class="filter-chip ${activeCategoryFilter === 'TODOS' ? 'selected' : ''}" onclick="filterCategory(this, 'TODOS')">Todos</span>
+  ` + sortedCat.map(cat => {
+    const isSelected = activeCategoryFilter === cat ? 'selected' : '';
+    const safeCat = cat.replace(/'/g, "\\'");
+    return `<span class="filter-chip ${isSelected}" onclick="filterCategory(this, '${safeCat}')">${cat}</span>`;
+  }).join('');
 }
 
 // STRICT AUTHENTICATION DISPLAY CONTROL
@@ -269,7 +310,6 @@ function initFirebaseAuthListener() {
       }
     });
   } else {
-    // Local session fallback
     const savedSession = localStorage.getItem('firebaseAuthSession');
     if (savedSession) {
       showAuthenticatedApp(savedSession);
@@ -322,7 +362,6 @@ function switchMainSection(secId) {
     if (el) el.style.display = (s === 'sec' + capitalize(secId)) ? 'block' : 'none';
   });
 
-  // Update Bottom Nav Styling
   const navItems = {
     'inicio': 'navInicio',
     'addProveedor': 'navAddProveedor',
@@ -338,6 +377,10 @@ function switchMainSection(secId) {
       else btn.classList.remove('active');
     }
   });
+
+  if (secId === 'costos') {
+    renderSecSearchResults();
+  }
 
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
@@ -547,21 +590,21 @@ function renderSecSearchResults() {
   const container = document.getElementById('secSearchResults');
   if (!container) return;
 
-  const query = (document.getElementById('secSearchInput')?.value || '').toLowerCase();
+  const rawQuery = (document.getElementById('secSearchInput')?.value || '').toLowerCase().trim();
   
   const filtered = perrenSqlDatabase.filter(item => {
-    const matchQuery = !query || 
-                       item.sku.toLowerCase().includes(query) ||
-                       item.description.toLowerCase().includes(query) ||
-                       item.brand.toLowerCase().includes(query) ||
-                       item.category.toLowerCase().includes(query);
+    const matchQuery = !rawQuery || 
+                       (item.sku && item.sku.toLowerCase().includes(rawQuery)) ||
+                       (item.description && item.description.toLowerCase().includes(rawQuery)) ||
+                       (item.brand && item.brand.toLowerCase().includes(rawQuery)) ||
+                       (item.category && item.category.toLowerCase().includes(rawQuery));
     const matchCat = activeCategoryFilter === 'TODOS' || 
-                     item.category.toLowerCase().includes(activeCategoryFilter.toLowerCase());
+                     (item.category && item.category.toLowerCase().trim() === activeCategoryFilter.toLowerCase().trim());
     return matchQuery && matchCat;
   });
 
   if (filtered.length === 0) {
-    container.innerHTML = `<div class="card" style="text-align: center; font-size: 11px; color: var(--text-muted);">No se encontraron artículos en la base SQL para "${query}"</div>`;
+    container.innerHTML = `<div class="card" style="text-align: center; font-size: 11px; color: var(--text-muted);">No se encontraron artículos en la base para "${rawQuery}"</div>`;
     return;
   }
 
@@ -601,8 +644,8 @@ function renderSecSearchResults() {
 
 function filterCategory(btnEl, category) {
   activeCategoryFilter = category;
-  document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('selected'));
-  btnEl.classList.add('selected');
+  document.querySelectorAll('#categoryChipsContainer .filter-chip').forEach(c => c.classList.remove('selected'));
+  if (btnEl) btnEl.classList.add('selected');
   renderSecSearchResults();
 }
 
@@ -721,9 +764,12 @@ function renderPerrenSearchResults() {
   const container = document.getElementById('perrenSearchResults');
   if (!container) return;
 
-  const query = (document.getElementById('perrenSearchInput')?.value || '').toLowerCase();
+  const query = (document.getElementById('perrenSearchInput')?.value || '').toLowerCase().trim();
   const filtered = perrenSqlDatabase.filter(i => 
-    !query || i.sku.toLowerCase().includes(query) || i.description.toLowerCase().includes(query) || i.brand.toLowerCase().includes(query)
+    !query || 
+    (i.sku && i.sku.toLowerCase().includes(query)) || 
+    (i.description && i.description.toLowerCase().includes(query)) || 
+    (i.brand && i.brand.toLowerCase().includes(query))
   );
 
   const display = filtered.slice(0, 30);
@@ -768,7 +814,7 @@ function renderComparisonResult() {
   if (!container) return;
 
   const chinaItem = selectedCantonItem || savedArticles[1];
-  const perrenItem = selectedPerrenItem || perrenSqlDatabase[3];
+  const perrenItem = selectedPerrenItem || perrenSqlDatabase[0];
 
   const chinaLandedUSD = chinaItem.fob * 1.58;
   const perrenCostUSD = perrenItem.costNoVAT / stateSettings.tc;
@@ -864,7 +910,6 @@ function processOcrImage(event) {
     status.textContent = '✅ Texto extraído correctamente:';
     output.textContent = text;
 
-    // Save image to IndexedDB
     const reader = new FileReader();
     reader.onload = (e) => {
       if (db) {
@@ -874,7 +919,6 @@ function processOcrImage(event) {
     };
     reader.readAsDataURL(file);
 
-    // Auto-detect numbers / prices
     const matches = text.match(/\$?\d+[\.,]\d{2}/g);
     if (matches && matches.length > 0) {
       const detectedPrice = parseFloat(matches[0].replace('$', '').replace(',', '.'));
