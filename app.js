@@ -24,7 +24,7 @@ try {
 // State Global
 let currentSection = 'inicio';
 let currentTab = 1;
-let currencyMode = 'ARS'; // 'ARS' or 'USD'
+let currencyMode = 'USD'; // Default to 'USD'
 let weightModeEnabled = false;
 
 // Settings Parameters
@@ -518,18 +518,14 @@ function toggleWeightProrating() {
   calculateTab1();
 }
 
-// TAB 1: CALCULO LANDED COMPLETO
-function calculateTab1() {
-  const fobUSD = parseFloat(document.getElementById('t1Fob').value) || 0;
-  const qty = parseInt(document.getElementById('t1Qty').value) || 1;
-  const weightKgUnit = parseFloat(document.getElementById('t1Weight').value) || 0;
+// CÁLCULO GENERAL DE DESGLOSE DE COSTO LANDED PUESTO EN DEPOSITO
+function calculateLandedBreakdown(fobUSD, qty, weightKg) {
+  qty = parseInt(qty) || 1;
+  weightKg = parseFloat(weightKg) || 0;
+  fobUSD = parseFloat(fobUSD) || 0;
 
-  const totalWeightKg = qty * weightKgUnit;
+  const totalWeightKg = qty * weightKg;
   const maxWeightKg = stateSettings.containerMaxWeightKg || 26000;
-  const weightPct = ((totalWeightKg / maxWeightKg) * 100).toFixed(1);
-
-  document.getElementById('lblWeightDetail').textContent = 
-    `${qty} u. × ${weightKgUnit} kg = ${totalWeightKg.toLocaleString()} kg (${weightPct}% de 26.000 kg cont.)`;
 
   let freightUSDTotal = stateSettings.flete;
   let freightUSDUnit = freightUSDTotal / qty;
@@ -576,23 +572,50 @@ function calculateTab1() {
   const costoIncididoUnit = cifUnit + arancelUnit + tasaEstadUnit + despachanteUnit;
   const costoIncididoTotal = costoIncididoUnit * qty;
 
-  const rows = [
-    { name: '1. PRECIO FOB (China)', unit: fobUSD, total: fobTotal, isHeader: true },
-    { name: '2. Flete Marítimo (40\' Contenedor)', unit: stateSettings.incFlete ? freightUSDUnit : 0, total: stateSettings.incFlete ? freightUSDTotal : 0 },
-    { name: '3. Seguro Internacional (' + stateSettings.seguroPct + '%)', unit: seguroUnit, total: seguroTotal },
-    { name: 'VALOR CIF PUERTO AR', unit: cifUnit, total: cifTotal, isHeader: true },
-    { name: '4. Arancel Aduanero NCM (' + stateSettings.arancelPct + '%)', unit: arancelUnit, total: arancelTotal },
-    { name: '5. Tasa Estadística (' + stateSettings.tasaEstadPct + '%)', unit: tasaEstadUnit, total: tasaEstadTotal },
-    { name: '6. IVA General (' + stateSettings.ivaPct + '%)', unit: ivaUnit, total: ivaTotal },
-    { name: '7. IVA Adicional (' + stateSettings.ivaAdicPct + '%)', unit: ivaAdicUnit, total: ivaAdicTotal },
-    { name: '8. Percepción Ganancias (' + stateSettings.gananciasPct + '%)', unit: gananciasUnit, total: gananciasTotal },
-    { name: '9. Percepción II.BB. (' + stateSettings.iibbPct + '%)', unit: iibbUnit, total: iibbTotal },
-    { name: '10. Despachante & Gastos (' + stateSettings.despachantePct + '%)', unit: despachanteUnit, total: despachanteTotal },
-    { name: '💰 TOTAL DESEMBOLSO INICIAL', unit: desembolsoTotalUnit, total: desembolsoTotalTotal, isTotal: true },
-    { name: '🟢 COSTO INCIDIDO NETO DEPOSITO', unit: costoIncididoUnit, total: costoIncididoTotal, isIncidido: true }
-  ];
+  return {
+    fobUSD,
+    qty,
+    weightKg,
+    totalWeightKg,
+    costoIncididoUnit,
+    costoIncididoTotal,
+    desembolsoTotalUnit,
+    desembolsoTotalTotal,
+    rows: [
+      { name: '1. PRECIO FOB (China)', unit: fobUSD, total: fobTotal, isHeader: true },
+      { name: '2. Flete Marítimo (40\' Contenedor)', unit: stateSettings.incFlete ? freightUSDUnit : 0, total: stateSettings.incFlete ? freightUSDTotal : 0 },
+      { name: '3. Seguro Internacional (' + stateSettings.seguroPct + '%)', unit: seguroUnit, total: seguroTotal },
+      { name: 'VALOR CIF PUERTO AR', unit: cifUnit, total: cifTotal, isHeader: true },
+      { name: '4. Arancel Aduanero NCM (' + stateSettings.arancelPct + '%)', unit: arancelUnit, total: arancelTotal },
+      { name: '5. Tasa Estadística (' + stateSettings.tasaEstadPct + '%)', unit: tasaEstadUnit, total: tasaEstadTotal },
+      { name: '6. IVA General (' + stateSettings.ivaPct + '%)', unit: ivaUnit, total: ivaTotal },
+      { name: '7. IVA Adicional (' + stateSettings.ivaAdicPct + '%)', unit: ivaAdicUnit, total: ivaAdicTotal },
+      { name: '8. Percepción Ganancias (' + stateSettings.gananciasPct + '%)', unit: gananciasUnit, total: gananciasTotal },
+      { name: '9. Percepción II.BB. (' + stateSettings.iibbPct + '%)', unit: iibbUnit, total: iibbTotal },
+      { name: '10. Despachante & Gastos (' + stateSettings.despachantePct + '%)', unit: despachanteUnit, total: despachanteTotal },
+      { name: '💰 TOTAL DESEMBOLSO INICIAL', unit: desembolsoTotalUnit, total: desembolsoTotalTotal, isTotal: true },
+      { name: '🟢 COSTO INCIDIDO NETO DEPOSITO', unit: costoIncididoUnit, total: costoIncididoTotal, isIncidido: true }
+    ]
+  };
+}
 
-  renderBreakdownTable(rows);
+// TAB 1: CALCULO LANDED COMPLETO
+function calculateTab1() {
+  const fobUSD = parseFloat(document.getElementById('t1Fob').value) || 0;
+  const qty = parseInt(document.getElementById('t1Qty').value) || 1;
+  const weightKgUnit = parseFloat(document.getElementById('t1Weight').value) || 0;
+
+  const res = calculateLandedBreakdown(fobUSD, qty, weightKgUnit);
+  const maxWeightKg = stateSettings.containerMaxWeightKg || 26000;
+  const weightPct = ((res.totalWeightKg / maxWeightKg) * 100).toFixed(1);
+
+  const lblWeight = document.getElementById('lblWeightDetail');
+  if (lblWeight) {
+    lblWeight.textContent = 
+      `${qty} u. × ${weightKgUnit} kg = ${res.totalWeightKg.toLocaleString()} kg (${weightPct}% de 26.000 kg cont.)`;
+  }
+
+  renderBreakdownTable(res.rows);
 }
 
 function renderBreakdownTable(rows) {
@@ -616,49 +639,122 @@ function renderBreakdownTable(rows) {
   }).join('');
 }
 
-// TAB 2: COTIZACIONES GUARDADAS
+// TAB 2: COTIZACIONES GUARDADAS CON EDICIÓN DE CAMPOS Y TABLA LANDED COMPLETA
 function renderTab2List() {
   const container = document.getElementById('savedArticlesList');
   if (!container) return;
 
+  const countSpan = document.getElementById('savedCount');
+  if (countSpan) countSpan.textContent = savedArticles.length;
+
+  if (savedArticles.length === 0) {
+    container.innerHTML = `<div class="card" style="text-align: center; font-size: 11px; color: var(--text-muted);">No hay cotizaciones guardadas aún.</div>`;
+    return;
+  }
+
   container.innerHTML = savedArticles.map((art, index) => {
     const isExpanded = expandedCards.has(index);
-    const landedNetUSD = art.fob * 1.58;
+    const weightVal = art.weightKg || 3.2;
+    const breakdown = calculateLandedBreakdown(art.fob, art.moq, weightVal);
 
     return `
-      <div class="card" style="border-left: 4px solid var(--secondary-color);">
+      <div class="card" style="border-left: 4px solid var(--secondary-color); margin-bottom: 15px;">
         <div style="display: flex; justify-content: space-between; align-items: flex-start;">
           <div>
-            <strong style="font-size: 12px; color: var(--primary-color);">${art.name}</strong>
+            <strong style="font-size: 13px; color: var(--primary-color);">${art.name}</strong>
             <div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">
-              Fábrica: ${art.supplier} • MOQ: ${art.moq} u. • ${art.port}
+              Fábrica: <strong>${art.supplier || 'Feria Cantón'}</strong> • MOQ: ${art.moq} u. • ${art.port || 'China'}
             </div>
           </div>
-          <div class="fob-tag">FOB: ${formatMoney(art.fob)}</div>
+          <div class="fob-tag" style="background: #E3F2FD; color: var(--secondary-color); font-weight: bold; padding: 4px 8px; border-radius: 6px; font-size: 11px;">
+            FOB: ${formatMoney(art.fob)}
+          </div>
         </div>
 
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px; font-size: 10px;">
-          <div>Costo Landed Est: <strong style="color: var(--accent-color);">${formatMoney(landedNetUSD)}</strong></div>
-          <button class="btn-chip" onclick="toggleCardExpand(${index})">
-            ${isExpanded ? '▲ Ocultar Desglose' : '▼ Ver Desglose Landed'}
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px; font-size: 11px; background: #E8F5E9; padding: 8px; border-radius: 6px;">
+          <div>Costo Landed Est: <strong style="color: var(--accent-color); font-size: 12.5px;">${formatMoney(breakdown.costoIncididoUnit)}</strong> / u.</div>
+          <button class="btn-chip" onclick="toggleCardExpand(${index})" style="background: var(--primary-color); color: white; border: none; padding: 4px 8px;">
+            ${isExpanded ? '▲ Ocultar Editar / Desglose' : '▼ Editar Datos / Ver Desglose Landed'}
           </button>
         </div>
 
         ${isExpanded ? `
-          <div style="margin-top: 10px; padding-top: 8px; border-top: 1px dashed #DDD; font-size: 9.5px;">
-            <div style="display: flex; justify-content: space-between; padding: 2px 0;"><span>FOB China:</span> <span>${formatMoney(art.fob)}</span></div>
-            <div style="display: flex; justify-content: space-between; padding: 2px 0;"><span>Flete Marítimo + Seguro:</span> <span>${formatMoney(art.fob * 0.18)}</span></div>
-            <div style="display: flex; justify-content: space-between; padding: 2px 0;"><span>Arancel Aduana (20%) + Estad:</span> <span>${formatMoney(art.fob * 0.23)}</span></div>
-            <div style="display: flex; justify-content: space-between; padding: 2px 0;"><span>Despachante & Gastos Puerto:</span> <span>${formatMoney(art.fob * 0.08)}</span></div>
-            <div style="display: flex; justify-content: space-between; padding: 4px 0; font-weight: bold; color: var(--accent-color); border-top: 1px solid #CCC;">
-              <span>COSTO INCIDIDO DEPOSITO:</span> <span>${formatMoney(landedNetUSD)}</span>
+          <div style="margin-top: 12px; padding-top: 10px; border-top: 1px dashed #CCC;">
+            
+            <strong style="font-size: 11px; color: var(--primary-color);">✏️ EDITAR PARÁMETROS DEL ARTÍCULO GUARDADO</strong>
+            
+            <div class="row-2" style="margin-top: 6px;">
+              <div class="form-group">
+                <label style="font-size: 10px;">Precio FOB Unitario (USD)</label>
+                <input type="number" step="0.01" value="${art.fob}" onchange="updateSavedArticleField(${index}, 'fob', this.value)" class="form-control" style="font-size: 11px;">
+              </div>
+              <div class="form-group">
+                <label style="font-size: 10px;">Cantidad / MOQ (Unidades)</label>
+                <input type="number" value="${art.moq}" onchange="updateSavedArticleField(${index}, 'moq', this.value)" class="form-control" style="font-size: 11px;">
+              </div>
             </div>
-            <button class="btn-primary" style="margin-top: 6px;" onclick="selectCantonForCompare(${index})">⚡ Usar para Comparar vs Flexxus BI</button>
+
+            <div class="row-2">
+              <div class="form-group">
+                <label style="font-size: 10px;">Peso Unitario (kg)</label>
+                <input type="number" step="0.1" value="${weightVal}" onchange="updateSavedArticleField(${index}, 'weightKg', this.value)" class="form-control" style="font-size: 11px;">
+              </div>
+              <div class="form-group">
+                <label style="font-size: 10px;">Puerto de Origen</label>
+                <input type="text" value="${art.port || 'Foshan, China'}" onchange="updateSavedArticleField(${index}, 'port', this.value)" class="form-control" style="font-size: 11px;">
+              </div>
+            </div>
+
+            <!-- Tabla Desglose Completo Landed (Idéntica a Foto 1) -->
+            <div style="margin-top: 10px;">
+              <strong style="font-size: 11px; color: var(--primary-color);">📊 DESGLOSE DE COSTO LANDED PUESTO EN DEPOSITO</strong>
+              <table class="breakdown-table" style="margin-top: 6px; width: 100%;">
+                <thead>
+                  <tr>
+                    <th>CONCEPTO TRIBUTARIO</th>
+                    <th>%</th>
+                    <th style="text-align: right;">UNITARIO</th>
+                    <th style="text-align: right;">TOTAL EMBARQUE</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${breakdown.rows.map(r => {
+                    let cls = '';
+                    if (r.isHeader) cls = 'class="header-row"';
+                    else if (r.isTotal) cls = 'class="total-row"';
+                    else if (r.isIncidido) cls = 'class="costo-incidido"';
+
+                    return `
+                      <tr ${cls}>
+                        <td>${r.name}</td>
+                        <td>-</td>
+                        <td style="text-align: right;">${formatMoney(r.unit)}</td>
+                        <td style="text-align: right;">${formatMoney(r.total)}</td>
+                      </tr>
+                    `;
+                  }).join('')}
+                </tbody>
+              </table>
+            </div>
+
+            <button class="btn-primary" style="margin-top: 10px; width: 100%;" onclick="selectCantonForCompare(${index})">⚡ Usar para Comparar vs Flexxus BI</button>
           </div>
         ` : ''}
       </div>
     `;
   }).join('');
+}
+
+function updateSavedArticleField(index, field, value) {
+  if (!savedArticles[index]) return;
+  if (field === 'fob' || field === 'weightKg') {
+    savedArticles[index][field] = parseFloat(value) || 0;
+  } else if (field === 'moq') {
+    savedArticles[index][field] = parseInt(value) || 1;
+  } else {
+    savedArticles[index][field] = value;
+  }
+  renderTab2List();
 }
 
 function toggleCardExpand(index) {
