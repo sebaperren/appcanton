@@ -126,12 +126,39 @@ if ('serviceWorker' in navigator) {
 
 document.addEventListener('DOMContentLoaded', () => {
   initFirebaseAuthListener();
+  initFirestoreSuppliersListener();
   setupEventListeners();
   calculateTab1();
   renderTab2List();
   renderTarjetero();
   setTimeout(() => loadFlexxusCsvDatabase(), 100);
 });
+
+function initFirestoreSuppliersListener() {
+  if (!fbDb) return;
+  fbDb.collection('suppliers').onSnapshot(snapshot => {
+    const firestoreSuppliers = [];
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      firestoreSuppliers.push({ ...data, firestoreId: doc.id });
+    });
+    if (firestoreSuppliers.length > 0) {
+      firestoreSuppliers.forEach(fsSup => {
+        const idx = localSuppliers.findIndex(ls => ls.id === fsSup.id || (ls.companyName && ls.companyName.toLowerCase().trim() === fsSup.companyName.toLowerCase().trim()));
+        if (idx >= 0) {
+          localSuppliers[idx] = fsSup;
+        } else {
+          localSuppliers.unshift(fsSup);
+        }
+      });
+      const lblSuppliers = document.getElementById('lblTotalSuppliers');
+      if (lblSuppliers) lblSuppliers.textContent = localSuppliers.length;
+      renderTarjetero();
+    }
+  }, err => {
+    console.log('Firestore suppliers listener notice:', err);
+  });
+}
 
 // CSV PARSER & INDEXEDDB CACHING LOGIC
 function parseCSVLine(line) {
@@ -739,26 +766,74 @@ function renderTarjetero() {
   const container = document.getElementById('tarjeteroList');
   if (!container) return;
 
+  if (!localSuppliers || localSuppliers.length === 0) {
+    container.innerHTML = `<div class="card" style="text-align: center; font-size: 11px; color: var(--text-muted);">No hay proveedores guardados aún. Ve a <strong>"+ Proveedor"</strong> para escanear tarjetas o ingresar datos.</div>`;
+    return;
+  }
+
   container.innerHTML = localSuppliers.map(sup => {
-    const cleanPhone = sup.phone.replace(/[^0-9]/g, '');
-    const waLink = `https://wa.me/${cleanPhone}?text=Hola%20${encodeURIComponent(sup.contactName)},%20te%20contacto%20desde%20Perren%20%26%20C%C3%ADa.%20por%20la%20Feria%20de%20Cant%C3%B3n`;
+    const cleanPhone = (sup.phone || '').replace(/[^0-9]/g, '');
+    const waLink = `https://wa.me/${cleanPhone}?text=Hola%20${encodeURIComponent(sup.contactName || 'contacto')},%20te%20contacto%20desde%20Perren%20%26%20C%C3%ADa.%20por%20la%20Feria%20de%20Cant%C3%B3n`;
+    const articles = sup.articles || [];
 
     return `
-      <div class="card" style="border-left: 4px solid #25D366;">
+      <div class="card" style="border-left: 4px solid #25D366; margin-bottom: 12px;">
         <div style="display: flex; justify-content: space-between; align-items: flex-start;">
           <div>
-            <strong style="font-size: 13px; color: var(--primary-color);">${sup.companyName}</strong>
-            <div style="font-size: 10.5px; color: var(--text-muted); margin-top: 2px;">
-              📍 Stand: ${sup.stand} • Rubro: ${sup.category}
+            <strong style="font-size: 14px; color: var(--primary-color);">${sup.companyName}</strong>
+            ${sup.companyNameChinese ? `<div style="font-size: 11px; color: var(--secondary-color); font-weight: bold;">🇨🇳 ${sup.companyNameChinese}</div>` : ''}
+            
+            <div style="font-size: 10.5px; color: var(--text-muted); margin-top: 4px;">
+              📍 <strong>Stand:</strong> ${sup.stand || 's/d'} • 🏷️ <strong>Rubro:</strong> ${sup.category || 'General'}
             </div>
+            
             <div style="font-size: 11px; margin-top: 6px;">
-              👤 <strong>${sup.contactName}</strong> (${sup.phone})
+              👤 <strong>Contacto:</strong> ${sup.contactName || 's/d'} ${sup.weChat ? `(WeChat: <strong>${sup.weChat}</strong>)` : ''}
+            </div>
+
+            <div style="font-size: 10.5px; color: #555; margin-top: 2px;">
+              📞 ${sup.phone || 's/d'} ${sup.email ? `• ✉️ ${sup.email}` : ''}
             </div>
           </div>
-          <a href="${waLink}" target="_blank" class="btn-whatsapp">
+
+          <a href="${waLink}" target="_blank" class="btn-whatsapp" style="white-space: nowrap;">
             💬 WhatsApp
           </a>
         </div>
+
+        ${articles.length > 0 ? `
+          <hr style="margin: 10px 0 8px 0; border: none; border-top: 1px solid #EEE;">
+          <div style="font-size: 11px; font-weight: bold; color: var(--primary-color); margin-bottom: 6px;">
+            📦 Artículos Cotizados (${articles.length}):
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 6px;">
+            ${articles.map(art => `
+              <div style="background: #F9F9F9; padding: 8px; border-radius: 6px; border-left: 3px solid var(--accent-color);">
+                <div style="display: flex; justify-content: space-between; font-size: 11.5px;">
+                  <strong style="color: var(--primary-color);">${art.name || art.description || 'Artículo'}</strong>
+                  <span style="color: var(--secondary-color); font-weight: bold;">FOB: $${(parseFloat(art.fob) || 0).toFixed(2)} USD</span>
+                </div>
+                <div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">
+                  MOQ: <strong>${art.moq || 's/d'} u.</strong> • Puerto: <strong>${art.port || 'China'}</strong> ${art.leadTime ? `• Lead Time: ${art.leadTime}` : ''}
+                </div>
+                ${art.note ? `<div style="font-size: 10px; color: #444; margin-top: 4px; font-style: italic;">📝 "${art.note}"</div>` : ''}
+                
+                ${art.photos && art.photos.length > 0 ? `
+                  <div style="display: flex; gap: 4px; overflow-x: auto; margin-top: 6px;">
+                    ${art.photos.map(p => `<img src="${p}" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; border: 1px solid #DDD;">`).join('')}
+                  </div>
+                ` : ''}
+
+                ${art.voiceNoteUrl ? `
+                  <div style="margin-top: 6px;">
+                    <div style="font-size: 9.5px; color: var(--secondary-color); font-weight: bold;">🎙️ Nota de Voz:</div>
+                    <audio src="${art.voiceNoteUrl}" controls style="width: 100%; height: 30px; margin-top: 2px;"></audio>
+                  </div>
+                ` : ''}
+              </div>
+            `).join('')}
+          </div>
+        ` : ''}
       </div>
     `;
   }).join('');
@@ -981,10 +1056,62 @@ function startVoiceRecording() {
     });
 }
 
-function stopVoiceRecording() {
-  if (voiceMediaRecorder && voiceMediaRecorder.state === 'recording') {
-    voiceMediaRecorder.stop();
+function saveInlineArticle() {
+  const name = document.getElementById('inlineArtName')?.value || document.getElementById('mArtName')?.value;
+  let code = document.getElementById('inlineArtCode')?.value || document.getElementById('mArtCode')?.value;
+  if (!code) code = 'CF26-ART-' + Math.floor(100 + Math.random() * 900);
+  const fob = parseFloat(document.getElementById('inlineArtFob')?.value || document.getElementById('mArtFob')?.value) || 0.0;
+  const moq = parseInt(document.getElementById('inlineArtMoq')?.value || document.getElementById('mArtMoq')?.value) || 0;
+  const port = document.getElementById('inlineArtPort')?.value || document.getElementById('mArtPort')?.value || 'Foshan, China';
+  const leadTime = document.getElementById('inlineArtLeadTime')?.value || document.getElementById('mArtLeadTime')?.value || '30 días';
+  const note = document.getElementById('inlineArtNote')?.value || document.getElementById('mArtNote')?.value || '';
+
+  if (!name) {
+    alert('Por favor ingresa el nombre del producto');
+    return;
   }
+
+  const newArticle = {
+    id: 'ART-' + Date.now(),
+    code: code,
+    name: name,
+    fob: fob,
+    moq: moq,
+    port: port,
+    leadTime: leadTime,
+    note: note,
+    photos: [...currentArticlePhotos],
+    voiceNoteUrl: voiceAudioBase64 || null,
+    createdAt: new Date().toISOString()
+  };
+
+  currentSupplierArticles.push(newArticle);
+
+  savedArticles.unshift({
+    code: newArticle.code,
+    name: newArticle.name,
+    supplier: document.getElementById('pCompany').value || 'Proveedor Feria',
+    fob: newArticle.fob,
+    moq: newArticle.moq,
+    port: newArticle.port,
+    weightKg: 5.0
+  });
+
+  // Limpiar campos del formulario inline
+  if (document.getElementById('inlineArtName')) document.getElementById('inlineArtName').value = '';
+  if (document.getElementById('inlineArtCode')) document.getElementById('inlineArtCode').value = '';
+  if (document.getElementById('inlineArtFob')) document.getElementById('inlineArtFob').value = '';
+  if (document.getElementById('inlineArtMoq')) document.getElementById('inlineArtMoq').value = '';
+  if (document.getElementById('inlineArtNote')) document.getElementById('inlineArtNote').value = '';
+  
+  currentArticlePhotos = [];
+  renderArticlePhotosPreview();
+  voiceAudioBase64 = null;
+  voiceAudioChunks = [];
+  if (document.getElementById('audioPreviewContainer')) document.getElementById('audioPreviewContainer').style.display = 'none';
+
+  renderSupplierArticlesList();
+  renderTab2List();
 }
 
 function saveArticleFromModal() {

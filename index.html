@@ -189,18 +189,85 @@
         </div>
 
         <!-- Tarjeta C: Artículos Cotizados para este Proveedor -->
-        <div class="card">
+        <div class="card" style="border-left: 4px solid var(--accent-color);">
           <div class="card-title">
-            <span>📦 ARTÍCULOS COTIZADOS DE ESTA FÁBRICA</span>
-            <button class="btn-chip" onclick="openAddArticleModal()" style="background: var(--accent-color); color: white; border: none;">➕ Sumar Artículo</button>
+            <span>📦 COTIZAR ARTÍCULO DE ESTA FÁBRICA</span>
+            <button class="btn-chip" onclick="openAddArticleModal()" style="background: var(--accent-color); color: white; border: none; padding: 4px 8px;">➕ Ventana Modal</button>
           </div>
 
+          <!-- Formulario Directo Inline para Artículos -->
+          <div style="background: #FAFAFA; padding: 10px; border-radius: 8px; border: 1px solid #EEEEEE; margin-bottom: 10px;">
+            <div class="row-2">
+              <div class="form-group">
+                <label>Nombre del Producto / Descripción</label>
+                <input type="text" id="inlineArtName" class="form-control" placeholder="Ej: Porcelanato Foshan 60x60 Pulido">
+              </div>
+              <div class="form-group">
+                <label>Código / SKU Artículo</label>
+                <input type="text" id="inlineArtCode" class="form-control" placeholder="Ej: CF26-ART-101">
+              </div>
+            </div>
+
+            <div class="row-2">
+              <div class="form-group">
+                <label>Precio FOB Unitario (USD)</label>
+                <input type="number" step="0.01" id="inlineArtFob" class="form-control" placeholder="Ej: 4.50">
+              </div>
+              <div class="form-group">
+                <label>Cantidad Mínima / MOQ</label>
+                <input type="number" id="inlineArtMoq" class="form-control" placeholder="Ej: 2000">
+              </div>
+            </div>
+
+            <div class="row-2">
+              <div class="form-group">
+                <label>Puerto de Origen</label>
+                <input type="text" id="inlineArtPort" class="form-control" value="Foshan, China">
+              </div>
+              <div class="form-group">
+                <label>Plazo de Entrega (Lead Time)</label>
+                <input type="text" id="inlineArtLeadTime" class="form-control" value="30 días">
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label>Nota Escrita / Especificaciones Técnicas</label>
+              <textarea id="inlineArtNote" class="form-control" style="height: 45px;" placeholder="Detalles de empaque, espesor, exclusividad..."></textarea>
+            </div>
+
+            <!-- Carga de Fotos Múltiples del Artículo -->
+            <div style="margin-top: 8px;">
+              <label style="font-size: 10px; font-weight: bold; color: var(--primary-color);">🖼️ SUMAR FOTOS DEL ARTÍCULO (GENERAL, ETIQUETA, EMBALAJE)</label>
+              <input type="file" id="inlineArtPhotosInput" accept="image/*" multiple onchange="handleArticlePhotosUpload(event)" style="margin-top: 4px; font-size: 11px; width: 100%;">
+              <div id="mArtPhotosPreview" style="display: flex; gap: 6px; overflow-x: auto; margin-top: 6px;"></div>
+            </div>
+
+            <!-- Grabador Nota de Voz -->
+            <div style="margin-top: 10px; background: #E3F2FD; padding: 8px; border-radius: 6px;">
+              <label style="font-size: 10px; font-weight: bold; color: var(--secondary-color);">🎙️ GRABAR NOTA DE VOZ (AUDIO RECORDING)</label>
+              <div style="display: flex; gap: 8px; margin-top: 4px; align-items: center;">
+                <button class="btn-primary" id="btnRecordVoice" onclick="toggleVoiceRecording()" style="font-size: 10.5px; padding: 6px 10px;">🎙️ Grabar Audio</button>
+                <span id="voiceRecordTimer" style="font-size: 11px; font-weight: bold; color: var(--warning-text);"></span>
+              </div>
+              <div id="audioPreviewContainer" style="display: none; margin-top: 6px;">
+                <audio id="audioPreview" controls style="width: 100%; height: 32px;"></audio>
+              </div>
+            </div>
+
+            <button class="btn-success" onclick="saveInlineArticle()" style="margin-top: 10px; padding: 8px; font-size: 11.5px; width: 100%;">
+              ➕ SUMAR ARTÍCULO A ESTE PROVEEDOR
+            </button>
+          </div>
+
+          <div style="font-size: 11px; font-weight: bold; color: var(--primary-color); margin-bottom: 6px;">
+            📋 Artículos Agregados a esta Cotización:
+          </div>
           <div id="supplierArticlesListContainer" style="font-size: 11px; color: var(--text-muted);">
-            No hay artículos cargados aún para este proveedor. Haz clic en "➕ Sumar Artículo".
+            No hay artículos agregados aún. Completa los campos arriba y toca "➕ SUMAR ARTÍCULO".
           </div>
         </div>
 
-        <button class="btn-success" onclick="saveSupplierFromForm()" style="padding: 12px; font-size: 13px; margin-bottom: 15px;">
+        <button class="btn-success" onclick="saveSupplierFromForm()" style="padding: 12px; font-size: 13px; margin-bottom: 15px; width: 100%;">
           💾 GUARDAR PROVEEDOR Y ARTÍCULOS EN FIRESTORE
         </button>
       </section>
