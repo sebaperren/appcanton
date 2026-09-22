@@ -923,6 +923,129 @@ function triggerSupplierCardOcr() {
   if (input) input.click();
 }
 
+function preprocessImageForOcr(file, callback) {
+  const img = new Image();
+  img.onload = () => {
+    const canvas = document.createElement('canvas');
+    let width = img.width;
+    let height = img.height;
+    const maxDim = 1600;
+    if (width > maxDim || height > maxDim) {
+      if (width > height) {
+        height = Math.round((height * maxDim) / width);
+        width = maxDim;
+      } else {
+        width = Math.round((width * maxDim) / height);
+        height = maxDim;
+      }
+    }
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0, width, height);
+
+    const imgData = ctx.getImageData(0, 0, width, height);
+    const data = imgData.data;
+    for (let i = 0; i < data.length; i += 4) {
+      const avg = (data[i] + data[i + 1] + data[i + 2]) / 3;
+      const v = avg < 128 ? Math.max(0, avg - 25) : Math.min(255, avg + 25);
+      data[i] = v;
+      data[i + 1] = v;
+      data[i + 2] = v;
+    }
+    ctx.putImageData(imgData, 0, 0);
+    callback(canvas.toDataURL('image/jpeg', 0.9));
+  };
+  img.src = URL.createObjectURL(file);
+}
+
+function parseSupplierCardText(text) {
+  if (!text) return;
+
+  const rawLines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
+
+  // 1. Extraer Email
+  const emailMatch = text.match(/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/);
+  if (emailMatch) {
+    const el = document.getElementById('pEmail');
+    if (el) el.value = emailMatch[0];
+  }
+
+  // 2. Extraer Teléfono / WhatsApp
+  const phoneMatch = text.match(/(?:tel|mobile|phone|wa|whatsapp|mp|cell|mob)?[:\s]*(\+?\d{1,4}[- ]?\d{2,4}[- ]?\d{3,4}[- ]?\d{3,4}|\+?86[- ]?1[3-9]\d{9})/i);
+  if (phoneMatch) {
+    const el = document.getElementById('pPhone');
+    if (el) el.value = phoneMatch[1] || phoneMatch[0];
+  }
+
+  // 3. Extraer WeChat
+  const waMatch = text.match(/(?:wechat|wx|id)[:\s]*([a-zA-Z0-9_-]{5,20})/i);
+  if (waMatch) {
+    const el = document.getElementById('pWeChat');
+    if (el) el.value = waMatch[1];
+  }
+
+  // 4. Extraer Stand / Hall / Booth
+  const standMatch = text.match(/(?:hall\s*\d+[\.\d]*[a-zA-Z0-9\s-]*|stand\s*[\w\d.-]+|booth\s*[\w\d.-]+|\b\d{1,2}\.\d{1,2}[a-zA-Z0-9-]+\b)/i);
+  if (standMatch) {
+    const el = document.getElementById('pStand');
+    if (el) el.value = standMatch[0];
+  }
+
+  // 5. Extraer Caracteres Chinos
+  const chineseChars = text.match(/[\u4e00-\u9fa5]{2,15}/g);
+  if (chineseChars && chineseChars.length > 0) {
+    const el = document.getElementById('pCompanyChinese');
+    if (el) el.value = chineseChars.join(' ');
+  }
+
+  // 6. Extraer Nombre de Empresa (Inglés)
+  const companyKeywords = /\b(co|ltd|limited|corp|corporation|inc|group|factory|industry|industries|manufacture|manufacturing|trading|technology|tech|hardware|building|ceramics|sanitary|ware|lighting|electric|electrical|furniture|import|export|enterprises)\b/i;
+  
+  let foundCompany = '';
+  for (const line of rawLines) {
+    if (companyKeywords.test(line) && !line.includes('@') && !line.startsWith('HTTP') && !line.startsWith('WWW')) {
+      foundCompany = line.replace(/^(company|factory|supplier)[:\s]*/i, '').trim();
+      break;
+    }
+  }
+
+  if (foundCompany) {
+    const el = document.getElementById('pCompany');
+    if (el) el.value = foundCompany;
+  }
+
+  // 7. Extraer Nombre de Contacto
+  const filterNoise = /^(canton|fair|china|tel|mobile|fax|email|add|address|www|http|hall|stand|booth|room|street|road|district|city|province|zip|co\.|ltd\.)/i;
+  
+  let foundContact = '';
+  for (const line of rawLines) {
+    if (
+      line.length >= 3 && line.length <= 35 &&
+      !line.includes('@') &&
+      !/\d{3,}/.test(line) &&
+      !filterNoise.test(line) &&
+      !companyKeywords.test(line)
+    ) {
+      const cleanedName = line.replace(/^(mr\.|ms\.|mrs\.|dr\.|sales manager|manager|director|general manager|ceo|president|export manager)[:\s]*/i, '').trim();
+      if (cleanedName.length >= 3 && !foundCompany.includes(cleanedName)) {
+        foundContact = cleanedName;
+        break;
+      }
+    }
+  }
+
+  if (foundContact) {
+    const el = document.getElementById('pContact');
+    if (el) el.value = foundContact;
+  }
+
+  if (!document.getElementById('pCompany').value && rawLines.length > 0) {
+    const firstCleanLine = rawLines.find(l => !l.includes('@') && !/\d{5,}/.test(l) && !filterNoise.test(l));
+    if (firstCleanLine) document.getElementById('pCompany').value = firstCleanLine;
+  }
+}
+
 function processSupplierCardOcr(event) {
   const file = event.target.files[0];
   if (!file) return;
@@ -930,6 +1053,8 @@ function processSupplierCardOcr(event) {
   const preview = document.getElementById('supplierOcrPreview');
   const img = document.getElementById('imgSupplierCard');
   const status = document.getElementById('supplierOcrStatus');
+  const rawBoxContainer = document.getElementById('supplierOcrRawTextContainer');
+  const rawBox = document.getElementById('supplierOcrRawText');
 
   if (preview && img) {
     preview.style.display = 'block';
@@ -937,67 +1062,46 @@ function processSupplierCardOcr(event) {
   }
 
   if (status) {
-    status.textContent = '⏳ Escaneando tarjeta con OCR (Español / Inglés / Chino)... Por favor aguarda...';
+    status.textContent = '⏳ Optimizando imagen con Canvas y escaneando con OCR de alta resolución... Por favor aguarda...';
   }
 
-  if (typeof Tesseract !== 'undefined') {
-    Tesseract.recognize(file, 'eng+chi_sim+spa', {
-      logger: m => {
-        if (m.status === 'recognizing text' && status) {
-          status.textContent = `⏳ Escaneando tarjeta: ${Math.round(m.progress * 100)}%`;
+  preprocessImageForOcr(file, (processedDataUrl) => {
+    if (typeof Tesseract !== 'undefined') {
+      Tesseract.recognize(processedDataUrl, 'eng+spa', {
+        logger: m => {
+          if (m.status === 'recognizing text' && status) {
+            status.textContent = `⏳ Escaneando tarjeta: ${Math.round(m.progress * 100)}%`;
+          }
         }
-      }
-    }).then(({ data: { text } }) => {
-      if (status) status.textContent = '✅ Datos extraídos de la tarjeta correctamente!';
+      }).then(({ data: { text } }) => {
+        if (status) status.textContent = '✅ Texto extraído de la tarjeta!';
+        
+        if (rawBox) rawBox.value = text;
+        if (rawBoxContainer) rawBoxContainer.style.display = 'block';
 
-      // Extraer email
-      const emailMatch = text.match(/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/);
-      if (emailMatch) document.getElementById('pEmail').value = emailMatch[0];
+        parseSupplierCardText(text);
 
-      // Extraer teléfono / WhatsApp
-      const phoneMatch = text.match(/(\+?86[- ]?)?1[3-9]\d{9}|\+?\d{1,4}[- ]?\d{3,4}[- ]?\d{4,}/);
-      if (phoneMatch) document.getElementById('pPhone').value = phoneMatch[0];
-
-      // Extraer WeChat
-      const waMatch = text.match(/(?:wechat|wx|id)[:\s]*([a-zA-Z0-9_-]{5,20})/i);
-      if (waMatch) document.getElementById('pWeChat').value = waMatch[1];
-
-      // Extraer Stand / Hall
-      const standMatch = text.match(/(?:hall\s*\d+[\.\d]*[a-zA-Z0-9\s-]*|stand\s*[\w\d-]+|booth\s*[\w\d-]+)/i);
-      if (standMatch) document.getElementById('pStand').value = standMatch[0];
-
-      // Extraer Caracteres Chinos
-      const chineseChars = text.match(/[\u4e00-\u9fa5]{2,10}/g);
-      if (chineseChars && chineseChars.length > 0) {
-        document.getElementById('pCompanyChinese').value = chineseChars.join(' ');
-      }
-
-      // Líneas de texto para Nombre y Contacto
-      const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 2);
-      if (lines.length > 0 && !document.getElementById('pCompany').value) {
-        document.getElementById('pCompany').value = lines[0];
-      }
-      if (lines.length > 1 && !document.getElementById('pContact').value) {
-        document.getElementById('pContact').value = lines[1];
-      }
-
-      // Guardar respaldo en IndexedDB
-      const reader = new FileReader();
-      reader.onload = (e) => {
         if (db) {
           try {
             const tx = db.transaction('photos', 'readwrite');
-            tx.objectStore('photos').add({ image: e.target.result, date: new Date().toISOString(), text, type: 'business_card' });
+            tx.objectStore('photos').add({ image: processedDataUrl, date: new Date().toISOString(), text, type: 'business_card' });
           } catch (_) {}
         }
-      };
-      reader.readAsDataURL(file);
 
-    }).catch(err => {
-      if (status) status.textContent = '❌ Error en OCR: ' + err.message;
-    });
-  } else {
-    if (status) status.textContent = '⚠️ Tesseract.js no disponible. Ingrese los datos manualmente.';
+      }).catch(err => {
+        if (status) status.textContent = '❌ Error en OCR: ' + err.message;
+      });
+    } else {
+      if (status) status.textContent = '⚠️ Tesseract.js no disponible. Ingrese los datos manualmente.';
+    }
+  });
+}
+
+function applySupplierCardOcrText() {
+  const rawBox = document.getElementById('supplierOcrRawText');
+  if (rawBox && rawBox.value) {
+    parseSupplierCardText(rawBox.value);
+    alert('✅ Campos autocompletados con el texto de la tarjeta.');
   }
 }
 
@@ -1024,10 +1128,7 @@ function openAddArticleModal() {
 }
 
 function closeAddArticleModal() {
-  if (voiceMediaRecorder && voiceMediaRecorder.state === 'recording') {
-    voiceMediaRecorder.stop();
-  }
-  clearInterval(voiceRecordTimerInterval);
+  stopVoiceRecording();
   document.getElementById('modalAddArticle').classList.remove('open');
 }
 
@@ -1069,6 +1170,28 @@ function toggleVoiceRecording() {
   }
 }
 
+function stopVoiceRecording() {
+  if (voiceMediaRecorder && voiceMediaRecorder.state === 'recording') {
+    try {
+      voiceMediaRecorder.stop();
+    } catch (e) {
+      console.log('Voice stop notice:', e);
+    }
+  }
+  if (voiceRecordTimerInterval) {
+    clearInterval(voiceRecordTimerInterval);
+  }
+  const btn = document.getElementById('btnRecordVoice');
+  const timer = document.getElementById('voiceRecordTimer');
+  if (btn) {
+    btn.textContent = '🎙️ Grabar Audio';
+    btn.style.background = 'var(--primary-color)';
+  }
+  if (timer && !voiceAudioBase64) {
+    timer.textContent = '';
+  }
+}
+
 function startVoiceRecording() {
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
     alert('Tu navegador o dispositivo no permite grabar audio.');
@@ -1076,33 +1199,45 @@ function startVoiceRecording() {
   }
 
   voiceAudioChunks = [];
+  voiceAudioBase64 = null;
+
   navigator.mediaDevices.getUserMedia({ audio: true })
     .then(stream => {
       voiceMediaRecorder = new MediaRecorder(stream);
-      voiceMediaRecorder.start();
+      voiceMediaRecorder.start(200);
       
       voiceRecordSeconds = 0;
       const btn = document.getElementById('btnRecordVoice');
       const timer = document.getElementById('voiceRecordTimer');
-      btn.textContent = '⏹️ Detener Grabación';
-      btn.style.background = '#D32F2F';
+      if (btn) {
+        btn.textContent = '⏹️ Detener Grabación';
+        btn.style.background = '#D32F2F';
+      }
+      if (timer) {
+        timer.textContent = '🔴 0s';
+      }
 
+      clearInterval(voiceRecordTimerInterval);
       voiceRecordTimerInterval = setInterval(() => {
         voiceRecordSeconds++;
-        timer.textContent = `🔴 ${voiceRecordSeconds}s`;
+        if (timer) timer.textContent = `🔴 ${voiceRecordSeconds}s`;
       }, 1000);
 
       voiceMediaRecorder.ondataavailable = e => {
-        if (e.data.size > 0) {
+        if (e.data && e.data.size > 0) {
           voiceAudioChunks.push(e.data);
         }
       };
 
       voiceMediaRecorder.onstop = () => {
         clearInterval(voiceRecordTimerInterval);
-        btn.textContent = '🎙️ Grabar Audio';
-        btn.style.background = 'var(--primary-color)';
-        timer.textContent = '✅ Audio Grabado';
+        if (btn) {
+          btn.textContent = '🎙️ Grabar Audio';
+          btn.style.background = 'var(--primary-color)';
+        }
+        if (timer) {
+          timer.textContent = '✅ Audio Grabado (' + voiceRecordSeconds + 's)';
+        }
 
         const audioBlob = new Blob(voiceAudioChunks, { type: 'audio/webm' });
         const reader = new FileReader();
@@ -1756,8 +1891,14 @@ if (typeof window !== 'undefined') {
   window.switchTab = switchTab;
   window.triggerSupplierCardOcr = triggerSupplierCardOcr;
   window.processSupplierCardOcr = processSupplierCardOcr;
+  window.applySupplierCardOcrText = applySupplierCardOcrText;
   window.saveSupplierFromForm = saveSupplierFromForm;
   window.saveInlineArticle = saveInlineArticle;
   window.openAddArticleModal = openAddArticleModal;
   window.closeAddArticleModal = closeAddArticleModal;
+  window.toggleVoiceRecording = toggleVoiceRecording;
+  window.stopVoiceRecording = stopVoiceRecording;
+  window.handleArticlePhotosUpload = handleArticlePhotosUpload;
+  window.removeArticlePhoto = removeArticlePhoto;
+  window.removeSupplierArticle = removeSupplierArticle;
 }

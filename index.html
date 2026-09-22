@@ -137,6 +137,12 @@
             <img id="imgSupplierCard" style="max-height: 120px; border-radius: 8px; border: 1px solid #CCC;">
           </div>
           <div id="supplierOcrStatus" style="font-size: 10.5px; color: var(--secondary-color); font-weight: bold; margin-top: 6px; text-align: center;"></div>
+
+          <div id="supplierOcrRawTextContainer" style="display: none; margin-top: 10px; background: #FAFAFA; padding: 8px; border-radius: 6px; border: 1px solid #DDD;">
+            <label style="font-size: 10px; font-weight: bold; color: var(--primary-color);">📝 TEXTO EXTRAÍDO DE LA TARJETA (EDITAR SI ES NECESARIO):</label>
+            <textarea id="supplierOcrRawText" class="form-control" style="height: 60px; font-size: 10.5px; margin-top: 4px;" placeholder="Texto extraído por OCR..."></textarea>
+            <button class="btn-primary" onclick="applySupplierCardOcrText()" style="width: 100%; margin-top: 6px; font-size: 11px; padding: 6px;">⚡ AUTOCOMPLETAR FORMULARIO CON ESTE TEXTO</button>
+          </div>
         </div>
 
         <!-- Tarjeta B: Datos Principales de la Fábrica y Contacto -->
