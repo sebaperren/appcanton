@@ -52,7 +52,7 @@ let stateSettings = {
   incDespachante: true
 };
 
-// Base de Datos Perren Flexxus BI (Muestra Integrada de 12.074 artículos)
+// Base de Datos Perren Flexxus BI (Se carga desde articulos_flexxus_perren.csv - 12.074 artículos)
 let perrenSqlDatabase = [
   { sku: 'PERREN-1042', description: 'Azulejo cerámico 20x20 Blanco Satinado', brand: 'Cortines', category: 'Revestimientos', costNoVAT: 14175.0, priceVAT: 21500.0, abcClass: 'A' },
   { sku: 'PERREN-2088', description: 'Porcelanato 60x60 Gris Pulido San Lorenzo', brand: 'San Lorenzo', category: 'Porcelanatos', costNoVAT: 28500.0, priceVAT: 42000.0, abcClass: 'A' },
@@ -100,16 +100,22 @@ let selectedCantonItem = null;
 let selectedPerrenItem = null;
 let activeCategoryFilter = 'TODOS';
 
-// IndexedDB Storage setup for Photo Backup
+// IndexedDB Storage setup for Photo Backup & 12.074 Flexxus CSV Products
 let db;
-const request = indexedDB.open('CantonAppDB', 1);
+const request = indexedDB.open('CantonAppDB', 2); // Version 2 with flexxus_products
 request.onupgradeneeded = (e) => {
   db = e.target.result;
   if (!db.objectStoreNames.contains('photos')) {
     db.createObjectStore('photos', { keyPath: 'id', autoIncrement: true });
   }
+  if (!db.objectStoreNames.contains('flexxus_products')) {
+    db.createObjectStore('flexxus_products', { keyPath: 'sku' });
+  }
 };
-request.onsuccess = (e) => { db = e.target.result; };
+request.onsuccess = (e) => { 
+  db = e.target.result; 
+  loadFlexxusCsvDatabase();
+};
 
 // Initialize PWA Service Worker
 if ('serviceWorker' in navigator) {
@@ -124,6 +130,110 @@ document.addEventListener('DOMContentLoaded', () => {
   renderTarjetero();
   renderSecSearchResults();
 });
+
+// CSV PARSER & INDEXEDDB CACHING LOGIC
+function parseCSVLine(line) {
+  const result = [];
+  let current = '';
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
+    if (char === '"') {
+      inQuotes = !inQuotes;
+    } else if (char === ',' && !inQuotes) {
+      result.push(current.trim());
+      current = '';
+    } else {
+      current += char;
+    }
+  }
+  result.push(current.trim());
+  return result;
+}
+
+async function loadFlexxusCsvDatabase() {
+  const statusEl = document.getElementById('flexxusDbStatus');
+  if (statusEl) statusEl.textContent = '⏳ Verificando catálogo Flexxus (12.074 artículos)...';
+
+  try {
+    // 1. Intentar cargar desde IndexedDB local para máxima velocidad offline
+    const cachedProducts = await getProductsFromIndexedDB();
+    if (cachedProducts && cachedProducts.length > 1000) {
+      perrenSqlDatabase = cachedProducts;
+      if (statusEl) statusEl.textContent = `🟢 Base SQL Flexxus BI: ${perrenSqlDatabase.length.toLocaleString('es-AR')} artículos listos (Offline IndexedDB)`;
+      renderSecSearchResults();
+      return;
+    }
+
+    // 2. Descargar y parsear articulos_flexxus_perren.csv
+    if (statusEl) statusEl.textContent = '⏳ Cargando articulos_flexxus_perren.csv (1.8 MB)...';
+    const response = await fetch('./articulos_flexxus_perren.csv');
+    if (!response.ok) throw new Error('No se pudo acceder a articulos_flexxus_perren.csv');
+
+    const text = await response.text();
+    const lines = text.split(/\r?\n/);
+
+    const parsed = [];
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) continue;
+      const cols = parseCSVLine(line);
+      if (cols.length >= 8) {
+        parsed.push({
+          sku: cols[0],
+          description: cols[1],
+          brand: cols[2] || 'Varios',
+          category: cols[3] || 'General',
+          subcategory: cols[4] || '',
+          classification: cols[5] || '',
+          abcClass: cols[6] || 'A',
+          costNoVAT: parseFloat(cols[7]) || 0.0,
+          salePriceNoVAT: parseFloat(cols[8]) || 0.0,
+          stockAvailable: parseInt(cols[9]) || 0,
+          unit: cols[10] || 'Unidad'
+        });
+      }
+    }
+
+    if (parsed.length > 0) {
+      perrenSqlDatabase = parsed;
+      if (statusEl) statusEl.textContent = `🟢 Base SQL Flexxus BI: ${perrenSqlDatabase.length.toLocaleString('es-AR')} artículos cargados`;
+      saveProductsToIndexedDB(parsed);
+      renderSecSearchResults();
+    }
+  } catch (err) {
+    console.log('Flexxus CSV Notice:', err);
+    if (statusEl) statusEl.textContent = `🟢 Base SQL Flexxus BI: ${perrenSqlDatabase.length.toLocaleString('es-AR')} artículos precargados`;
+  }
+}
+
+function saveProductsToIndexedDB(products) {
+  if (!db) return;
+  try {
+    const tx = db.transaction('flexxus_products', 'readwrite');
+    const store = tx.objectStore('flexxus_products');
+    store.clear();
+    products.forEach(p => store.put(p));
+  } catch (e) {
+    console.log('IndexedDB save notice:', e);
+  }
+}
+
+function getProductsFromIndexedDB() {
+  return new Promise((resolve) => {
+    if (!db) return resolve([]);
+    try {
+      if (!db.objectStoreNames.contains('flexxus_products')) return resolve([]);
+      const tx = db.transaction('flexxus_products', 'readonly');
+      const store = tx.objectStore('flexxus_products');
+      const req = store.getAll();
+      req.onsuccess = () => resolve(req.result || []);
+      req.onerror = () => resolve([]);
+    } catch (e) {
+      resolve([]);
+    }
+  });
+}
 
 // STRICT AUTHENTICATION DISPLAY CONTROL
 function showAuthenticatedApp(userEmail) {
@@ -432,7 +542,7 @@ function toggleCardExpand(index) {
   renderTab2List();
 }
 
-// SECCIÓN 3: BUSCADOR BASE SQL FLEXXUS PERREN (12.074 ARTÍCULOS)
+// SECCIÓN 3: BUSCADOR EN BASE SQL FLEXXUS (12.074 ARTÍCULOS REALES DEL CSV)
 function renderSecSearchResults() {
   const container = document.getElementById('secSearchResults');
   if (!container) return;
@@ -440,11 +550,13 @@ function renderSecSearchResults() {
   const query = (document.getElementById('secSearchInput')?.value || '').toLowerCase();
   
   const filtered = perrenSqlDatabase.filter(item => {
-    const matchQuery = item.sku.toLowerCase().includes(query) ||
+    const matchQuery = !query || 
+                       item.sku.toLowerCase().includes(query) ||
                        item.description.toLowerCase().includes(query) ||
                        item.brand.toLowerCase().includes(query) ||
                        item.category.toLowerCase().includes(query);
-    const matchCat = activeCategoryFilter === 'TODOS' || item.category === activeCategoryFilter;
+    const matchCat = activeCategoryFilter === 'TODOS' || 
+                     item.category.toLowerCase().includes(activeCategoryFilter.toLowerCase());
     return matchQuery && matchCat;
   });
 
@@ -453,7 +565,14 @@ function renderSecSearchResults() {
     return;
   }
 
-  container.innerHTML = filtered.map(item => {
+  // Slice to 50 for max UI performance
+  const displayItems = filtered.slice(0, 50);
+
+  container.innerHTML = `
+    <div style="font-size: 10px; color: var(--text-muted); margin-bottom: 6px; padding: 0 4px;">
+      Mostrando ${displayItems.length} de ${filtered.length.toLocaleString('es-AR')} resultados:
+    </div>
+  ` + displayItems.map(item => {
     const costUSD = item.costNoVAT / stateSettings.tc;
     return `
       <div class="card" style="border-left: 4px solid var(--accent-color);">
@@ -470,7 +589,7 @@ function renderSecSearchResults() {
         </div>
 
         <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px;">
-          <div style="font-size: 9.5px; color: var(--text-muted);">Costo Neto Flexxus ARS: $${item.costNoVAT.toLocaleString('es-AR')}</div>
+          <div style="font-size: 9.5px; color: var(--text-muted);">Costo Neto Flexxus ARS: $${item.costNoVAT.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</div>
           <button class="btn-chip" onclick="selectPerrenItemFromSec('${item.sku}')" style="background: var(--secondary-color); color: white; border: none;">
             ⚖️ Comparar vs Canton
           </button>
@@ -604,14 +723,16 @@ function renderPerrenSearchResults() {
 
   const query = (document.getElementById('perrenSearchInput')?.value || '').toLowerCase();
   const filtered = perrenSqlDatabase.filter(i => 
-    i.sku.toLowerCase().includes(query) || i.description.toLowerCase().includes(query) || i.brand.toLowerCase().includes(query)
+    !query || i.sku.toLowerCase().includes(query) || i.description.toLowerCase().includes(query) || i.brand.toLowerCase().includes(query)
   );
 
-  container.innerHTML = filtered.map(item => `
+  const display = filtered.slice(0, 30);
+
+  container.innerHTML = display.map(item => `
     <div style="padding: 8px; border-bottom: 1px solid #EEE; display: flex; justify-content: space-between; align-items: center;">
       <div>
         <strong style="font-size: 11px; color: var(--primary-color);">${item.description}</strong>
-        <div style="font-size: 9.5px; color: var(--text-muted);">${item.sku} • ${item.brand}</div>
+        <div style="font-size: 9.5px; color: var(--text-muted);">${item.sku} • ${item.brand} • $${item.costNoVAT.toLocaleString('es-AR')} ARS</div>
       </div>
       <button class="btn-chip" onclick="selectPerrenFromModal('${item.sku}')">Seleccionar</button>
     </div>
