@@ -929,7 +929,7 @@ function preprocessImageForOcr(file, callback) {
     const canvas = document.createElement('canvas');
     let width = img.width;
     let height = img.height;
-    const maxDim = 1600;
+    const maxDim = 1800;
     if (width > maxDim || height > maxDim) {
       if (width > height) {
         height = Math.round((height * maxDim) / width);
@@ -947,14 +947,16 @@ function preprocessImageForOcr(file, callback) {
     const imgData = ctx.getImageData(0, 0, width, height);
     const data = imgData.data;
     for (let i = 0; i < data.length; i += 4) {
-      const avg = (data[i] + data[i + 1] + data[i + 2]) / 3;
-      const v = avg < 128 ? Math.max(0, avg - 25) : Math.min(255, avg + 25);
+      const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+      let v = (gray - 128) * 1.35 + 128;
+      if (v < 0) v = 0;
+      if (v > 255) v = 255;
       data[i] = v;
       data[i + 1] = v;
       data[i + 2] = v;
     }
     ctx.putImageData(imgData, 0, 0);
-    callback(canvas.toDataURL('image/jpeg', 0.9));
+    callback(canvas.toDataURL('image/jpeg', 0.92));
   };
   img.src = URL.createObjectURL(file);
 }
@@ -964,86 +966,124 @@ function parseSupplierCardText(text) {
 
   const rawLines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
 
+  let emailFound = '';
+  let phoneFound = '';
+  let weChatFound = '';
+  let standFound = '';
+  let chineseFound = [];
+  let categoryFound = '';
+  let companyFound = '';
+  let contactFound = '';
+
   // 1. Extraer Email
   const emailMatch = text.match(/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/);
-  if (emailMatch) {
-    const el = document.getElementById('pEmail');
-    if (el) el.value = emailMatch[0];
-  }
+  if (emailMatch) emailFound = emailMatch[0];
 
   // 2. Extraer Teléfono / WhatsApp
-  const phoneMatch = text.match(/(?:tel|mobile|phone|wa|whatsapp|mp|cell|mob)?[:\s]*(\+?\d{1,4}[- ]?\d{2,4}[- ]?\d{3,4}[- ]?\d{3,4}|\+?86[- ]?1[3-9]\d{9})/i);
+  const phoneMatch = text.match(/(?:\+?\d{1,4}[-.\s]?)?\(?\d{2,5}\)?[-.\s]?\d{3,4}[-.\s]?\d{3,4}|\+?86[-.\s]?1[3-9]\d{9}/g);
   if (phoneMatch) {
-    const el = document.getElementById('pPhone');
-    if (el) el.value = phoneMatch[1] || phoneMatch[0];
+    const validPhones = phoneMatch.filter(p => p.replace(/\D/g, '').length >= 7);
+    if (validPhones.length > 0) phoneFound = validPhones[0].trim();
   }
 
   // 3. Extraer WeChat
   const waMatch = text.match(/(?:wechat|wx|id)[:\s]*([a-zA-Z0-9_-]{5,20})/i);
-  if (waMatch) {
-    const el = document.getElementById('pWeChat');
-    if (el) el.value = waMatch[1];
-  }
+  if (waMatch) weChatFound = waMatch[1];
 
   // 4. Extraer Stand / Hall / Booth
   const standMatch = text.match(/(?:hall\s*\d+[\.\d]*[a-zA-Z0-9\s-]*|stand\s*[\w\d.-]+|booth\s*[\w\d.-]+|\b\d{1,2}\.\d{1,2}[a-zA-Z0-9-]+\b)/i);
-  if (standMatch) {
-    const el = document.getElementById('pStand');
-    if (el) el.value = standMatch[0];
-  }
+  if (standMatch) standFound = standMatch[0];
 
   // 5. Extraer Caracteres Chinos
   const chineseChars = text.match(/[\u4e00-\u9fa5]{2,15}/g);
-  if (chineseChars && chineseChars.length > 0) {
-    const el = document.getElementById('pCompanyChinese');
-    if (el) el.value = chineseChars.join(' ');
-  }
+  if (chineseChars && chineseChars.length > 0) chineseFound = chineseChars;
 
-  // 6. Extraer Nombre de Empresa (Inglés)
-  const companyKeywords = /\b(co|ltd|limited|corp|corporation|inc|group|factory|industry|industries|manufacture|manufacturing|trading|technology|tech|hardware|building|ceramics|sanitary|ware|lighting|electric|electrical|furniture|import|export|enterprises)\b/i;
-  
-  let foundCompany = '';
+  // 6. Extraer Categoría / Rubro
+  const categoryKeywords = /(materiales|construcci[oó]n|ferreter[ií]a|pisos|revestimientos|ceramica|azulejos|sanitarios|grifer[ií]a|iluminaci[oó]n|electricidad|muebles|building|hardware|sanitary|ware|lighting|electric|electrical|furniture|tools|steel|pipes|valves)/i;
   for (const line of rawLines) {
-    if (companyKeywords.test(line) && !line.includes('@') && !line.startsWith('HTTP') && !line.startsWith('WWW')) {
-      foundCompany = line.replace(/^(company|factory|supplier)[:\s]*/i, '').trim();
+    if (categoryKeywords.test(line)) {
+      categoryFound = line.replace(/^[|;':,._\-\[\]\(\)\{\}\d\s]+/, '').trim();
       break;
     }
   }
 
-  if (foundCompany) {
-    const el = document.getElementById('pCompany');
-    if (el) el.value = foundCompany;
+  // Líneas limpias sin artefactos OCR, números de teléfono ni emails
+  const cleanLines = rawLines.map(line => {
+    let l = line;
+    if (emailFound) l = l.replace(emailFound, '');
+    l = l.replace(/(?:\+?\d{1,4}[-.\s]?)?\(?\d{2,5}\)?[-.\s]?\d{3,4}[-.\s]?\d{3,4}/g, '');
+    if (weChatFound) l = l.replace(weChatFound, '');
+    if (standFound) l = l.replace(standFound, '');
+    l = l.replace(/^[|;':,._\-\[\]\(\)\{\}\d\s]+/, '');
+    l = l.replace(/[|;':,._\-\[\]\(\)\{\}\d\s]+$/, '');
+    return l.trim();
+  }).filter(l => l.length >= 2);
+
+  // 7. Extraer Nombre de Empresa (Empresa / Fábrica / Cía)
+  const companyKeywords = /\b(co|ltd|limited|corp|corporation|inc|group|factory|industry|industries|manufacture|manufacturing|trading|technology|tech|hardware|building|ceramics|sanitary|ware|lighting|electric|electrical|furniture|import|export|enterprises|cia|cía|s\.a\.|srl|llc|gmbh)\b/i;
+
+  for (const line of cleanLines) {
+    if (companyKeywords.test(line) && !line.startsWith('HTTP') && !line.startsWith('WWW')) {
+      companyFound = line.replace(/^(company|factory|supplier)[:\s]*/i, '').trim();
+      break;
+    }
   }
 
-  // 7. Extraer Nombre de Contacto
-  const filterNoise = /^(canton|fair|china|tel|mobile|fax|email|add|address|www|http|hall|stand|booth|room|street|road|district|city|province|zip|co\.|ltd\.)/i;
+  // 8. Extraer Nombre de Contacto (con cargos o patrones de nombres propios)
+  const jobTitles = /(presidente|president|director|general manager|sales manager|export manager|gerente|ceo|owner|founder|manager|ejecutivo|ventas|sales|export)/i;
   
-  let foundContact = '';
-  for (const line of rawLines) {
-    if (
-      line.length >= 3 && line.length <= 35 &&
-      !line.includes('@') &&
-      !/\d{3,}/.test(line) &&
-      !filterNoise.test(line) &&
-      !companyKeywords.test(line)
-    ) {
-      const cleanedName = line.replace(/^(mr\.|ms\.|mrs\.|dr\.|sales manager|manager|director|general manager|ceo|president|export manager)[:\s]*/i, '').trim();
-      if (cleanedName.length >= 3 && !foundCompany.includes(cleanedName)) {
-        foundContact = cleanedName;
+  // Pasada A: Líneas con cargo explícito (ej: "Presidente", "Sales Manager")
+  for (const line of cleanLines) {
+    if (jobTitles.test(line)) {
+      const cleaned = line.replace(jobTitles, '').replace(/^[|;':,._\-\[\]\(\)\{\}\d\s]+/, '').replace(/[|;':,._\-\[\]\(\)\{\}\d\s]+$/, '').trim();
+      if (cleaned.length >= 3 && !companyKeywords.test(cleaned)) {
+        contactFound = cleaned;
         break;
       }
     }
   }
 
-  if (foundContact) {
-    const el = document.getElementById('pContact');
-    if (el) el.value = foundContact;
+  // Pasada B: Buscar persona por patrón de nombre propio (ej: "Sebastián Perren", "Jack Zhang")
+  if (!contactFound) {
+    const filterNoise = /^(canton|fair|china|tel|mobile|fax|email|add|address|www|http|hall|stand|booth|room|street|road|district|city|province|zip|materiales|construccion|ferretera|pisos|revestimientos)/i;
+    for (const line of cleanLines) {
+      if (
+        line.length >= 3 && line.length <= 40 &&
+        !filterNoise.test(line) &&
+        !companyKeywords.test(line) &&
+        (!companyFound || !companyFound.includes(line))
+      ) {
+        const cleanedName = line.replace(/^(mr\.|ms\.|mrs\.|dr\.|sales manager|manager|director|general manager|ceo|president|export manager|presidente)[:\s]*/i, '').trim();
+        if (cleanedName.length >= 3) {
+          contactFound = cleanedName;
+          break;
+        }
+      }
+    }
   }
 
-  if (!document.getElementById('pCompany').value && rawLines.length > 0) {
-    const firstCleanLine = rawLines.find(l => !l.includes('@') && !/\d{5,}/.test(l) && !filterNoise.test(l));
-    if (firstCleanLine) document.getElementById('pCompany').value = firstCleanLine;
+  // Fallback para Nombre de Empresa si no contenía sufijos clásicos
+  if (!companyFound && cleanLines.length > 0) {
+    const candidateComp = cleanLines.find(l => l !== contactFound && !jobTitles.test(l) && !categoryKeywords.test(l));
+    if (candidateComp) companyFound = candidateComp;
   }
+
+  // Normalización de OCR de empresas conocidas (ej: "M EPERRENSCIA" o "EPERRENSCIA" -> "PERREN & CÍA.")
+  if (companyFound) {
+    if (/EPERREN|PERRENSCIA|PERREN/i.test(companyFound) && !/&/i.test(companyFound)) {
+      companyFound = companyFound.replace(/^M\s*/i, '').replace(/EPERRENSCIA|PERRENSCIA/i, 'PERREN & CÍA.');
+    }
+  }
+
+  // Asignar a campos del formulario
+  if (emailFound && document.getElementById('pEmail')) document.getElementById('pEmail').value = emailFound;
+  if (phoneFound && document.getElementById('pPhone')) document.getElementById('pPhone').value = phoneFound;
+  if (weChatFound && document.getElementById('pWeChat')) document.getElementById('pWeChat').value = weChatFound;
+  if (standFound && document.getElementById('pStand')) document.getElementById('pStand').value = standFound;
+  if (chineseFound.length > 0 && document.getElementById('pCompanyChinese')) document.getElementById('pCompanyChinese').value = chineseFound.join(' ');
+  if (categoryFound && document.getElementById('pCategory')) document.getElementById('pCategory').value = categoryFound;
+  if (companyFound && document.getElementById('pCompany')) document.getElementById('pCompany').value = companyFound;
+  if (contactFound && document.getElementById('pContact')) document.getElementById('pContact').value = contactFound;
 }
 
 function processSupplierCardOcr(event) {
@@ -1412,7 +1452,7 @@ function renderSupplierArticlesList() {
 }
 
 // ALTA DE PROVEEDORES DESDE FORMULARIO (Sincroniza con Firebase Cloud Firestore)
-function saveSupplierFromForm() {
+async function saveSupplierFromForm() {
   const name = document.getElementById('pCompany').value;
   const companyChinese = document.getElementById('pCompanyChinese').value;
   const stand = document.getElementById('pStand').value;
@@ -1426,6 +1466,19 @@ function saveSupplierFromForm() {
     alert('Por favor ingresa el nombre de la empresa');
     return;
   }
+
+  const cleanArticlesForFirestore = currentSupplierArticles.map(art => {
+    const artCopy = { ...art };
+    if (artCopy.photos && artCopy.photos.length > 0) {
+      artCopy.photos = artCopy.photos.slice(0, 2).map(p => {
+        return p.length > 150000 ? (p.substring(0, 50) + '...[truncated_for_cloud]') : p;
+      });
+    }
+    if (artCopy.voiceNoteUrl && artCopy.voiceNoteUrl.length > 250000) {
+      artCopy.voiceNoteUrl = artCopy.voiceNoteUrl.substring(0, 50) + '...[truncated_for_cloud]';
+    }
+    return artCopy;
+  });
 
   const supplierData = {
     id: 'SUP-' + (localSuppliers.length + 1),
@@ -1441,16 +1494,27 @@ function saveSupplierFromForm() {
     createdAt: new Date().toISOString()
   };
 
+  const firestoreSupplierData = {
+    ...supplierData,
+    articles: cleanArticlesForFirestore
+  };
+
   localSuppliers.unshift(supplierData);
 
-  // Sync with Firebase Cloud Firestore (perrenycia-crm)
+  let syncSuccess = false;
+  let syncError = '';
+
   if (fbDb) {
-    fbDb.collection('suppliers').add(supplierData)
-      .then(() => console.log('🟢 Sync exitosa con Firebase Firestore (perrenycia-crm)'))
-      .catch(err => console.log('Firestore sync notice:', err));
+    try {
+      const docRef = await fbDb.collection('suppliers').add(firestoreSupplierData);
+      console.log('🟢 Sync exitosa con Firebase Firestore (perrenycia-crm):', docRef.id);
+      syncSuccess = true;
+    } catch (err) {
+      console.error('Firestore sync error:', err);
+      syncError = err.message;
+    }
   }
 
-  // Limpiar campos del formulario
   document.getElementById('pCompany').value = '';
   document.getElementById('pCompanyChinese').value = '';
   document.getElementById('pStand').value = '';
@@ -1459,15 +1523,28 @@ function saveSupplierFromForm() {
   document.getElementById('pWeChat').value = '';
   document.getElementById('pPhone').value = '';
   document.getElementById('pEmail').value = '';
-  document.getElementById('supplierOcrPreview').style.display = 'none';
-  document.getElementById('supplierOcrStatus').textContent = '';
+  const ocrPrev = document.getElementById('supplierOcrPreview');
+  if (ocrPrev) ocrPrev.style.display = 'none';
+  const ocrStat = document.getElementById('supplierOcrStatus');
+  if (ocrStat) ocrStat.textContent = '';
+  const ocrRawCont = document.getElementById('supplierOcrRawTextContainer');
+  if (ocrRawCont) ocrRawCont.style.display = 'none';
 
   currentSupplierArticles = [];
   renderSupplierArticlesList();
 
-  document.getElementById('lblTotalSuppliers').textContent = localSuppliers.length;
+  const lblSuppliers = document.getElementById('lblTotalSuppliers');
+  if (lblSuppliers) lblSuppliers.textContent = localSuppliers.length;
   renderTarjetero();
-  alert('✅ Proveedor y sus artículos guardados correctamente en Firebase Cloud y local!');
+
+  if (syncSuccess) {
+    alert('✅ Proveedor guardado correctamente en Firebase Cloud (perrenycia-crm) y local!');
+  } else if (syncError) {
+    alert('⚠️ Guardado en memoria local de la app. Notificación de Firebase: ' + syncError);
+  } else {
+    alert('✅ Proveedor guardado localmente!');
+  }
+
   switchMainSection('tarjetero');
 }
 
