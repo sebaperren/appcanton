@@ -1740,3 +1740,24 @@ function processOcrImage(event) {
     status.textContent = '❌ Error al procesar la imagen: ' + err.message;
   });
 }
+
+// EXPLICIT GLOBAL WINDOW EXPORTS FOR HTML ONCLICK HANDLERS
+if (typeof window !== 'undefined') {
+  window.openCantonSelectModal = openCantonSelectModal;
+  window.closeCantonSelectModal = closeCantonSelectModal;
+  window.selectQuickCantonArticle = selectQuickCantonArticle;
+  window.renderCantonSelectResults = renderCantonSelectResults;
+  window.selectCantonItemFromIndex = selectCantonItemFromIndex;
+  window.openPerrenModal = openPerrenModal;
+  window.closePerrenModal = closePerrenModal;
+  window.selectPerrenFromModal = selectPerrenFromModal;
+  window.selectCantonForCompare = selectCantonForCompare;
+  window.switchMainSection = switchMainSection;
+  window.switchTab = switchTab;
+  window.triggerSupplierCardOcr = triggerSupplierCardOcr;
+  window.processSupplierCardOcr = processSupplierCardOcr;
+  window.saveSupplierFromForm = saveSupplierFromForm;
+  window.saveInlineArticle = saveInlineArticle;
+  window.openAddArticleModal = openAddArticleModal;
+  window.closeAddArticleModal = closeAddArticleModal;
+}
