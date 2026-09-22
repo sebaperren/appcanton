@@ -764,12 +764,330 @@ function renderTarjetero() {
   }).join('');
 }
 
+// ESTADO TEMPORAL PARA ALTA DE PROVEEDOR Y ARTÍCULOS COTIZADOS
+let currentSupplierArticles = [];
+let currentArticlePhotos = [];
+let voiceMediaRecorder = null;
+let voiceAudioChunks = [];
+let voiceAudioBase64 = null;
+let voiceRecordTimerInterval = null;
+let voiceRecordSeconds = 0;
+
+// ESCÁNER OCR DE TARJETAS DE NEGOCIO Y CARTELES DE STAND
+function triggerSupplierCardOcr() {
+  const input = document.getElementById('supplierOcrFileInput');
+  if (input) input.click();
+}
+
+function processSupplierCardOcr(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const preview = document.getElementById('supplierOcrPreview');
+  const img = document.getElementById('imgSupplierCard');
+  const status = document.getElementById('supplierOcrStatus');
+
+  if (preview && img) {
+    preview.style.display = 'block';
+    img.src = URL.createObjectURL(file);
+  }
+
+  if (status) {
+    status.textContent = '⏳ Escaneando tarjeta con OCR (Español / Inglés / Chino)... Por favor aguarda...';
+  }
+
+  if (typeof Tesseract !== 'undefined') {
+    Tesseract.recognize(file, 'eng+chi_sim+spa', {
+      logger: m => {
+        if (m.status === 'recognizing text' && status) {
+          status.textContent = `⏳ Escaneando tarjeta: ${Math.round(m.progress * 100)}%`;
+        }
+      }
+    }).then(({ data: { text } }) => {
+      if (status) status.textContent = '✅ Datos extraídos de la tarjeta correctamente!';
+
+      // Extraer email
+      const emailMatch = text.match(/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/);
+      if (emailMatch) document.getElementById('pEmail').value = emailMatch[0];
+
+      // Extraer teléfono / WhatsApp
+      const phoneMatch = text.match(/(\+?86[- ]?)?1[3-9]\d{9}|\+?\d{1,4}[- ]?\d{3,4}[- ]?\d{4,}/);
+      if (phoneMatch) document.getElementById('pPhone').value = phoneMatch[0];
+
+      // Extraer WeChat
+      const waMatch = text.match(/(?:wechat|wx|id)[:\s]*([a-zA-Z0-9_-]{5,20})/i);
+      if (waMatch) document.getElementById('pWeChat').value = waMatch[1];
+
+      // Extraer Stand / Hall
+      const standMatch = text.match(/(?:hall\s*\d+[\.\d]*[a-zA-Z0-9\s-]*|stand\s*[\w\d-]+|booth\s*[\w\d-]+)/i);
+      if (standMatch) document.getElementById('pStand').value = standMatch[0];
+
+      // Extraer Caracteres Chinos
+      const chineseChars = text.match(/[\u4e00-\u9fa5]{2,10}/g);
+      if (chineseChars && chineseChars.length > 0) {
+        document.getElementById('pCompanyChinese').value = chineseChars.join(' ');
+      }
+
+      // Líneas de texto para Nombre y Contacto
+      const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 2);
+      if (lines.length > 0 && !document.getElementById('pCompany').value) {
+        document.getElementById('pCompany').value = lines[0];
+      }
+      if (lines.length > 1 && !document.getElementById('pContact').value) {
+        document.getElementById('pContact').value = lines[1];
+      }
+
+      // Guardar respaldo en IndexedDB
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        if (db) {
+          try {
+            const tx = db.transaction('photos', 'readwrite');
+            tx.objectStore('photos').add({ image: e.target.result, date: new Date().toISOString(), text, type: 'business_card' });
+          } catch (_) {}
+        }
+      };
+      reader.readAsDataURL(file);
+
+    }).catch(err => {
+      if (status) status.textContent = '❌ Error en OCR: ' + err.message;
+    });
+  } else {
+    if (status) status.textContent = '⚠️ Tesseract.js no disponible. Ingrese los datos manualmente.';
+  }
+}
+
+// MODAL DE ALTA DE ARTÍCULOS PARA PROVEEDOR
+function openAddArticleModal() {
+  document.getElementById('mArtCode').value = 'CF26-ART-' + Math.floor(100 + Math.random() * 900);
+  document.getElementById('mArtName').value = '';
+  document.getElementById('mArtFob').value = '';
+  document.getElementById('mArtMoq').value = '';
+  document.getElementById('mArtPort').value = 'Foshan, China';
+  document.getElementById('mArtLeadTime').value = '30 días';
+  document.getElementById('mArtNote').value = '';
+  
+  currentArticlePhotos = [];
+  document.getElementById('mArtPhotosPreview').innerHTML = '';
+  
+  voiceAudioBase64 = null;
+  voiceAudioChunks = [];
+  document.getElementById('audioPreviewContainer').style.display = 'none';
+  document.getElementById('voiceRecordTimer').textContent = '';
+  document.getElementById('btnRecordVoice').textContent = '🎙️ Grabar Audio';
+
+  document.getElementById('modalAddArticle').classList.add('open');
+}
+
+function closeAddArticleModal() {
+  if (voiceMediaRecorder && voiceMediaRecorder.state === 'recording') {
+    voiceMediaRecorder.stop();
+  }
+  clearInterval(voiceRecordTimerInterval);
+  document.getElementById('modalAddArticle').classList.remove('open');
+}
+
+function handleArticlePhotosUpload(event) {
+  const files = Array.from(event.target.files);
+  if (!files || files.length === 0) return;
+
+  files.forEach(file => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      currentArticlePhotos.push(e.target.result);
+      renderArticlePhotosPreview();
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function removeArticlePhoto(index) {
+  currentArticlePhotos.splice(index, 1);
+  renderArticlePhotosPreview();
+}
+
+function renderArticlePhotosPreview() {
+  const previewContainer = document.getElementById('mArtPhotosPreview');
+  if (!previewContainer) return;
+  previewContainer.innerHTML = currentArticlePhotos.map((imgSrc, idx) => `
+    <div style="position: relative; display: inline-block;">
+      <img src="${imgSrc}" style="width: 70px; height: 70px; object-fit: cover; border-radius: 6px; border: 1px solid #CCC;">
+      <button onclick="removeArticlePhoto(${idx})" style="position: absolute; top: -4px; right: -4px; background: #D32F2F; color: white; border: none; border-radius: 50%; width: 18px; height: 18px; font-size: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center;">✖</button>
+    </div>
+  `).join('');
+}
+
+function toggleVoiceRecording() {
+  if (voiceMediaRecorder && voiceMediaRecorder.state === 'recording') {
+    stopVoiceRecording();
+  } else {
+    startVoiceRecording();
+  }
+}
+
+function startVoiceRecording() {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    alert('Tu navegador o dispositivo no permite grabar audio.');
+    return;
+  }
+
+  voiceAudioChunks = [];
+  navigator.mediaDevices.getUserMedia({ audio: true })
+    .then(stream => {
+      voiceMediaRecorder = new MediaRecorder(stream);
+      voiceMediaRecorder.start();
+      
+      voiceRecordSeconds = 0;
+      const btn = document.getElementById('btnRecordVoice');
+      const timer = document.getElementById('voiceRecordTimer');
+      btn.textContent = '⏹️ Detener Grabación';
+      btn.style.background = '#D32F2F';
+
+      voiceRecordTimerInterval = setInterval(() => {
+        voiceRecordSeconds++;
+        timer.textContent = `🔴 ${voiceRecordSeconds}s`;
+      }, 1000);
+
+      voiceMediaRecorder.ondataavailable = e => {
+        if (e.data.size > 0) {
+          voiceAudioChunks.push(e.data);
+        }
+      };
+
+      voiceMediaRecorder.onstop = () => {
+        clearInterval(voiceRecordTimerInterval);
+        btn.textContent = '🎙️ Grabar Audio';
+        btn.style.background = 'var(--primary-color)';
+        timer.textContent = '✅ Audio Grabado';
+
+        const audioBlob = new Blob(voiceAudioChunks, { type: 'audio/webm' });
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          voiceAudioBase64 = reader.result;
+          const audioPreview = document.getElementById('audioPreview');
+          const container = document.getElementById('audioPreviewContainer');
+          if (audioPreview && container) {
+            audioPreview.src = voiceAudioBase64;
+            container.style.display = 'block';
+          }
+        };
+        reader.readAsDataURL(audioBlob);
+
+        stream.getTracks().forEach(track => track.stop());
+      };
+    })
+    .catch(err => {
+      alert('Permiso de micrófono denegado: ' + err.message);
+    });
+}
+
+function stopVoiceRecording() {
+  if (voiceMediaRecorder && voiceMediaRecorder.state === 'recording') {
+    voiceMediaRecorder.stop();
+  }
+}
+
+function saveArticleFromModal() {
+  const code = document.getElementById('mArtCode').value || ('CF26-ART-' + Math.floor(100 + Math.random() * 900));
+  const name = document.getElementById('mArtName').value;
+  const fob = parseFloat(document.getElementById('mArtFob').value) || 0.0;
+  const moq = parseInt(document.getElementById('mArtMoq').value) || 0;
+  const port = document.getElementById('mArtPort').value || 'Foshan, China';
+  const leadTime = document.getElementById('mArtLeadTime').value || '30 días';
+  const note = document.getElementById('mArtNote').value || '';
+
+  if (!name) {
+    alert('Por favor ingresa el nombre del producto');
+    return;
+  }
+
+  const newArticle = {
+    id: 'ART-' + Date.now(),
+    code: code,
+    name: name,
+    fob: fob,
+    moq: moq,
+    port: port,
+    leadTime: leadTime,
+    note: note,
+    photos: [...currentArticlePhotos],
+    voiceNoteUrl: voiceAudioBase64 || null,
+    createdAt: new Date().toISOString()
+  };
+
+  currentSupplierArticles.push(newArticle);
+
+  savedArticles.unshift({
+    code: newArticle.code,
+    name: newArticle.name,
+    supplier: document.getElementById('pCompany').value || 'Proveedor Feria',
+    fob: newArticle.fob,
+    moq: newArticle.moq,
+    port: newArticle.port,
+    weightKg: 5.0
+  });
+
+  renderSupplierArticlesList();
+  renderTab2List();
+  closeAddArticleModal();
+}
+
+function removeSupplierArticle(index) {
+  currentSupplierArticles.splice(index, 1);
+  renderSupplierArticlesList();
+}
+
+function renderSupplierArticlesList() {
+  const container = document.getElementById('supplierArticlesListContainer');
+  if (!container) return;
+
+  if (currentSupplierArticles.length === 0) {
+    container.innerHTML = `<div style="font-size: 11px; color: var(--text-muted);">No hay artículos cargados aún para este proveedor. Haz clic en "➕ Sumar Artículo".</div>`;
+    return;
+  }
+
+  container.innerHTML = currentSupplierArticles.map((art, idx) => `
+    <div class="card" style="border-left: 3px solid var(--accent-color); margin-bottom: 8px; background: #FAFAFA;">
+      <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+        <div>
+          <strong style="font-size: 12px; color: var(--primary-color);">${art.name}</strong>
+          <div style="font-size: 10px; color: var(--text-muted);">
+            SKU: ${art.code} • Puerto: ${art.port} • Lead Time: ${art.leadTime}
+          </div>
+          <div style="font-size: 11px; font-weight: bold; color: var(--secondary-color); margin-top: 4px;">
+            FOB: $${art.fob.toFixed(2)} USD • MOQ: ${art.moq} u.
+          </div>
+          ${art.note ? `<div style="font-size: 10px; color: #555; margin-top: 2px;">📝 ${art.note}</div>` : ''}
+        </div>
+        <button onclick="removeSupplierArticle(${idx})" class="btn-chip" style="color: #D32F2F; border-color: #D32F2F; padding: 2px 6px; font-size: 10px;">Eliminar</button>
+      </div>
+
+      ${art.photos && art.photos.length > 0 ? `
+        <div style="display: flex; gap: 4px; overflow-x: auto; margin-top: 6px;">
+          ${art.photos.map(p => `<img src="${p}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 4px;">`).join('')}
+        </div>
+      ` : ''}
+
+      ${art.voiceNoteUrl ? `
+        <div style="margin-top: 6px;">
+          <audio src="${art.voiceNoteUrl}" controls style="width: 100%; height: 30px;"></audio>
+        </div>
+      ` : ''}
+    </div>
+  `).join('');
+
+  const lbl = document.getElementById('lblTotalArticles');
+  if (lbl) lbl.textContent = savedArticles.length;
+}
+
 // ALTA DE PROVEEDORES DESDE FORMULARIO (Sincroniza con Firebase Cloud Firestore)
 function saveSupplierFromForm() {
   const name = document.getElementById('pCompany').value;
+  const companyChinese = document.getElementById('pCompanyChinese').value;
   const stand = document.getElementById('pStand').value;
   const cat = document.getElementById('pCategory').value;
   const contact = document.getElementById('pContact').value;
+  const wechat = document.getElementById('pWeChat').value;
   const phone = document.getElementById('pPhone').value;
   const email = document.getElementById('pEmail').value;
 
@@ -781,12 +1099,14 @@ function saveSupplierFromForm() {
   const supplierData = {
     id: 'SUP-' + (localSuppliers.length + 1),
     companyName: name,
+    companyNameChinese: companyChinese || '',
     stand: stand || 'Stand s/d',
     category: cat || 'General',
     contactName: contact || 'Contacto',
+    weChat: wechat || '',
     phone: phone || '+86',
     email: email || '',
-    articles: [],
+    articles: [...currentSupplierArticles],
     createdAt: new Date().toISOString()
   };
 
@@ -799,9 +1119,24 @@ function saveSupplierFromForm() {
       .catch(err => console.log('Firestore sync notice:', err));
   }
 
+  // Limpiar campos del formulario
+  document.getElementById('pCompany').value = '';
+  document.getElementById('pCompanyChinese').value = '';
+  document.getElementById('pStand').value = '';
+  document.getElementById('pCategory').value = '';
+  document.getElementById('pContact').value = '';
+  document.getElementById('pWeChat').value = '';
+  document.getElementById('pPhone').value = '';
+  document.getElementById('pEmail').value = '';
+  document.getElementById('supplierOcrPreview').style.display = 'none';
+  document.getElementById('supplierOcrStatus').textContent = '';
+
+  currentSupplierArticles = [];
+  renderSupplierArticlesList();
+
   document.getElementById('lblTotalSuppliers').textContent = localSuppliers.length;
   renderTarjetero();
-  alert('✅ Proveedor guardado correctamente en Firebase Cloud y memoria local!');
+  alert('✅ Proveedor y sus artículos guardados correctamente en Firebase Cloud y local!');
   switchMainSection('tarjetero');
 }
 

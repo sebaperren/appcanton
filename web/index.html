@@ -122,13 +122,36 @@
 
       <!-- ================= SECCIÓN 2: + PROVEEDOR (ALTA PROVEEDOR & COTIZACIÓN) ================= -->
       <section id="secAddProveedor" style="display: none;">
-        <div class="card">
-          <h3 style="font-size: 13px; color: var(--primary-color); margin-bottom: 4px;">➕ ALTA DE PROVEEDOR DE FERIA</h3>
-          <p style="font-size: 10px; color: var(--text-muted); margin-bottom: 10px;">Ingresa los datos de la fábrica y contacto que te atendió (Sincroniza con Firestore):</p>
+        
+        <!-- Tarjeta A: Escáner OCR de Tarjeta de Negocio o Cartel del Stand -->
+        <div class="card" style="border-left: 4px solid var(--secondary-color);">
+          <div class="card-title">
+            <span>📷 CAPTURA POR CÁMARA (OCR INTELIGENTE)</span>
+            <button class="btn-whatsapp" onclick="triggerSupplierCardOcr()">📸 ESCANEAR TARJETA</button>
+          </div>
+          <p style="font-size: 10px; color: var(--text-muted);">Toma una foto de la tarjeta de contacto o el cartel del stand para auto-completar los campos:</p>
 
-          <div class="form-group">
-            <label>Nombre de la Empresa (English / Chinese)</label>
-            <input type="text" id="pCompany" class="form-control" placeholder="Ej: Foshan Ceramics Co. Ltd">
+          <input type="file" id="supplierOcrFileInput" accept="image/*" capture="environment" onchange="processSupplierCardOcr(event)" style="display: none;">
+          
+          <div id="supplierOcrPreview" style="display: none; margin-top: 8px; text-align: center;">
+            <img id="imgSupplierCard" style="max-height: 120px; border-radius: 8px; border: 1px solid #CCC;">
+          </div>
+          <div id="supplierOcrStatus" style="font-size: 10.5px; color: var(--secondary-color); font-weight: bold; margin-top: 6px; text-align: center;"></div>
+        </div>
+
+        <!-- Tarjeta B: Datos Principales de la Fábrica y Contacto -->
+        <div class="card">
+          <h3 style="font-size: 13px; color: var(--primary-color); margin-bottom: 8px;">🏢 DATOS DE LA FÁBRICA Y CONTACTO</h3>
+
+          <div class="row-2">
+            <div class="form-group">
+              <label>Nombre Empresa (English)</label>
+              <input type="text" id="pCompany" class="form-control" placeholder="Ej: Foshan Ceramics Co. Ltd">
+            </div>
+            <div class="form-group">
+              <label>Nombre en Chino (Original)</label>
+              <input type="text" id="pCompanyChinese" class="form-control" placeholder="Ej: 佛山陶瓷有限公司">
+            </div>
           </div>
 
           <div class="row-2">
@@ -148,18 +171,38 @@
               <input type="text" id="pContact" class="form-control" placeholder="Ej: Jacky Zhang">
             </div>
             <div class="form-group">
-              <label>Teléfono / WhatsApp</label>
-              <input type="text" id="pPhone" class="form-control" placeholder="Ej: +86 138 0000 0000">
+              <label>ID de WeChat</label>
+              <input type="text" id="pWeChat" class="form-control" placeholder="Ej: jackyzhang888">
             </div>
           </div>
 
-          <div class="form-group">
-            <label>Email de Contacto</label>
-            <input type="email" id="pEmail" class="form-control" placeholder="sales@supplier.cn">
+          <div class="row-2">
+            <div class="form-group">
+              <label>Teléfono / WhatsApp</label>
+              <input type="text" id="pPhone" class="form-control" placeholder="Ej: +86 138 0000 0000">
+            </div>
+            <div class="form-group">
+              <label>Email de Contacto</label>
+              <input type="email" id="pEmail" class="form-control" placeholder="sales@supplier.cn">
+            </div>
+          </div>
+        </div>
+
+        <!-- Tarjeta C: Artículos Cotizados para este Proveedor -->
+        <div class="card">
+          <div class="card-title">
+            <span>📦 ARTÍCULOS COTIZADOS DE ESTA FÁBRICA</span>
+            <button class="btn-chip" onclick="openAddArticleModal()" style="background: var(--accent-color); color: white; border: none;">➕ Sumar Artículo</button>
           </div>
 
-          <button class="btn-success" onclick="saveSupplierFromForm()">💾 GUARDAR PROVEEDOR EN FIRESTORE</button>
+          <div id="supplierArticlesListContainer" style="font-size: 11px; color: var(--text-muted);">
+            No hay artículos cargados aún para este proveedor. Haz clic en "➕ Sumar Artículo".
+          </div>
         </div>
+
+        <button class="btn-success" onclick="saveSupplierFromForm()" style="padding: 12px; font-size: 13px; margin-bottom: 15px;">
+          💾 GUARDAR PROVEEDOR Y ARTÍCULOS EN FIRESTORE
+        </button>
       </section>
 
       <!-- ================= SECCIÓN 3: BUSCADOR SQL PERREN (12.074 ARTÍCULOS) ================= -->
@@ -403,7 +446,72 @@
           Toma una foto de la etiqueta o cotización para reconocer texto y precios.
         </div>
 
-        <div id="ocrOutput" style="font-size: 10px; background: #F5F5F5; padding: 8px; border-radius: 6px; margin-top: 8px; max-height: 120px; overflow-y: auto;"></div>
+    <!-- MODAL ALTA DE ARTÍCULO PARA PROVEEDOR -->
+    <div class="modal" id="modalAddArticle">
+      <div class="modal-content">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+          <h3 style="font-size: 13px; color: var(--primary-color);">📦 CARGA DE ARTÍCULO COTIZADO</h3>
+          <button style="background: none; border: none; font-size: 16px; cursor: pointer;" onclick="closeAddArticleModal()">✖️</button>
+        </div>
+
+        <div class="row-2">
+          <div class="form-group">
+            <label>Código / SKU Artículo</label>
+            <input type="text" id="mArtCode" class="form-control" placeholder="Ej: CF26-P-0047">
+          </div>
+          <div class="form-group">
+            <label>Nombre del Producto</label>
+            <input type="text" id="mArtName" class="form-control" placeholder="Ej: Inodoro Rimless A520">
+          </div>
+        </div>
+
+        <div class="row-2">
+          <div class="form-group">
+            <label>Precio FOB (USD)</label>
+            <input type="number" step="0.01" id="mArtFob" class="form-control" placeholder="Ej: 38.00">
+          </div>
+          <div class="form-group">
+            <label>Cantidad Mínima / MOQ</label>
+            <input type="number" id="mArtMoq" class="form-control" placeholder="Ej: 300">
+          </div>
+        </div>
+
+        <div class="row-2">
+          <div class="form-group">
+            <label>Puerto de Origen</label>
+            <input type="text" id="mArtPort" class="form-control" value="Foshan, China">
+          </div>
+          <div class="form-group">
+            <label>Plazo de Entrega (Lead Time)</label>
+            <input type="text" id="mArtLeadTime" class="form-control" value="30 días">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Notas / Observaciones Técnicas</label>
+          <textarea id="mArtNote" class="form-control" style="height: 50px;" placeholder="Detalles de embalaje, acabado, exclusividad..."></textarea>
+        </div>
+
+        <!-- Carga de Fotos Múltiples del Artículo -->
+        <div class="card" style="background: #FAFAFA;">
+          <label style="font-size: 10px; font-weight: bold; color: var(--primary-color);">🖼️ SUMAR FOTOS DEL ARTÍCULO (GENERAL, ETIQUETA, EMBALAJE)</label>
+          <input type="file" id="mArtPhotosInput" accept="image/*" multiple onchange="handleArticlePhotosUpload(event)" style="margin-top: 6px; font-size: 11px;">
+          <div id="mArtPhotosPreview" style="display: flex; gap: 6px; overflow-x: auto; margin-top: 8px;"></div>
+        </div>
+
+        <!-- Grabador de Nota de Voz -->
+        <div class="card" style="background: #E3F2FD;">
+          <label style="font-size: 10px; font-weight: bold; color: var(--secondary-color);">🎙️ GRABAR NOTA DE VOZ (AUDIO RECORDING)</label>
+          <div style="display: flex; gap: 8px; margin-top: 6px; align-items: center;">
+            <button class="btn-primary" id="btnRecordVoice" onclick="toggleVoiceRecording()" style="font-size: 10.5px; padding: 6px 10px;">🎙️ Grabar Audio</button>
+            <span id="voiceRecordTimer" style="font-size: 11px; font-weight: bold; color: var(--warning-text);"></span>
+          </div>
+          <div id="audioPreviewContainer" style="display: none; margin-top: 8px;">
+            <audio id="audioPreview" controls style="width: 100%; height: 35px;"></audio>
+          </div>
+        </div>
+
+        <button class="btn-success" onclick="saveArticleFromModal()" style="margin-top: 10px;">💾 AGREGAR ARTÍCULO AL PROVEEDOR</button>
       </div>
     </div>
 
