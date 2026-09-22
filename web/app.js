@@ -1003,6 +1003,18 @@ function switchTab(tabNum) {
 }
 
 // TARJETERO & WHATSAPP DIRECTO
+let expandedTarjeteroCards = new Set();
+let currentEditingSupplier = null;
+
+function toggleTarjeteroCardDetail(supId) {
+  if (expandedTarjeteroCards.has(supId)) {
+    expandedTarjeteroCards.delete(supId);
+  } else {
+    expandedTarjeteroCards.add(supId);
+  }
+  renderTarjetero();
+}
+
 function renderTarjetero() {
   const container = document.getElementById('tarjeteroList');
   if (!container) return;
@@ -1018,73 +1030,251 @@ function renderTarjetero() {
     const articles = sup.articles || [];
     const isSynced = sup.syncState === 'synced' || sup.firestoreId;
     const syncBadge = isSynced 
-      ? `<span style="font-size: 9px; background: #E8F5E9; color: #2E7D32; padding: 2px 6px; border-radius: 4px; border: 1px solid #C8E6C9; margin-left: 6px;">🟢 Nube (Firebase)</span>` 
-      : `<span style="font-size: 9px; background: #FFF3E0; color: #E65100; padding: 2px 6px; border-radius: 4px; border: 1px solid #FFE0B2; margin-left: 6px;">📱 Local (IndexedDB)</span>`;
+      ? `<span style="font-size: 9px; background: #E8F5E9; color: #2E7D32; padding: 2px 6px; border-radius: 4px; border: 1px solid #C8E6C9; margin-left: 4px;">🟢 Cloud</span>` 
+      : `<span style="font-size: 9px; background: #FFF3E0; color: #E65100; padding: 2px 6px; border-radius: 4px; border: 1px solid #FFE0B2; margin-left: 4px;">📱 Local</span>`;
+    
+    const targetId = sup.id || sup.firestoreId;
+    const isExpanded = expandedTarjeteroCards.has(targetId);
 
     return `
-      <div class="card" style="border-left: 4px solid #25D366; margin-bottom: 12px;">
+      <div class="card" style="border-left: 4px solid #25D366; margin-bottom: 10px; padding: 10px 12px;">
+        <!-- VISTA COMPACTA POR DEFECTO -->
         <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-          <div>
-            <strong style="font-size: 14px; color: var(--primary-color);">${sup.companyName}</strong> ${syncBadge}
-            ${sup.companyNameChinese ? `<div style="font-size: 11px; color: var(--secondary-color); font-weight: bold; margin-top: 2px;">🇨🇳 ${sup.companyNameChinese}</div>` : ''}
+          <div style="flex: 1; padding-right: 8px;">
+            <div style="display: flex; align-items: center; gap: 4px; flex-wrap: wrap;">
+              <strong style="font-size: 13.5px; color: var(--primary-color);">${sup.companyName}</strong> ${syncBadge}
+            </div>
+            ${sup.companyNameChinese ? `<div style="font-size: 11px; color: var(--secondary-color); font-weight: bold; margin-top: 1px;">🇨🇳 ${sup.companyNameChinese}</div>` : ''}
             
-            <div style="font-size: 10.5px; color: var(--text-muted); margin-top: 4px;">
+            <div style="font-size: 10.5px; color: var(--text-muted); margin-top: 3px;">
               📍 <strong>Stand:</strong> ${sup.stand || 's/d'} • 🏷️ <strong>Rubro:</strong> ${sup.category || 'General'}
             </div>
             
-            <div style="font-size: 11px; margin-top: 6px;">
+            <div style="font-size: 10.5px; color: #333; margin-top: 2px;">
               👤 <strong>Contacto:</strong> ${sup.contactName || 's/d'} ${sup.weChat ? `(WeChat: <strong>${sup.weChat}</strong>)` : ''}
             </div>
 
-            <div style="font-size: 10.5px; color: #555; margin-top: 2px;">
-              📞 ${sup.phone || 's/d'} ${sup.email ? `• ✉️ ${sup.email}` : ''}
+            <div style="font-size: 10px; color: var(--secondary-color); font-weight: bold; margin-top: 4px;">
+              📦 ${articles.length} artículo(s) cotizado(s)
             </div>
           </div>
 
-          <div style="display: flex; flex-direction: column; gap: 6px; align-items: flex-end;">
-            <a href="${waLink}" target="_blank" class="btn-whatsapp" style="white-space: nowrap;">
+          <div style="display: flex; flex-direction: column; gap: 4px; align-items: flex-end;">
+            <a href="${waLink}" target="_blank" class="btn-whatsapp" style="white-space: nowrap; font-size: 10px; padding: 4px 8px;">
               💬 WhatsApp
             </a>
-            <button onclick="deleteSupplier('${sup.id}')" class="btn-chip" style="color: #D32F2F; border-color: #D32F2F; font-size: 10px; padding: 2px 6px;">🗑️ Eliminar</button>
+            <div style="display: flex; gap: 4px;">
+              <button onclick="openEditSupplierModal('${targetId}')" class="btn-chip" style="color: var(--secondary-color); border-color: var(--secondary-color); font-size: 10px; padding: 2px 6px;">✏️ Editar</button>
+              <button onclick="deleteSupplier('${targetId}')" class="btn-chip" style="color: #D32F2F; border-color: #D32F2F; font-size: 10px; padding: 2px 6px;">🗑️</button>
+            </div>
           </div>
         </div>
 
-        ${articles.length > 0 ? `
-          <hr style="margin: 10px 0 8px 0; border: none; border-top: 1px solid #EEE;">
-          <div style="font-size: 11px; font-weight: bold; color: var(--primary-color); margin-bottom: 6px;">
-            📦 Artículos Cotizados (${articles.length}):
-          </div>
-          <div style="display: flex; flex-direction: column; gap: 6px;">
-            ${articles.map(art => `
-              <div style="background: #F9F9F9; padding: 8px; border-radius: 6px; border-left: 3px solid var(--accent-color);">
-                <div style="display: flex; justify-content: space-between; font-size: 11.5px;">
-                  <strong style="color: var(--primary-color);">${art.name || art.description || 'Artículo'}</strong>
-                  <span style="color: var(--secondary-color); font-weight: bold;">FOB: $${(parseFloat(art.fob) || 0).toFixed(2)} USD</span>
-                </div>
-                <div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">
-                  MOQ: <strong>${art.moq || 's/d'} u.</strong> • Puerto: <strong>${art.port || 'China'}</strong> ${art.leadTime ? `• Lead Time: ${art.leadTime}` : ''}
-                </div>
-                ${art.note ? `<div style="font-size: 10px; color: #444; margin-top: 4px; font-style: italic;">📝 "${art.note}"</div>` : ''}
-                
-                ${art.photos && art.photos.length > 0 ? `
-                  <div style="display: flex; gap: 4px; overflow-x: auto; margin-top: 6px;">
-                    ${art.photos.map(p => `<img src="${p}" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; border: 1px solid #DDD;">`).join('')}
-                  </div>
-                ` : ''}
+        <div style="margin-top: 8px; border-top: 1px dashed #E0E0E0; padding-top: 6px;">
+          <button onclick="toggleTarjeteroCardDetail('${targetId}')" class="btn-chip" style="font-size: 10px; background: #F5F5F5; border-color: #CCC; color: var(--primary-color); width: 100%; text-align: center;">
+            ${isExpanded ? '▲ Ocultar Detalle Completo' : '▼ Ver Detalle Completo (Cotizaciones, Fotos, Audio)'}
+          </button>
+        </div>
 
-                ${art.voiceNoteUrl ? `
-                  <div style="margin-top: 6px;">
-                    <div style="font-size: 9.5px; color: var(--secondary-color); font-weight: bold;">🎙️ Nota de Voz:</div>
-                    <audio src="${art.voiceNoteUrl}" controls style="width: 100%; height: 30px; margin-top: 2px;"></audio>
-                  </div>
-                ` : ''}
+        <!-- VISTA DETALLADA COMPLETA (EXPANDIBLE) -->
+        ${isExpanded ? `
+          <div style="margin-top: 8px; background: #FAFAFA; padding: 10px; border-radius: 6px; border: 1px solid #E0E0E0;">
+            <div style="font-size: 10.5px; color: #444; margin-bottom: 8px;">
+              📞 <strong>Tel:</strong> ${sup.phone || 's/d'} ${sup.email ? `• ✉️ <strong>Email:</strong> ${sup.email}` : ''}
+            </div>
+
+            ${articles.length > 0 ? `
+              <div style="font-size: 11px; font-weight: bold; color: var(--primary-color); margin-bottom: 6px;">
+                📦 Lista de Cotizaciones (${articles.length}):
               </div>
-            `).join('')}
+              <div style="display: flex; flex-direction: column; gap: 6px;">
+                ${articles.map(art => `
+                  <div style="background: white; padding: 8px; border-radius: 6px; border-left: 3px solid var(--accent-color); border: 1px solid #EEE;">
+                    <div style="display: flex; justify-content: space-between; font-size: 11.5px;">
+                      <strong style="color: var(--primary-color);">${art.name || art.description || 'Artículo'}</strong>
+                      <span style="color: var(--secondary-color); font-weight: bold;">FOB: $${(parseFloat(art.fob) || 0).toFixed(2)} USD</span>
+                    </div>
+                    <div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">
+                      MOQ: <strong>${art.moq || 's/d'} u.</strong> • Puerto: <strong>${art.port || 'China'}</strong> ${art.leadTime ? `• Lead Time: ${art.leadTime}` : ''}
+                    </div>
+                    ${art.note ? `<div style="font-size: 10px; color: #444; margin-top: 4px; font-style: italic;">📝 "${art.note}"</div>` : ''}
+                    
+                    ${art.photos && art.photos.length > 0 ? `
+                      <div style="display: flex; gap: 4px; overflow-x: auto; margin-top: 6px;">
+                        ${art.photos.map(p => `<img src="${p}" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; border: 1px solid #DDD;">`).join('')}
+                      </div>
+                    ` : ''}
+
+                    ${art.voiceNoteUrl ? renderAudioPlayerHtml(art.voiceNoteUrl) : ''}
+                  </div>
+                `).join('')}
+              </div>
+            ` : `<div style="font-size: 10px; color: var(--text-muted); font-style: italic;">Este proveedor no posee artículos registrados.</div>`}
           </div>
         ` : ''}
       </div>
     `;
   }).join('');
+}
+
+// FUNCIONES PARA EDITAR PROVEEDOR Y SUS ARTÍCULOS
+function openEditSupplierModal(supId) {
+  const sup = localSuppliers.find(s => s.id === supId || s.firestoreId === supId);
+  if (!sup) {
+    alert('Proveedor no encontrado');
+    return;
+  }
+  currentEditingSupplier = JSON.parse(JSON.stringify(sup));
+  
+  document.getElementById('editSupplierId').value = currentEditingSupplier.id || currentEditingSupplier.firestoreId || '';
+  document.getElementById('editCompName').value = currentEditingSupplier.companyName || '';
+  document.getElementById('editCompChinese').value = currentEditingSupplier.companyNameChinese || '';
+  document.getElementById('editStand').value = currentEditingSupplier.stand || '';
+  document.getElementById('editCategory').value = currentEditingSupplier.category || '';
+  document.getElementById('editContact').value = currentEditingSupplier.contactName || '';
+  document.getElementById('editWeChat').value = currentEditingSupplier.weChat || '';
+  document.getElementById('editPhone').value = currentEditingSupplier.phone || '';
+  document.getElementById('editEmail').value = currentEditingSupplier.email || '';
+
+  renderEditSupplierArticles();
+  const modal = document.getElementById('modalEditSupplier');
+  if (modal) modal.classList.add('open');
+}
+
+function closeEditSupplierModal() {
+  const modal = document.getElementById('modalEditSupplier');
+  if (modal) modal.classList.remove('open');
+  currentEditingSupplier = null;
+}
+
+function renderEditSupplierArticles() {
+  const container = document.getElementById('editSupplierArticlesContainer');
+  if (!container || !currentEditingSupplier) return;
+
+  const articles = currentEditingSupplier.articles || [];
+  if (articles.length === 0) {
+    container.innerHTML = '<div style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 10px; background: #F9F9F9; border-radius: 6px;">Sin artículos cotizados. Puedes sumar uno abajo.</div>';
+    return;
+  }
+
+  container.innerHTML = articles.map((art, idx) => `
+    <div style="background: #F9F9F9; border: 1px solid #DDD; padding: 10px; border-radius: 6px; margin-bottom: 8px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+        <strong style="font-size: 11.5px; color: var(--primary-color);">Item #${idx + 1}: ${art.name || art.description || 'Artículo'}</strong>
+        <button onclick="removeEditSupplierArticle(${idx})" class="btn-chip" style="color: #D32F2F; border-color: #D32F2F; font-size: 10px; padding: 2px 6px;">🗑️ Quitar</button>
+      </div>
+      
+      <div class="form-group" style="margin-bottom: 6px;">
+        <label style="font-size: 10px;">Descripción / Nombre Artículo</label>
+        <input type="text" class="form-control" style="font-size: 11px; padding: 4px 8px;" value="${(art.name || art.description || '').replace(/"/g, '&quot;')}" onchange="updateEditSupplierArticle(${idx}, 'name', this.value)">
+      </div>
+
+      <div class="row-2" style="margin-bottom: 6px;">
+        <div class="form-group">
+          <label style="font-size: 10px;">FOB (USD)</label>
+          <input type="number" step="0.01" class="form-control" style="font-size: 11px; padding: 4px 8px;" value="${art.fob || 0}" onchange="updateEditSupplierArticle(${idx}, 'fob', parseFloat(this.value)||0)">
+        </div>
+        <div class="form-group">
+          <label style="font-size: 10px;">MOQ (Unidades)</label>
+          <input type="number" class="form-control" style="font-size: 11px; padding: 4px 8px;" value="${art.moq || 0}" onchange="updateEditSupplierArticle(${idx}, 'moq', parseInt(this.value)||0)">
+        </div>
+      </div>
+
+      <div class="row-2" style="margin-bottom: 6px;">
+        <div class="form-group">
+          <label style="font-size: 10px;">Puerto Embarque</label>
+          <input type="text" class="form-control" style="font-size: 11px; padding: 4px 8px;" value="${(art.port || 'Foshan, China').replace(/"/g, '&quot;')}" onchange="updateEditSupplierArticle(${idx}, 'port', this.value)">
+        </div>
+        <div class="form-group">
+          <label style="font-size: 10px;">Lead Time</label>
+          <input type="text" class="form-control" style="font-size: 11px; padding: 4px 8px;" value="${(art.leadTime || '30 días').replace(/"/g, '&quot;')}" onchange="updateEditSupplierArticle(${idx}, 'leadTime', this.value)">
+        </div>
+      </div>
+
+      <div class="form-group" style="margin-bottom: 6px;">
+        <label style="font-size: 10px;">Notas / Especificaciones</label>
+        <input type="text" class="form-control" style="font-size: 11px; padding: 4px 8px;" value="${(art.note || '').replace(/"/g, '&quot;')}" onchange="updateEditSupplierArticle(${idx}, 'note', this.value)">
+      </div>
+
+      ${art.photos && art.photos.length > 0 ? `
+        <div style="margin-top: 6px;">
+          <div style="font-size: 10px; font-weight: bold; color: var(--text-muted); margin-bottom: 4px;">Fotos cargadas (${art.photos.length}):</div>
+          <div style="display: flex; gap: 4px; overflow-x: auto;">
+            ${art.photos.map(p => `<img src="${p}" style="width: 45px; height: 45px; object-fit: cover; border-radius: 4px; border: 1px solid #CCC;">`).join('')}
+          </div>
+        </div>
+      ` : ''}
+
+      ${art.voiceNoteUrl ? renderAudioPlayerHtml(art.voiceNoteUrl) : ''}
+    </div>
+  `).join('');
+}
+
+function updateEditSupplierArticle(idx, field, value) {
+  if (currentEditingSupplier && currentEditingSupplier.articles && currentEditingSupplier.articles[idx]) {
+    currentEditingSupplier.articles[idx][field] = value;
+  }
+}
+
+function removeEditSupplierArticle(idx) {
+  if (currentEditingSupplier && currentEditingSupplier.articles) {
+    currentEditingSupplier.articles.splice(idx, 1);
+    renderEditSupplierArticles();
+  }
+}
+
+function addArticleToEditSupplier() {
+  if (!currentEditingSupplier) return;
+  if (!currentEditingSupplier.articles) currentEditingSupplier.articles = [];
+  currentEditingSupplier.articles.push({
+    name: 'Nuevo Artículo',
+    code: 'CF26-ART-' + Math.floor(100 + Math.random() * 900),
+    fob: 0,
+    moq: 100,
+    port: 'Foshan, China',
+    leadTime: '30 días',
+    note: '',
+    photos: []
+  });
+  renderEditSupplierArticles();
+}
+
+async function saveEditedSupplier() {
+  if (!currentEditingSupplier) return;
+
+  const nameVal = document.getElementById('editCompName').value.trim();
+  if (!nameVal) {
+    alert('Por favor ingresa el nombre de la empresa');
+    return;
+  }
+
+  currentEditingSupplier.companyName = nameVal;
+  currentEditingSupplier.companyNameChinese = document.getElementById('editCompChinese').value.trim();
+  currentEditingSupplier.stand = document.getElementById('editStand').value.trim() || 'Stand s/d';
+  currentEditingSupplier.category = document.getElementById('editCategory').value.trim() || 'General';
+  currentEditingSupplier.contactName = document.getElementById('editContact').value.trim() || 'Contacto';
+  currentEditingSupplier.weChat = document.getElementById('editWeChat').value.trim();
+  currentEditingSupplier.phone = document.getElementById('editPhone').value.trim();
+  currentEditingSupplier.email = document.getElementById('editEmail').value.trim();
+  currentEditingSupplier.syncState = 'pending';
+
+  const targetId = currentEditingSupplier.id || currentEditingSupplier.firestoreId;
+  const index = localSuppliers.findIndex(s => s.id === targetId || (s.firestoreId && s.firestoreId === targetId));
+  if (index >= 0) {
+    localSuppliers[index] = currentEditingSupplier;
+  } else {
+    localSuppliers.unshift(currentEditingSupplier);
+  }
+
+  saveLocalSuppliers();
+  const lblSuppliers = document.getElementById('lblTotalSuppliers');
+  if (lblSuppliers) lblSuppliers.textContent = localSuppliers.length;
+
+  renderTarjetero();
+  closeEditSupplierModal();
+
+  alert('💾 Datos guardados localmente. Sincronizando con la nube...');
+  await syncPendingSuppliersToFirebase();
 }
 
 // ESTADO TEMPORAL PARA ALTA DE PROVEEDOR Y ARTÍCULOS COTIZADOS
@@ -1381,6 +1571,59 @@ function renderArticlePhotosPreview() {
   `).join('');
 }
 
+function getBestSupportedAudioMimeType() {
+  if (typeof MediaRecorder === 'undefined' || !MediaRecorder.isTypeSupported) {
+    return '';
+  }
+  const preferredTypes = [
+    'audio/mp4',
+    'audio/aac',
+    'audio/webm;codecs=opus',
+    'audio/webm',
+    'audio/wav',
+    'audio/ogg'
+  ];
+  for (const t of preferredTypes) {
+    if (MediaRecorder.isTypeSupported(t)) {
+      return t;
+    }
+  }
+  return '';
+}
+
+function renderAudioPlayerHtml(audioUrl) {
+  if (!audioUrl) return '';
+  
+  let mimeType = 'audio/mp4';
+  if (audioUrl.includes('data:audio/webm')) mimeType = 'audio/webm';
+  else if (audioUrl.includes('data:audio/mp4') || audioUrl.includes('data:audio/aac')) mimeType = 'audio/mp4';
+  else if (audioUrl.includes('data:audio/wav')) mimeType = 'audio/wav';
+
+  const uniqueId = 'audio_' + Math.random().toString(36).substr(2, 9);
+
+  return `
+    <div style="margin-top: 6px; background: #FFF8E1; padding: 6px 8px; border-radius: 6px; border: 1px solid #FFE082;">
+      <div style="display: flex; align-items: center; justify-content: space-between;">
+        <span style="font-size: 10px; font-weight: bold; color: #E65100;">🎙️ Nota de Voz Grabada</span>
+        <button onclick="playAudioDirectly('${uniqueId}')" class="btn-chip" style="font-size: 10px; background: #FF9800; color: white; border: none; padding: 2px 8px;">▶️ Reproducir</button>
+      </div>
+      <audio id="${uniqueId}" controls preload="metadata" style="width: 100%; height: 32px; margin-top: 4px;">
+        <source src="${audioUrl}" type="${mimeType}">
+        <source src="${audioUrl}">
+      </audio>
+    </div>
+  `;
+}
+
+function playAudioDirectly(id) {
+  const el = document.getElementById(id);
+  if (el) {
+    el.play().catch(err => {
+      alert('Reproducción de audio: ' + err.message);
+    });
+  }
+}
+
 function toggleVoiceRecording() {
   if (voiceMediaRecorder && voiceMediaRecorder.state === 'recording') {
     stopVoiceRecording();
@@ -1420,9 +1663,16 @@ function startVoiceRecording() {
   voiceAudioChunks = [];
   voiceAudioBase64 = null;
 
+  const mimeType = getBestSupportedAudioMimeType();
+  const recorderOptions = mimeType ? { mimeType } : {};
+
   navigator.mediaDevices.getUserMedia({ audio: true })
     .then(stream => {
-      voiceMediaRecorder = new MediaRecorder(stream);
+      try {
+        voiceMediaRecorder = new MediaRecorder(stream, recorderOptions);
+      } catch (e) {
+        voiceMediaRecorder = new MediaRecorder(stream);
+      }
       voiceMediaRecorder.start(200);
       
       voiceRecordSeconds = 0;
@@ -1458,7 +1708,8 @@ function startVoiceRecording() {
           timer.textContent = '✅ Audio Grabado (' + voiceRecordSeconds + 's)';
         }
 
-        const audioBlob = new Blob(voiceAudioChunks, { type: 'audio/webm' });
+        const mimeToUse = (voiceMediaRecorder && voiceMediaRecorder.mimeType) || mimeType || 'audio/mp4';
+        const audioBlob = new Blob(voiceAudioChunks, { type: mimeToUse });
         const reader = new FileReader();
         reader.onloadend = () => {
           voiceAudioBase64 = reader.result;
@@ -2126,4 +2377,15 @@ if (typeof window !== 'undefined') {
   window.removeSupplierArticle = removeSupplierArticle;
   window.deleteSupplier = deleteSupplier;
   window.saveLocalSuppliers = saveLocalSuppliers;
+  window.toggleTarjeteroCardDetail = toggleTarjeteroCardDetail;
+  window.openEditSupplierModal = openEditSupplierModal;
+  window.closeEditSupplierModal = closeEditSupplierModal;
+  window.renderEditSupplierArticles = renderEditSupplierArticles;
+  window.updateEditSupplierArticle = updateEditSupplierArticle;
+  window.removeEditSupplierArticle = removeEditSupplierArticle;
+  window.addArticleToEditSupplier = addArticleToEditSupplier;
+  window.saveEditedSupplier = saveEditedSupplier;
+  window.getBestSupportedAudioMimeType = getBestSupportedAudioMimeType;
+  window.renderAudioPlayerHtml = renderAudioPlayerHtml;
+  window.playAudioDirectly = playAudioDirectly;
 }

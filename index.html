@@ -653,6 +653,83 @@
       </div>
     </div>
 
+    <!-- MODAL EDITAR DATOS DEL PROVEEDOR Y SUS ARTÍCULOS -->
+    <div class="modal" id="modalEditSupplier">
+      <div class="modal-content" style="max-width: 550px; max-height: 90vh; overflow-y: auto;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+          <h3 style="font-size: 14px; color: var(--primary-color);">✏️ EDITAR PROVEEDOR Y COTIZACIONES</h3>
+          <button style="background: none; border: none; font-size: 18px; cursor: pointer;" onclick="closeEditSupplierModal()">✖️</button>
+        </div>
+
+        <input type="hidden" id="editSupplierId">
+
+        <div class="row-2">
+          <div class="form-group">
+            <label>Nombre Empresa (English)</label>
+            <input type="text" id="editCompName" class="form-control">
+          </div>
+          <div class="form-group">
+            <label>Nombre en Chino (Original)</label>
+            <input type="text" id="editCompChinese" class="form-control">
+          </div>
+        </div>
+
+        <div class="row-2">
+          <div class="form-group">
+            <label>Código Proveedor / Stand</label>
+            <input type="text" id="editStand" class="form-control">
+          </div>
+          <div class="form-group">
+            <label>Categoría / Rubro</label>
+            <input type="text" id="editCategory" class="form-control">
+          </div>
+        </div>
+
+        <div class="row-2">
+          <div class="form-group">
+            <label>Nombre del Contacto</label>
+            <input type="text" id="editContact" class="form-control">
+          </div>
+          <div class="form-group">
+            <label>ID de WeChat</label>
+            <input type="text" id="editWeChat" class="form-control">
+          </div>
+        </div>
+
+        <div class="row-2">
+          <div class="form-group">
+            <label>Teléfono / WhatsApp</label>
+            <input type="text" id="editPhone" class="form-control">
+          </div>
+          <div class="form-group">
+            <label>Email de Contacto</label>
+            <input type="email" id="editEmail" class="form-control">
+          </div>
+        </div>
+
+        <hr style="margin: 12px 0; border: none; border-top: 1px dashed #CCC;">
+
+        <div style="font-size: 12px; font-weight: bold; color: var(--primary-color); margin-bottom: 8px;">
+          📦 EDITAR ARTÍCULOS DE ESTE PROVEEDOR:
+        </div>
+
+        <div id="editSupplierArticlesContainer"></div>
+
+        <button class="btn-chip" onclick="addArticleToEditSupplier()" style="margin-top: 8px; width: 100%; padding: 8px; border-color: var(--secondary-color); color: var(--secondary-color); font-size: 11px;">
+          ➕ SUMAR OTRO ARTÍCULO A ESTE PROVEEDOR
+        </button>
+
+        <div style="display: flex; gap: 8px; margin-top: 15px;">
+          <button class="btn-success" onclick="saveEditedSupplier()" style="flex: 2; padding: 12px; font-size: 12.5px;">
+            💾 GUARDAR CAMBIOS DE PROVEEDOR
+          </button>
+          <button class="btn-chip" onclick="closeEditSupplierModal()" style="flex: 1; padding: 12px; font-size: 11px;">
+            Cancelar
+          </button>
+        </div>
+      </div>
+    </div>
+
   </div> <!-- FIN DE #appContainer -->
 
   <script src="app.js"></script>
