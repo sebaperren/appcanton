@@ -141,7 +141,10 @@
           <div id="supplierOcrRawTextContainer" style="display: none; margin-top: 10px; background: #FAFAFA; padding: 8px; border-radius: 6px; border: 1px solid #DDD;">
             <label style="font-size: 10px; font-weight: bold; color: var(--primary-color);">📝 TEXTO EXTRAÍDO DE LA TARJETA (EDITAR SI ES NECESARIO):</label>
             <textarea id="supplierOcrRawText" class="form-control" style="height: 60px; font-size: 10.5px; margin-top: 4px;" placeholder="Texto extraído por OCR..."></textarea>
-            <button class="btn-primary" onclick="applySupplierCardOcrText()" style="width: 100%; margin-top: 6px; font-size: 11px; padding: 6px;">⚡ AUTOCOMPLETAR FORMULARIO CON ESTE TEXTO</button>
+            
+            <div id="supplierOcrLineButtons" style="margin-top: 6px; display: flex; flex-direction: column; gap: 4px;"></div>
+
+            <button class="btn-primary" onclick="applySupplierCardOcrText()" style="width: 100%; margin-top: 6px; font-size: 11px; padding: 6px;">⚡ RE-PROCESAR AUTOCOMPLETADO</button>
           </div>
         </div>
 
@@ -191,6 +194,24 @@
               <label>Email de Contacto</label>
               <input type="email" id="pEmail" class="form-control" placeholder="sales@supplier.cn">
             </div>
+          </div>
+
+          <div class="form-group" style="margin-top: 6px;">
+            <label>📝 Notas Generales / Mensajes / Observaciones del Proveedor</label>
+            <textarea id="pNotes" class="form-control" style="height: 55px;" placeholder="Impresiones generales, certificaciones, acuerdos, pedido de muestra..."></textarea>
+          </div>
+
+          <!-- Fotos del Proveedor, Stand, Tarjeta, Fachada -->
+          <div style="background: #F9F9F9; padding: 8px; border-radius: 6px; border: 1px solid #E0E0E0; margin-top: 8px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+              <label style="font-size: 10.5px; font-weight: bold; color: var(--primary-color);">📸 FOTOS DEL PROVEEDOR, STAND O TARJETA</label>
+              <button type="button" class="btn-primary" onclick="triggerSupplierPhotosUpload()" style="font-size: 10px; padding: 4px 8px;">📸 Tomar / Cargar Foto</button>
+            </div>
+            <p style="font-size: 9.5px; color: var(--text-muted); margin-bottom: 6px;">
+              Puedes tomar o adjuntar fotos de la fachada del stand, tarjeta de contacto o catálogo general.
+            </p>
+            <input type="file" id="pPhotosInput" accept="image/*" multiple capture="environment" onchange="handleSupplierPhotosUpload(event)" style="display: none;">
+            <div id="pPhotosPreview" style="display: flex; gap: 6px; overflow-x: auto; min-height: 20px; margin-top: 4px;"></div>
           </div>
         </div>
 
@@ -705,6 +726,21 @@
             <label>Email de Contacto</label>
             <input type="email" id="editEmail" class="form-control">
           </div>
+        </div>
+
+        <div class="form-group" style="margin-top: 6px;">
+          <label>📝 Notas Generales del Proveedor</label>
+          <textarea id="editNotes" class="form-control" style="height: 50px;"></textarea>
+        </div>
+
+        <!-- Gestión de Fotos del Proveedor en Modal Edición -->
+        <div style="background: #F9F9F9; padding: 8px; border-radius: 6px; border: 1px solid #DDD; margin-top: 8px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+            <label style="font-size: 11px; font-weight: bold; color: var(--primary-color);">📸 FOTOS DEL PROVEEDOR (STAND / TARJETA)</label>
+            <button type="button" class="btn-primary" onclick="triggerEditSupplierPhotoUpload()" style="font-size: 10px; padding: 4px 8px;">➕ Sumar Foto</button>
+          </div>
+          <input type="file" id="editSupplierPhotoInput" accept="image/*" multiple capture="environment" onchange="handleEditSupplierPhotoUpload(event)" style="display: none;">
+          <div id="editSupplierPhotosContainer" style="display: flex; gap: 6px; overflow-x: auto; min-height: 35px; margin-top: 4px;"></div>
         </div>
 
         <hr style="margin: 12px 0; border: none; border-top: 1px dashed #CCC;">

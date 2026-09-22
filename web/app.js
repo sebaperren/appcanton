@@ -1028,6 +1028,8 @@ function renderTarjetero() {
     const cleanPhone = (sup.phone || '').replace(/[^0-9]/g, '');
     const waLink = `https://wa.me/${cleanPhone}?text=Hola%20${encodeURIComponent(sup.contactName || 'contacto')},%20te%20contacto%20desde%20Perren%20%26%20C%C3%ADa.%20por%20la%20Feria%20de%20Cant%C3%B3n`;
     const articles = sup.articles || [];
+    const supPhotos = sup.photos || [];
+    const supNotes = sup.notes || '';
     const isSynced = sup.syncState === 'synced' || sup.firestoreId;
     const syncBadge = isSynced 
       ? `<span style="font-size: 9px; background: #E8F5E9; color: #2E7D32; padding: 2px 6px; border-radius: 4px; border: 1px solid #C8E6C9; margin-left: 4px;">🟢 Cloud</span>` 
@@ -1054,8 +1056,10 @@ function renderTarjetero() {
               👤 <strong>Contacto:</strong> ${sup.contactName || 's/d'} ${sup.weChat ? `(WeChat: <strong>${sup.weChat}</strong>)` : ''}
             </div>
 
-            <div style="font-size: 10px; color: var(--secondary-color); font-weight: bold; margin-top: 4px;">
-              📦 ${articles.length} artículo(s) cotizado(s)
+            <div style="display: flex; gap: 6px; align-items: center; margin-top: 4px; flex-wrap: wrap;">
+              <span style="font-size: 10px; color: var(--secondary-color); font-weight: bold;">📦 ${articles.length} artículo(s)</span>
+              ${supPhotos.length > 0 ? `<span style="font-size: 9.5px; background: #E1F5FE; color: #0288D1; padding: 1px 5px; border-radius: 4px; font-weight: bold;">📸 ${supPhotos.length} foto(s)</span>` : ''}
+              ${supNotes ? `<span style="font-size: 9.5px; background: #FFF8E1; color: #F57F17; padding: 1px 5px; border-radius: 4px; font-weight: bold;">📝 Nota</span>` : ''}
             </div>
           </div>
 
@@ -1083,6 +1087,23 @@ function renderTarjetero() {
               📞 <strong>Tel:</strong> ${sup.phone || 's/d'} ${sup.email ? `• ✉️ <strong>Email:</strong> ${sup.email}` : ''}
             </div>
 
+            ${supNotes ? `
+              <div style="font-size: 10.5px; background: #FFFDE7; border-left: 3px solid #FBC02D; padding: 6px 8px; border-radius: 4px; margin-bottom: 8px; color: #333;">
+                📝 <strong>Notas Generales del Proveedor:</strong> ${supNotes}
+              </div>
+            ` : ''}
+
+            ${supPhotos.length > 0 ? `
+              <div style="margin-bottom: 10px;">
+                <div style="font-size: 10.5px; font-weight: bold; color: var(--primary-color); margin-bottom: 4px;">
+                  🏢 Fotos del Stand / Tarjeta / Fachada (${supPhotos.length}):
+                </div>
+                <div style="display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px;">
+                  ${supPhotos.map(p => `<img src="${p}" onclick="window.open('${p}', '_blank')" style="width: 80px; height: 80px; object-fit: cover; border-radius: 6px; border: 1px solid #CCC; cursor: pointer;">`).join('')}
+                </div>
+              </div>
+            ` : ''}
+
             ${articles.length > 0 ? `
               <div style="font-size: 11px; font-weight: bold; color: var(--primary-color); margin-bottom: 6px;">
                 📦 Lista de Cotizaciones (${articles.length}):
@@ -1101,7 +1122,7 @@ function renderTarjetero() {
                     
                     ${art.photos && art.photos.length > 0 ? `
                       <div style="display: flex; gap: 4px; overflow-x: auto; margin-top: 6px;">
-                        ${art.photos.map(p => `<img src="${p}" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; border: 1px solid #DDD;">`).join('')}
+                        ${art.photos.map(p => `<img src="${p}" onclick="window.open('${p}', '_blank')" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; border: 1px solid #DDD; cursor: pointer;">`).join('')}
                       </div>
                     ` : ''}
 
@@ -1125,6 +1146,7 @@ function openEditSupplierModal(supId) {
     return;
   }
   currentEditingSupplier = JSON.parse(JSON.stringify(sup));
+  if (!currentEditingSupplier.photos) currentEditingSupplier.photos = [];
   
   document.getElementById('editSupplierId').value = currentEditingSupplier.id || currentEditingSupplier.firestoreId || '';
   document.getElementById('editCompName').value = currentEditingSupplier.companyName || '';
@@ -1135,7 +1157,10 @@ function openEditSupplierModal(supId) {
   document.getElementById('editWeChat').value = currentEditingSupplier.weChat || '';
   document.getElementById('editPhone').value = currentEditingSupplier.phone || '';
   document.getElementById('editEmail').value = currentEditingSupplier.email || '';
+  const editNotesEl = document.getElementById('editNotes');
+  if (editNotesEl) editNotesEl.value = currentEditingSupplier.notes || '';
 
+  renderEditSupplierPhotos();
   renderEditSupplierArticles();
   const modal = document.getElementById('modalEditSupplier');
   if (modal) modal.classList.add('open');
@@ -1145,6 +1170,52 @@ function closeEditSupplierModal() {
   const modal = document.getElementById('modalEditSupplier');
   if (modal) modal.classList.remove('open');
   currentEditingSupplier = null;
+}
+
+function triggerEditSupplierPhotoUpload() {
+  const input = document.getElementById('editSupplierPhotoInput');
+  if (input) input.click();
+}
+
+function handleEditSupplierPhotoUpload(event) {
+  const files = Array.from(event.target.files);
+  if (!files || files.length === 0 || !currentEditingSupplier) return;
+
+  if (!currentEditingSupplier.photos) currentEditingSupplier.photos = [];
+
+  files.forEach(file => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      currentEditingSupplier.photos.push(e.target.result);
+      renderEditSupplierPhotos();
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function removeEditSupplierPhoto(index) {
+  if (currentEditingSupplier && currentEditingSupplier.photos) {
+    currentEditingSupplier.photos.splice(index, 1);
+    renderEditSupplierPhotos();
+  }
+}
+
+function renderEditSupplierPhotos() {
+  const container = document.getElementById('editSupplierPhotosContainer');
+  if (!container || !currentEditingSupplier) return;
+
+  const photos = currentEditingSupplier.photos || [];
+  if (photos.length === 0) {
+    container.innerHTML = '<div style="font-size: 10px; color: var(--text-muted); font-style: italic;">No hay fotos cargadas aún para este proveedor.</div>';
+    return;
+  }
+
+  container.innerHTML = photos.map((p, idx) => `
+    <div style="position: relative; display: inline-block;">
+      <img src="${p}" style="width: 55px; height: 55px; object-fit: cover; border-radius: 6px; border: 1px solid #CCC;">
+      <button onclick="removeEditSupplierPhoto(${idx})" style="position: absolute; top: -4px; right: -4px; background: #D32F2F; color: white; border: none; border-radius: 50%; width: 16px; height: 16px; font-size: 9px; cursor: pointer; display: flex; align-items: center; justify-content: center;">✖</button>
+    </div>
+  `).join('');
 }
 
 function renderEditSupplierArticles() {
@@ -1256,6 +1327,8 @@ async function saveEditedSupplier() {
   currentEditingSupplier.weChat = document.getElementById('editWeChat').value.trim();
   currentEditingSupplier.phone = document.getElementById('editPhone').value.trim();
   currentEditingSupplier.email = document.getElementById('editEmail').value.trim();
+  const editNotesEl = document.getElementById('editNotes');
+  if (editNotesEl) currentEditingSupplier.notes = editNotesEl.value.trim();
   currentEditingSupplier.syncState = 'pending';
 
   const targetId = currentEditingSupplier.id || currentEditingSupplier.firestoreId;
@@ -1279,12 +1352,49 @@ async function saveEditedSupplier() {
 
 // ESTADO TEMPORAL PARA ALTA DE PROVEEDOR Y ARTÍCULOS COTIZADOS
 let currentSupplierArticles = [];
+let currentSupplierPhotos = [];
 let currentArticlePhotos = [];
 let voiceMediaRecorder = null;
 let voiceAudioChunks = [];
 let voiceAudioBase64 = null;
 let voiceRecordTimerInterval = null;
 let voiceRecordSeconds = 0;
+
+// GESTIÓN DE FOTOS DEL PROVEEDOR (STAND, TARJETA, FACHADA)
+function triggerSupplierPhotosUpload() {
+  const input = document.getElementById('pPhotosInput');
+  if (input) input.click();
+}
+
+function handleSupplierPhotosUpload(event) {
+  const files = Array.from(event.target.files);
+  if (!files || files.length === 0) return;
+
+  files.forEach(file => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      currentSupplierPhotos.push(e.target.result);
+      renderSupplierPhotosPreview();
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function removeSupplierPhoto(index) {
+  currentSupplierPhotos.splice(index, 1);
+  renderSupplierPhotosPreview();
+}
+
+function renderSupplierPhotosPreview() {
+  const container = document.getElementById('pPhotosPreview');
+  if (!container) return;
+  container.innerHTML = currentSupplierPhotos.map((imgSrc, idx) => `
+    <div style="position: relative; display: inline-block;">
+      <img src="${imgSrc}" style="width: 65px; height: 65px; object-fit: cover; border-radius: 6px; border: 1px solid #CCC;">
+      <button onclick="removeSupplierPhoto(${idx})" style="position: absolute; top: -4px; right: -4px; background: #D32F2F; color: white; border: none; border-radius: 50%; width: 18px; height: 18px; font-size: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center;">✖</button>
+    </div>
+  `).join('');
+}
 
 // ESCÁNER OCR DE TARJETAS DE NEGOCIO Y CARTELES DE STAND
 function triggerSupplierCardOcr() {
@@ -1330,6 +1440,51 @@ function preprocessImageForOcr(file, callback) {
   img.src = URL.createObjectURL(file);
 }
 
+function renderOcrLineButtons(lines) {
+  const container = document.getElementById('supplierOcrLineButtons');
+  if (!container) return;
+  if (!lines || lines.length === 0) {
+    container.innerHTML = '';
+    return;
+  }
+  container.innerHTML = `
+    <div style="font-size: 10px; font-weight: bold; color: var(--secondary-color); margin-top: 4px; margin-bottom: 2px;">
+      👉 Toca un botón para asignar esa línea a un campo:
+    </div>
+    ${lines.map((line) => {
+      const safeLine = line.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+      return `
+        <div style="background: white; border: 1px solid #CCC; padding: 4px 6px; border-radius: 4px; display: flex; justify-content: space-between; align-items: center; gap: 4px;">
+          <span style="font-size: 10px; color: #333; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 55%;">${line}</span>
+          <div style="display: flex; gap: 2px; flex-wrap: wrap;">
+            <button class="btn-chip" onclick="assignOcrField('${safeLine}', 'company')" style="font-size: 9px; padding: 1px 4px;">🏢 Empresa</button>
+            <button class="btn-chip" onclick="assignOcrField('${safeLine}', 'contact')" style="font-size: 9px; padding: 1px 4px;">👤 Contacto</button>
+            <button class="btn-chip" onclick="assignOcrField('${safeLine}', 'category')" style="font-size: 9px; padding: 1px 4px;">🏷️ Rubro</button>
+            <button class="btn-chip" onclick="assignOcrField('${safeLine}', 'stand')" style="font-size: 9px; padding: 1px 4px;">📍 Stand</button>
+          </div>
+        </div>
+      `;
+    }).join('')}
+  `;
+}
+
+function assignOcrField(text, field) {
+  const clean = text.replace(/^[|;':,._\-\[\]\(\)\{\}\d\s\/]+/, '').replace(/[|;':,._\-\[\]\(\)\{\}\d\s\/]+$/, '').trim();
+  if (field === 'company') {
+    const el = document.getElementById('pCompany');
+    if (el) el.value = clean;
+  } else if (field === 'contact') {
+    const el = document.getElementById('pContact');
+    if (el) el.value = clean.replace(/(presidente|president|director|gerente|ceo|owner|founder|sales manager|manager)[:\s]*/i, '').trim();
+  } else if (field === 'category') {
+    const el = document.getElementById('pCategory');
+    if (el) el.value = clean;
+  } else if (field === 'stand') {
+    const el = document.getElementById('pStand');
+    if (el) el.value = clean;
+  }
+}
+
 function parseSupplierCardText(text) {
   if (!text) return;
 
@@ -1371,24 +1526,25 @@ function parseSupplierCardText(text) {
   const categoryKeywords = /(materiales|construcci[oó]n|ferreter[ií]a|pisos|revestimientos|ceramica|azulejos|sanitarios|grifer[ií]a|iluminaci[oó]n|electricidad|muebles|building|hardware|sanitary|ware|lighting|electric|electrical|furniture|tools|steel|pipes|valves)/i;
   for (const line of rawLines) {
     if (categoryKeywords.test(line)) {
-      categoryFound = line.replace(/^[|;':,._\-\[\]\(\)\{\}\d\s]+/, '').trim();
+      categoryFound = line.replace(/^[|;':,._\-\[\]\(\)\{\}\d\s\/]+/, '').trim();
+      if (/meteriales/i.test(categoryFound)) categoryFound = categoryFound.replace(/meteriales/i, 'Materiales');
       break;
     }
   }
 
-  // Líneas limpias sin artefactos OCR, números de teléfono ni emails
+  // Líneas limpias sin artefactos OCR
   const cleanLines = rawLines.map(line => {
     let l = line;
     if (emailFound) l = l.replace(emailFound, '');
     l = l.replace(/(?:\+?\d{1,4}[-.\s]?)?\(?\d{2,5}\)?[-.\s]?\d{3,4}[-.\s]?\d{3,4}/g, '');
     if (weChatFound) l = l.replace(weChatFound, '');
     if (standFound) l = l.replace(standFound, '');
-    l = l.replace(/^[|;':,._\-\[\]\(\)\{\}\d\s]+/, '');
-    l = l.replace(/[|;':,._\-\[\]\(\)\{\}\d\s]+$/, '');
+    l = l.replace(/^[|;':,._\-\[\]\(\)\{\}\d\s\/]+/, '');
+    l = l.replace(/[|;':,._\-\[\]\(\)\{\}\d\s\/]+$/, '');
     return l.trim();
   }).filter(l => l.length >= 2);
 
-  // 7. Extraer Nombre de Empresa (Empresa / Fábrica / Cía)
+  // 7. Extraer Nombre de Empresa
   const companyKeywords = /\b(co|ltd|limited|corp|corporation|inc|group|factory|industry|industries|manufacture|manufacturing|trading|technology|tech|hardware|building|ceramics|sanitary|ware|lighting|electric|electrical|furniture|import|export|enterprises|cia|cía|s\.a\.|srl|llc|gmbh)\b/i;
 
   for (const line of cleanLines) {
@@ -1398,49 +1554,33 @@ function parseSupplierCardText(text) {
     }
   }
 
-  // 8. Extraer Nombre de Contacto (con cargos o patrones de nombres propios)
-  const jobTitles = /(presidente|president|director|general manager|sales manager|export manager|gerente|ceo|owner|founder|manager|ejecutivo|ventas|sales|export)/i;
-  
-  // Pasada A: Líneas con cargo explícito (ej: "Presidente", "Sales Manager")
-  for (const line of cleanLines) {
-    if (jobTitles.test(line)) {
-      const cleaned = line.replace(jobTitles, '').replace(/^[|;':,._\-\[\]\(\)\{\}\d\s]+/, '').replace(/[|;':,._\-\[\]\(\)\{\}\d\s]+$/, '').trim();
-      if (cleaned.length >= 3 && !companyKeywords.test(cleaned)) {
-        contactFound = cleaned;
-        break;
+  // Si hay email con dominio (ej: sperren@perrenycia.com.ar), usarlo para inferir o limpiar la empresa
+  if (emailFound) {
+    const domainMatch = emailFound.match(/@([a-zA-Z0-9-]+)\./);
+    if (domainMatch && domainMatch[1] && !/gmail|hotmail|yahoo|outlook|163|qq|foxmail|sina/i.test(domainMatch[1])) {
+      const domName = domainMatch[1];
+      if (/perren/i.test(domName) || (companyFound && companyFound.toLowerCase().includes('perren'))) {
+        companyFound = 'PERREN & CÍA.';
+      } else if (!companyFound) {
+        companyFound = domName.charAt(0).toUpperCase() + domName.slice(1);
       }
     }
   }
 
-  // Pasada B: Buscar persona por patrón de nombre propio (ej: "Sebastián Perren", "Jack Zhang")
-  if (!contactFound) {
-    const filterNoise = /^(canton|fair|china|tel|mobile|fax|email|add|address|www|http|hall|stand|booth|room|street|road|district|city|province|zip|materiales|construccion|ferretera|pisos|revestimientos)/i;
-    for (const line of cleanLines) {
-      if (
-        line.length >= 3 && line.length <= 40 &&
-        !filterNoise.test(line) &&
-        !companyKeywords.test(line) &&
-        (!companyFound || !companyFound.includes(line))
-      ) {
-        const cleanedName = line.replace(/^(mr\.|ms\.|mrs\.|dr\.|sales manager|manager|director|general manager|ceo|president|export manager|presidente)[:\s]*/i, '').trim();
-        if (cleanedName.length >= 3) {
-          contactFound = cleanedName;
-          break;
-        }
-      }
-    }
-  }
-
-  // Fallback para Nombre de Empresa si no contenía sufijos clásicos
+  // Si no se encontró empresa pero hay líneas de texto sin URL
   if (!companyFound && cleanLines.length > 0) {
-    const candidateComp = cleanLines.find(l => l !== contactFound && !jobTitles.test(l) && !categoryKeywords.test(l));
+    const candidateComp = cleanLines.find(l => !l.startsWith('WWW') && !l.startsWith('HTTP') && !categoryKeywords.test(l));
     if (candidateComp) companyFound = candidateComp;
   }
 
-  // Normalización de OCR de empresas conocidas (ej: "M EPERRENSCIA" o "EPERRENSCIA" -> "PERREN & CÍA.")
-  if (companyFound) {
-    if (/EPERREN|PERRENSCIA|PERREN/i.test(companyFound) && !/&/i.test(companyFound)) {
-      companyFound = companyFound.replace(/^M\s*/i, '').replace(/EPERRENSCIA|PERRENSCIA/i, 'PERREN & CÍA.');
+  // 8. Extraer Nombre de Contacto
+  const jobTitles = /(presidente|president|director|general manager|sales manager|export manager|gerente|ceo|owner|founder|manager|ejecutivo|ventas|sales|export)/i;
+  
+  for (const line of cleanLines) {
+    const lineWithoutJob = line.replace(jobTitles, '').replace(/^[|;':,._\-\[\]\(\)\{\}\d\s\/]+/, '').replace(/[|;':,._\-\[\]\(\)\{\}\d\s\/]+$/, '').trim();
+    if (lineWithoutJob.length >= 3 && !companyKeywords.test(lineWithoutJob) && !lineWithoutJob.startsWith('WWW') && !categoryKeywords.test(lineWithoutJob)) {
+      contactFound = lineWithoutJob;
+      break;
     }
   }
 
@@ -1453,6 +1593,8 @@ function parseSupplierCardText(text) {
   if (categoryFound && document.getElementById('pCategory')) document.getElementById('pCategory').value = categoryFound;
   if (companyFound && document.getElementById('pCompany')) document.getElementById('pCompany').value = companyFound;
   if (contactFound && document.getElementById('pContact')) document.getElementById('pContact').value = contactFound;
+
+  renderOcrLineButtons(rawLines);
 }
 
 function processSupplierCardOcr(event) {
@@ -1471,10 +1613,15 @@ function processSupplierCardOcr(event) {
   }
 
   if (status) {
-    status.textContent = '⏳ Optimizando imagen con Canvas y escaneando con OCR de alta resolución... Por favor aguarda...';
+    status.textContent = '⏳ Escaneando tarjeta con OCR de alta precisión... Por favor aguarda...';
   }
 
   preprocessImageForOcr(file, (processedDataUrl) => {
+    if (processedDataUrl) {
+      currentSupplierPhotos.push(processedDataUrl);
+      renderSupplierPhotosPreview();
+    }
+
     if (typeof Tesseract !== 'undefined') {
       Tesseract.recognize(processedDataUrl, 'eng+spa', {
         logger: m => {
@@ -1483,7 +1630,7 @@ function processSupplierCardOcr(event) {
           }
         }
       }).then(({ data: { text } }) => {
-        if (status) status.textContent = '✅ Texto extraído de la tarjeta!';
+        if (status) status.textContent = '✅ Texto extraído de la tarjeta! Foto guardada en las fotos del proveedor.';
         
         if (rawBox) rawBox.value = text;
         if (rawBoxContainer) rawBoxContainer.style.display = 'block';
@@ -1501,7 +1648,7 @@ function processSupplierCardOcr(event) {
         if (status) status.textContent = '❌ Error en OCR: ' + err.message;
       });
     } else {
-      if (status) status.textContent = '⚠️ Tesseract.js no disponible. Ingrese los datos manualmente.';
+      if (status) status.textContent = '⚠️ Tesseract.js no disponible. Foto guardada. Ingrese los datos manualmente.';
     }
   });
 }
@@ -1893,6 +2040,7 @@ async function saveSupplierFromForm() {
   const wechat = document.getElementById('pWeChat').value;
   const phone = document.getElementById('pPhone').value;
   const email = document.getElementById('pEmail').value;
+  const notes = document.getElementById('pNotes') ? document.getElementById('pNotes').value.trim() : '';
 
   if (!name) {
     alert('Por favor ingresa el nombre de la empresa');
@@ -1909,6 +2057,8 @@ async function saveSupplierFromForm() {
     weChat: wechat || '',
     phone: phone || '+86',
     email: email || '',
+    notes: notes,
+    photos: [...currentSupplierPhotos],
     articles: [...currentSupplierArticles],
     syncState: 'pending',
     createdAt: new Date().toISOString()
@@ -1927,6 +2077,11 @@ async function saveSupplierFromForm() {
   document.getElementById('pWeChat').value = '';
   document.getElementById('pPhone').value = '';
   document.getElementById('pEmail').value = '';
+  if (document.getElementById('pNotes')) document.getElementById('pNotes').value = '';
+  
+  currentSupplierPhotos = [];
+  renderSupplierPhotosPreview();
+
   const ocrPrev = document.getElementById('supplierOcrPreview');
   if (ocrPrev) ocrPrev.style.display = 'none';
   const ocrStat = document.getElementById('supplierOcrStatus');
@@ -2388,4 +2543,11 @@ if (typeof window !== 'undefined') {
   window.getBestSupportedAudioMimeType = getBestSupportedAudioMimeType;
   window.renderAudioPlayerHtml = renderAudioPlayerHtml;
   window.playAudioDirectly = playAudioDirectly;
+  window.triggerSupplierPhotosUpload = triggerSupplierPhotosUpload;
+  window.handleSupplierPhotosUpload = handleSupplierPhotosUpload;
+  window.removeSupplierPhoto = removeSupplierPhoto;
+  window.triggerEditSupplierPhotoUpload = triggerEditSupplierPhotoUpload;
+  window.handleEditSupplierPhotoUpload = handleEditSupplierPhotoUpload;
+  window.removeEditSupplierPhoto = removeEditSupplierPhoto;
+  window.assignOcrField = assignOcrField;
 }
