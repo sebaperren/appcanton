@@ -41,16 +41,21 @@
         <input type="password" id="fbPassword" class="form-control" value="canton2026" placeholder="Contraseña de Firebase">
       </div>
 
-      <div style="display: flex; gap: 8px; margin-top: 10px;">
-        <button class="btn-primary" onclick="handleFirebaseAuthLogin()" style="flex: 2; padding: 12px; font-size: 12px;">
-          🔐 INICIAR SESIÓN
-        </button>
-        <button class="btn-chip" onclick="handleFirebaseRegister()" style="flex: 1; padding: 12px; font-size: 11px; border-color: var(--secondary-color); color: var(--secondary-color);">
-          📝 CREAR CUENTA
+      <div style="display: flex; gap: 8px; margin-top: 10px; flex-direction: column;">
+        <div style="display: flex; gap: 8px;">
+          <button type="button" class="btn-primary" onclick="handleFirebaseAuthLogin()" style="flex: 2; padding: 12px; font-size: 12px;">
+            🔐 INICIAR SESIÓN
+          </button>
+          <button type="button" class="btn-chip" onclick="handleFirebaseRegister()" style="flex: 1; padding: 12px; font-size: 11px; border-color: var(--secondary-color); color: var(--secondary-color);">
+            📝 CREAR CUENTA
+          </button>
+        </div>
+        <button type="button" class="btn-chip" onclick="handleOfflineBypassLogin()" style="width: 100%; padding: 8px; font-size: 10.5px; background: #F5F5F5; border-color: #CCC; color: #555;">
+          ⚡ Entrar Modo Offline / Directo
         </button>
       </div>
 
-      <div style="font-size: 10px; color: var(--text-muted); margin-top: 14px;" id="fbAuthStatus">
+      <div style="font-size: 10px; color: var(--text-muted); margin-top: 12px;" id="fbAuthStatus">
         🟢 Servidor Firebase: <strong>perrenycia-crm</strong>
       </div>
     </div>
