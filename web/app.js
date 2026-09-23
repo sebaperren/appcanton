@@ -744,15 +744,6 @@ function calculateLandedBreakdown(fobUSD, qty, weightKg) {
     costoIncididoTotal,
     desembolsoTotalUnit,
     desembolsoTotalTotal,
-  return {
-    fobUSD,
-    qty,
-    weightKg,
-    totalWeightKg,
-    costoIncididoUnit,
-    costoIncididoTotal,
-    desembolsoTotalUnit,
-    desembolsoTotalTotal,
     rows: [
       { key: null, name: '1. PRECIO FOB (China)', unit: fobUSD, total: fobTotal, isHeader: true },
       { key: 'incFlete', name: '2. Flete Marítimo (40\' Contenedor)', unit: stateSettings.incFlete ? freightUSDUnit : 0, total: stateSettings.incFlete ? freightUSDTotal : 0, isInc: stateSettings.incFlete },
