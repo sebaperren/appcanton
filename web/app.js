@@ -279,6 +279,23 @@ function initFirestoreSuppliersListener() {
       firestoreSuppliers.forEach(fsSup => {
         const idx = localSuppliers.findIndex(ls => ls.id === fsSup.id || (ls.companyName && ls.companyName.toLowerCase().trim() === fsSup.companyName.toLowerCase().trim()));
         if (idx >= 0) {
+          const locSup = localSuppliers[idx];
+          if (locSup && locSup.articles && fsSup.articles) {
+            fsSup.articles.forEach((fsArt, aIdx) => {
+              const locArt = locSup.articles[aIdx] || locSup.articles.find(a => (a.name || a.description) === (fsArt.name || fsArt.description));
+              if (locArt) {
+                if ((!fsArt.voiceNoteUrl || fsArt.voiceNoteUrl.includes('[truncated_for_cloud]')) && locArt.voiceNoteUrl && !locArt.voiceNoteUrl.includes('[truncated_for_cloud]')) {
+                  fsArt.voiceNoteUrl = locArt.voiceNoteUrl;
+                }
+                if (locArt.photos && locArt.photos.length > (fsArt.photos || []).length) {
+                  fsArt.photos = locArt.photos;
+                }
+              }
+            });
+          }
+          if (locSup && locSup.photos && locSup.photos.length > (fsSup.photos || []).length) {
+            fsSup.photos = locSup.photos;
+          }
           localSuppliers[idx] = fsSup;
         } else {
           localSuppliers.unshift(fsSup);
@@ -1270,7 +1287,7 @@ function renderEditSupplierArticles() {
   }
 
   container.innerHTML = articles.map((art, idx) => `
-    <div style="background: #F9F9F9; border: 1px solid #DDD; padding: 10px; border-radius: 6px; margin-bottom: 8px;">
+    <div class="edit-art-card" style="background: #F9F9F9; border: 1px solid #DDD; padding: 10px; border-radius: 6px; margin-bottom: 8px;">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
         <strong style="font-size: 11.5px; color: var(--primary-color);">Item #${idx + 1}: ${art.name || art.description || 'Artículo'}</strong>
         <button onclick="removeEditSupplierArticle(${idx})" class="btn-chip" style="color: #D32F2F; border-color: #D32F2F; font-size: 10px; padding: 2px 6px;">🗑️ Quitar</button>
@@ -1278,34 +1295,34 @@ function renderEditSupplierArticles() {
       
       <div class="form-group" style="margin-bottom: 6px;">
         <label style="font-size: 10px;">Descripción / Nombre Artículo</label>
-        <input type="text" class="form-control" style="font-size: 11px; padding: 4px 8px;" value="${(art.name || art.description || '').replace(/"/g, '&quot;')}" onchange="updateEditSupplierArticle(${idx}, 'name', this.value)">
+        <input type="text" class="form-control edit-art-name" style="font-size: 11px; padding: 4px 8px;" value="${(art.name || art.description || '').replace(/"/g, '&quot;')}" oninput="updateEditSupplierArticle(${idx}, 'name', this.value)" onchange="updateEditSupplierArticle(${idx}, 'name', this.value)">
       </div>
 
       <div class="row-2" style="margin-bottom: 6px;">
         <div class="form-group">
           <label style="font-size: 10px;">FOB (USD)</label>
-          <input type="number" step="0.01" class="form-control" style="font-size: 11px; padding: 4px 8px;" value="${art.fob || 0}" onchange="updateEditSupplierArticle(${idx}, 'fob', parseFloat(this.value)||0)">
+          <input type="number" step="0.01" class="form-control edit-art-fob" style="font-size: 11px; padding: 4px 8px;" value="${art.fob || 0}" oninput="updateEditSupplierArticle(${idx}, 'fob', parseFloat(this.value)||0)" onchange="updateEditSupplierArticle(${idx}, 'fob', parseFloat(this.value)||0)">
         </div>
         <div class="form-group">
           <label style="font-size: 10px;">MOQ (Unidades)</label>
-          <input type="number" class="form-control" style="font-size: 11px; padding: 4px 8px;" value="${art.moq || 0}" onchange="updateEditSupplierArticle(${idx}, 'moq', parseInt(this.value)||0)">
+          <input type="number" class="form-control edit-art-moq" style="font-size: 11px; padding: 4px 8px;" value="${art.moq || 0}" oninput="updateEditSupplierArticle(${idx}, 'moq', parseInt(this.value)||0)" onchange="updateEditSupplierArticle(${idx}, 'moq', parseInt(this.value)||0)">
         </div>
       </div>
 
       <div class="row-2" style="margin-bottom: 6px;">
         <div class="form-group">
           <label style="font-size: 10px;">Puerto Embarque</label>
-          <input type="text" class="form-control" style="font-size: 11px; padding: 4px 8px;" value="${(art.port || 'Foshan, China').replace(/"/g, '&quot;')}" onchange="updateEditSupplierArticle(${idx}, 'port', this.value)">
+          <input type="text" class="form-control edit-art-port" style="font-size: 11px; padding: 4px 8px;" value="${(art.port || 'Foshan, China').replace(/"/g, '&quot;')}" oninput="updateEditSupplierArticle(${idx}, 'port', this.value)" onchange="updateEditSupplierArticle(${idx}, 'port', this.value)">
         </div>
         <div class="form-group">
           <label style="font-size: 10px;">Lead Time</label>
-          <input type="text" class="form-control" style="font-size: 11px; padding: 4px 8px;" value="${(art.leadTime || '30 días').replace(/"/g, '&quot;')}" onchange="updateEditSupplierArticle(${idx}, 'leadTime', this.value)">
+          <input type="text" class="form-control edit-art-lead" style="font-size: 11px; padding: 4px 8px;" value="${(art.leadTime || '30 días').replace(/"/g, '&quot;')}" oninput="updateEditSupplierArticle(${idx}, 'leadTime', this.value)" onchange="updateEditSupplierArticle(${idx}, 'leadTime', this.value)">
         </div>
       </div>
 
       <div class="form-group" style="margin-bottom: 6px;">
         <label style="font-size: 10px;">Notas / Especificaciones</label>
-        <input type="text" class="form-control" style="font-size: 11px; padding: 4px 8px;" value="${(art.note || '').replace(/"/g, '&quot;')}" onchange="updateEditSupplierArticle(${idx}, 'note', this.value)">
+        <input type="text" class="form-control edit-art-note" style="font-size: 11px; padding: 4px 8px;" value="${(art.note || '').replace(/"/g, '&quot;')}" oninput="updateEditSupplierArticle(${idx}, 'note', this.value)" onchange="updateEditSupplierArticle(${idx}, 'note', this.value)">
       </div>
 
       ${art.photos && art.photos.length > 0 ? `
@@ -1325,6 +1342,9 @@ function renderEditSupplierArticles() {
 function updateEditSupplierArticle(idx, field, value) {
   if (currentEditingSupplier && currentEditingSupplier.articles && currentEditingSupplier.articles[idx]) {
     currentEditingSupplier.articles[idx][field] = value;
+    if (field === 'name') {
+      currentEditingSupplier.articles[idx]['description'] = value;
+    }
   }
 }
 
@@ -1340,6 +1360,7 @@ function addArticleToEditSupplier() {
   if (!currentEditingSupplier.articles) currentEditingSupplier.articles = [];
   currentEditingSupplier.articles.push({
     name: 'Nuevo Artículo',
+    description: 'Nuevo Artículo',
     code: 'CF26-ART-' + Math.floor(100 + Math.random() * 900),
     fob: 0,
     moq: 100,
@@ -1358,6 +1379,32 @@ async function saveEditedSupplier() {
   if (!nameVal) {
     alert('Por favor ingresa el nombre de la empresa');
     return;
+  }
+
+  // Synchronize article DOM inputs directly to currentEditingSupplier before saving
+  const artCards = document.querySelectorAll('#editSupplierArticlesContainer .edit-art-card');
+  if (artCards && artCards.length > 0 && currentEditingSupplier.articles) {
+    artCards.forEach((card, idx) => {
+      if (currentEditingSupplier.articles[idx]) {
+        const nameInp = card.querySelector('.edit-art-name');
+        const fobInp = card.querySelector('.edit-art-fob');
+        const moqInp = card.querySelector('.edit-art-moq');
+        const portInp = card.querySelector('.edit-art-port');
+        const leadInp = card.querySelector('.edit-art-lead');
+        const noteInp = card.querySelector('.edit-art-note');
+
+        if (nameInp) {
+          const val = nameInp.value.trim();
+          currentEditingSupplier.articles[idx].name = val;
+          currentEditingSupplier.articles[idx].description = val;
+        }
+        if (fobInp) currentEditingSupplier.articles[idx].fob = parseFloat(fobInp.value) || 0;
+        if (moqInp) currentEditingSupplier.articles[idx].moq = parseInt(moqInp.value) || 0;
+        if (portInp) currentEditingSupplier.articles[idx].port = portInp.value.trim();
+        if (leadInp) currentEditingSupplier.articles[idx].leadTime = leadInp.value.trim();
+        if (noteInp) currentEditingSupplier.articles[idx].note = noteInp.value.trim();
+      }
+    });
   }
 
   currentEditingSupplier.companyName = nameVal;
