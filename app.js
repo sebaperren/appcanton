@@ -1276,8 +1276,8 @@ function renderTarjetero() {
               💬 WhatsApp
             </a>
             <div style="display: flex; gap: 4px;">
-              <button onclick="event.stopPropagation(); openEditSupplierModal('${targetId}', ${idx});" class="btn-chip" style="color: var(--secondary-color); border-color: var(--secondary-color); font-size: 10px; padding: 2px 6px; cursor: pointer;">✏️ Editar</button>
-              <button onclick="event.stopPropagation(); deleteSupplier('${targetId}');" class="btn-chip" style="color: #D32F2F; border-color: #D32F2F; font-size: 10px; padding: 2px 6px; cursor: pointer;">🗑️</button>
+              <button onclick="event.stopPropagation(); openEditSupplierModal('${String(targetId).replace(/'/g, "\\'")}', ${idx});" class="btn-chip" style="color: var(--secondary-color); border-color: var(--secondary-color); font-size: 10px; padding: 2px 6px; cursor: pointer;">✏️ Editar</button>
+              <button onclick="event.stopPropagation(); deleteSupplier('${String(targetId).replace(/'/g, "\\'")}');" class="btn-chip" style="color: #D32F2F; border-color: #D32F2F; font-size: 10px; padding: 2px 6px; cursor: pointer;">🗑️</button>
             </div>
           </div>
         </div>
@@ -1348,40 +1348,52 @@ function renderTarjetero() {
 
 // FUNCIONES PARA EDITAR PROVEEDOR Y SUS ARTÍCULOS
 function openEditSupplierModal(supId, fallbackIndex) {
-  let sup = localSuppliers.find(s => (s.id && String(s.id) === String(supId)) || (s.firestoreId && String(s.firestoreId) === String(supId)));
-  if (!sup && typeof fallbackIndex === 'number' && localSuppliers[fallbackIndex]) {
-    sup = localSuppliers[fallbackIndex];
-  }
-  if (!sup) {
-    alert('Proveedor no encontrado');
-    return;
-  }
-  currentEditingSupplier = JSON.parse(JSON.stringify(sup));
-  if (!currentEditingSupplier.id) {
-    currentEditingSupplier.id = sup.id || sup.firestoreId || ('SUP-' + Date.now());
-  }
-  if (!currentEditingSupplier.photos) currentEditingSupplier.photos = [];
-  if (!currentEditingSupplier.articles) currentEditingSupplier.articles = [];
-  
-  document.getElementById('editSupplierId').value = currentEditingSupplier.id;
-  document.getElementById('editCompName').value = currentEditingSupplier.companyName || '';
-  document.getElementById('editCompChinese').value = currentEditingSupplier.companyNameChinese || '';
-  document.getElementById('editStand').value = currentEditingSupplier.stand || '';
-  document.getElementById('editCategory').value = currentEditingSupplier.category || '';
-  document.getElementById('editContact').value = currentEditingSupplier.contactName || '';
-  document.getElementById('editWeChat').value = currentEditingSupplier.weChat || '';
-  document.getElementById('editPhone').value = currentEditingSupplier.phone || '';
-  document.getElementById('editEmail').value = currentEditingSupplier.email || '';
-  const editNotesEl = document.getElementById('editNotes');
-  if (editNotesEl) editNotesEl.value = currentEditingSupplier.notes || '';
+  try {
+    let sup = localSuppliers.find(s => (s.id && String(s.id) === String(supId)) || (s.firestoreId && String(s.firestoreId) === String(supId)));
+    if (!sup && typeof fallbackIndex === 'number' && localSuppliers[fallbackIndex]) {
+      sup = localSuppliers[fallbackIndex];
+    }
+    if (!sup) {
+      alert('Proveedor no encontrado');
+      return;
+    }
+    currentEditingSupplier = JSON.parse(JSON.stringify(sup));
+    if (!currentEditingSupplier.id) {
+      currentEditingSupplier.id = sup.id || sup.firestoreId || ('SUP-' + Date.now());
+    }
+    if (!currentEditingSupplier.photos) currentEditingSupplier.photos = [];
+    if (!currentEditingSupplier.articles) currentEditingSupplier.articles = [];
+    
+    const setVal = (id, val) => {
+      const el = document.getElementById(id);
+      if (el) el.value = (val !== null && val !== undefined) ? val : '';
+    };
 
-  renderEditSupplierPhotos();
-  renderEditSupplierArticles();
-  const modal = document.getElementById('modalEditSupplier');
-  if (modal) {
-    modal.style.display = 'flex';
-    modal.style.zIndex = '999999';
-    modal.classList.add('open');
+    setVal('editSupplierId', currentEditingSupplier.id);
+    setVal('editCompName', currentEditingSupplier.companyName);
+    setVal('editCompChinese', currentEditingSupplier.companyNameChinese);
+    setVal('editStand', currentEditingSupplier.stand);
+    setVal('editCategory', currentEditingSupplier.category);
+    setVal('editContact', currentEditingSupplier.contactName);
+    setVal('editWeChat', currentEditingSupplier.weChat);
+    setVal('editPhone', currentEditingSupplier.phone);
+    setVal('editEmail', currentEditingSupplier.email);
+    setVal('editNotes', currentEditingSupplier.notes);
+
+    renderEditSupplierPhotos();
+    renderEditSupplierArticles();
+
+    const modal = document.getElementById('modalEditSupplier');
+    if (modal) {
+      modal.style.display = 'flex';
+      modal.style.zIndex = '999999';
+      modal.classList.add('open');
+    } else {
+      alert('No se encontró el diálogo de edición en la página');
+    }
+  } catch (err) {
+    console.error('Error al abrir modal de edición de proveedor:', err);
+    alert('Ocurrió un error al abrir la edición: ' + err.message);
   }
 }
 
@@ -1450,57 +1462,66 @@ function renderEditSupplierArticles() {
     return;
   }
 
-  container.innerHTML = articles.map((art, idx) => `
+  container.innerHTML = articles.map((art, idx) => {
+    const artName = String(art.name || art.description || '').replace(/"/g, '&quot;');
+    const artPort = String(art.port || 'Foshan, China').replace(/"/g, '&quot;');
+    const artLead = String(art.leadTime || '30 días').replace(/"/g, '&quot;');
+    const artNote = String(art.note || '').replace(/"/g, '&quot;');
+    const artFob = parseFloat(art.fob) || 0;
+    const artMoq = parseInt(art.moq) || 0;
+
+    return `
     <div class="edit-art-card" style="background: #F9F9F9; border: 1px solid #DDD; padding: 10px; border-radius: 6px; margin-bottom: 8px;">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-        <strong style="font-size: 11.5px; color: var(--primary-color);">Item #${idx + 1}: ${art.name || art.description || 'Artículo'}</strong>
+        <strong style="font-size: 11.5px; color: var(--primary-color);">Item #${idx + 1}: ${String(art.name || art.description || 'Artículo')}</strong>
         <button onclick="removeEditSupplierArticle(${idx})" class="btn-chip" style="color: #D32F2F; border-color: #D32F2F; font-size: 10px; padding: 2px 6px;">🗑️ Quitar</button>
       </div>
       
       <div class="form-group" style="margin-bottom: 6px;">
         <label style="font-size: 10px;">Descripción / Nombre Artículo</label>
-        <input type="text" class="form-control edit-art-name" style="font-size: 11px; padding: 4px 8px;" value="${(art.name || art.description || '').replace(/"/g, '&quot;')}" oninput="updateEditSupplierArticle(${idx}, 'name', this.value)" onchange="updateEditSupplierArticle(${idx}, 'name', this.value)">
+        <input type="text" class="form-control edit-art-name" style="font-size: 11px; padding: 4px 8px;" value="${artName}" oninput="updateEditSupplierArticle(${idx}, 'name', this.value)" onchange="updateEditSupplierArticle(${idx}, 'name', this.value)">
       </div>
 
       <div class="row-2" style="margin-bottom: 6px;">
         <div class="form-group">
           <label style="font-size: 10px;">FOB (USD)</label>
-          <input type="number" step="0.01" class="form-control edit-art-fob" style="font-size: 11px; padding: 4px 8px;" value="${art.fob || 0}" oninput="updateEditSupplierArticle(${idx}, 'fob', parseFloat(this.value)||0)" onchange="updateEditSupplierArticle(${idx}, 'fob', parseFloat(this.value)||0)">
+          <input type="number" step="0.01" class="form-control edit-art-fob" style="font-size: 11px; padding: 4px 8px;" value="${artFob}" oninput="updateEditSupplierArticle(${idx}, 'fob', parseFloat(this.value)||0)" onchange="updateEditSupplierArticle(${idx}, 'fob', parseFloat(this.value)||0)">
         </div>
         <div class="form-group">
           <label style="font-size: 10px;">MOQ (Unidades)</label>
-          <input type="number" class="form-control edit-art-moq" style="font-size: 11px; padding: 4px 8px;" value="${art.moq || 0}" oninput="updateEditSupplierArticle(${idx}, 'moq', parseInt(this.value)||0)" onchange="updateEditSupplierArticle(${idx}, 'moq', parseInt(this.value)||0)">
+          <input type="number" class="form-control edit-art-moq" style="font-size: 11px; padding: 4px 8px;" value="${artMoq}" oninput="updateEditSupplierArticle(${idx}, 'moq', parseInt(this.value)||0)" onchange="updateEditSupplierArticle(${idx}, 'moq', parseInt(this.value)||0)">
         </div>
       </div>
 
       <div class="row-2" style="margin-bottom: 6px;">
         <div class="form-group">
           <label style="font-size: 10px;">Puerto Embarque</label>
-          <input type="text" class="form-control edit-art-port" style="font-size: 11px; padding: 4px 8px;" value="${(art.port || 'Foshan, China').replace(/"/g, '&quot;')}" oninput="updateEditSupplierArticle(${idx}, 'port', this.value)" onchange="updateEditSupplierArticle(${idx}, 'port', this.value)">
+          <input type="text" class="form-control edit-art-port" style="font-size: 11px; padding: 4px 8px;" value="${artPort}" oninput="updateEditSupplierArticle(${idx}, 'port', this.value)" onchange="updateEditSupplierArticle(${idx}, 'port', this.value)">
         </div>
         <div class="form-group">
           <label style="font-size: 10px;">Lead Time</label>
-          <input type="text" class="form-control edit-art-lead" style="font-size: 11px; padding: 4px 8px;" value="${(art.leadTime || '30 días').replace(/"/g, '&quot;')}" oninput="updateEditSupplierArticle(${idx}, 'leadTime', this.value)" onchange="updateEditSupplierArticle(${idx}, 'leadTime', this.value)">
+          <input type="text" class="form-control edit-art-lead" style="font-size: 11px; padding: 4px 8px;" value="${artLead}" oninput="updateEditSupplierArticle(${idx}, 'leadTime', this.value)" onchange="updateEditSupplierArticle(${idx}, 'leadTime', this.value)">
         </div>
       </div>
 
       <div class="form-group" style="margin-bottom: 6px;">
         <label style="font-size: 10px;">Notas / Especificaciones</label>
-        <input type="text" class="form-control edit-art-note" style="font-size: 11px; padding: 4px 8px;" value="${(art.note || '').replace(/"/g, '&quot;')}" oninput="updateEditSupplierArticle(${idx}, 'note', this.value)" onchange="updateEditSupplierArticle(${idx}, 'note', this.value)">
+        <input type="text" class="form-control edit-art-note" style="font-size: 11px; padding: 4px 8px;" value="${artNote}" oninput="updateEditSupplierArticle(${idx}, 'note', this.value)" onchange="updateEditSupplierArticle(${idx}, 'note', this.value)">
       </div>
 
       ${art.photos && art.photos.length > 0 ? `
         <div style="margin-top: 6px;">
           <div style="font-size: 10px; font-weight: bold; color: var(--text-muted); margin-bottom: 4px;">Fotos cargadas (${art.photos.length}):</div>
           <div style="display: flex; gap: 4px; overflow-x: auto;">
-            ${art.photos.map(p => `<img src="${p}" style="width: 45px; height: 45px; object-fit: cover; border-radius: 4px; border: 1px solid #CCC;">`).join('')}
+            ${art.photos.map(p => `<img src="${p}" style="width: 45px; height: 45px; object-fit: cover; border-radius: 6px; border: 1px solid #CCC;">`).join('')}
           </div>
         </div>
       ` : ''}
 
       ${art.voiceNoteUrl ? renderAudioPlayerHtml(art.voiceNoteUrl) : ''}
     </div>
-  `).join('');
+  `;
+  }).join('');
 }
 
 function updateEditSupplierArticle(idx, field, value) {
@@ -1537,69 +1558,77 @@ function addArticleToEditSupplier() {
 }
 
 async function saveEditedSupplier() {
-  if (!currentEditingSupplier) return;
+  try {
+    if (!currentEditingSupplier) return;
 
-  const nameVal = document.getElementById('editCompName').value.trim();
-  if (!nameVal) {
-    alert('Por favor ingresa el nombre de la empresa');
-    return;
-  }
+    const getVal = (id) => {
+      const el = document.getElementById(id);
+      return el ? el.value.trim() : '';
+    };
 
-  // Synchronize article DOM inputs directly to currentEditingSupplier before saving
-  const artCards = document.querySelectorAll('#editSupplierArticlesContainer .edit-art-card');
-  if (artCards && artCards.length > 0 && currentEditingSupplier.articles) {
-    artCards.forEach((card, idx) => {
-      if (currentEditingSupplier.articles[idx]) {
-        const nameInp = card.querySelector('.edit-art-name');
-        const fobInp = card.querySelector('.edit-art-fob');
-        const moqInp = card.querySelector('.edit-art-moq');
-        const portInp = card.querySelector('.edit-art-port');
-        const leadInp = card.querySelector('.edit-art-lead');
-        const noteInp = card.querySelector('.edit-art-note');
+    const nameVal = getVal('editCompName');
+    if (!nameVal) {
+      alert('Por favor ingresa el nombre de la empresa');
+      return;
+    }
 
-        if (nameInp) {
-          const val = nameInp.value.trim();
-          currentEditingSupplier.articles[idx].name = val;
-          currentEditingSupplier.articles[idx].description = val;
+    // Synchronize article DOM inputs directly to currentEditingSupplier before saving
+    const artCards = document.querySelectorAll('#editSupplierArticlesContainer .edit-art-card');
+    if (artCards && artCards.length > 0 && currentEditingSupplier.articles) {
+      artCards.forEach((card, idx) => {
+        if (currentEditingSupplier.articles[idx]) {
+          const nameInp = card.querySelector('.edit-art-name');
+          const fobInp = card.querySelector('.edit-art-fob');
+          const moqInp = card.querySelector('.edit-art-moq');
+          const portInp = card.querySelector('.edit-art-port');
+          const leadInp = card.querySelector('.edit-art-lead');
+          const noteInp = card.querySelector('.edit-art-note');
+
+          if (nameInp) {
+            const val = nameInp.value.trim();
+            currentEditingSupplier.articles[idx].name = val;
+            currentEditingSupplier.articles[idx].description = val;
+          }
+          if (fobInp) currentEditingSupplier.articles[idx].fob = parseFloat(fobInp.value) || 0;
+          if (moqInp) currentEditingSupplier.articles[idx].moq = parseInt(moqInp.value) || 0;
+          if (portInp) currentEditingSupplier.articles[idx].port = portInp.value.trim();
+          if (leadInp) currentEditingSupplier.articles[idx].leadTime = leadInp.value.trim();
+          if (noteInp) currentEditingSupplier.articles[idx].note = noteInp.value.trim();
         }
-        if (fobInp) currentEditingSupplier.articles[idx].fob = parseFloat(fobInp.value) || 0;
-        if (moqInp) currentEditingSupplier.articles[idx].moq = parseInt(moqInp.value) || 0;
-        if (portInp) currentEditingSupplier.articles[idx].port = portInp.value.trim();
-        if (leadInp) currentEditingSupplier.articles[idx].leadTime = leadInp.value.trim();
-        if (noteInp) currentEditingSupplier.articles[idx].note = noteInp.value.trim();
-      }
-    });
+      });
+    }
+
+    currentEditingSupplier.companyName = nameVal;
+    currentEditingSupplier.companyNameChinese = getVal('editCompChinese');
+    currentEditingSupplier.stand = getVal('editStand') || 'Stand s/d';
+    currentEditingSupplier.category = getVal('editCategory') || 'General';
+    currentEditingSupplier.contactName = getVal('editContact') || 'Contacto';
+    currentEditingSupplier.weChat = getVal('editWeChat');
+    currentEditingSupplier.phone = getVal('editPhone');
+    currentEditingSupplier.email = getVal('editEmail');
+    currentEditingSupplier.notes = getVal('editNotes');
+    currentEditingSupplier.syncState = 'pending';
+
+    const targetId = currentEditingSupplier.id || currentEditingSupplier.firestoreId;
+    const index = localSuppliers.findIndex(s => s.id === targetId || (s.firestoreId && s.firestoreId === targetId));
+    if (index >= 0) {
+      localSuppliers[index] = currentEditingSupplier;
+    } else {
+      localSuppliers.unshift(currentEditingSupplier);
+    }
+
+    saveLocalSuppliers();
+    const lblSuppliers = document.getElementById('lblTotalSuppliers');
+    if (lblSuppliers) lblSuppliers.textContent = localSuppliers.length;
+
+    renderTarjetero();
+    closeEditSupplierModal();
+
+    syncPendingSuppliersToFirebase().catch(e => console.error('Cloud sync error on saveEditedSupplier:', e));
+  } catch (err) {
+    console.error('Error al guardar edición de proveedor:', err);
+    alert('Error al guardar los cambios: ' + err.message);
   }
-
-  currentEditingSupplier.companyName = nameVal;
-  currentEditingSupplier.companyNameChinese = document.getElementById('editCompChinese').value.trim();
-  currentEditingSupplier.stand = document.getElementById('editStand').value.trim() || 'Stand s/d';
-  currentEditingSupplier.category = document.getElementById('editCategory').value.trim() || 'General';
-  currentEditingSupplier.contactName = document.getElementById('editContact').value.trim() || 'Contacto';
-  currentEditingSupplier.weChat = document.getElementById('editWeChat').value.trim();
-  currentEditingSupplier.phone = document.getElementById('editPhone').value.trim();
-  currentEditingSupplier.email = document.getElementById('editEmail').value.trim();
-  const editNotesEl = document.getElementById('editNotes');
-  if (editNotesEl) currentEditingSupplier.notes = editNotesEl.value.trim();
-  currentEditingSupplier.syncState = 'pending';
-
-  const targetId = currentEditingSupplier.id || currentEditingSupplier.firestoreId;
-  const index = localSuppliers.findIndex(s => s.id === targetId || (s.firestoreId && s.firestoreId === targetId));
-  if (index >= 0) {
-    localSuppliers[index] = currentEditingSupplier;
-  } else {
-    localSuppliers.unshift(currentEditingSupplier);
-  }
-
-  saveLocalSuppliers();
-  const lblSuppliers = document.getElementById('lblTotalSuppliers');
-  if (lblSuppliers) lblSuppliers.textContent = localSuppliers.length;
-
-  renderTarjetero();
-  closeEditSupplierModal();
-
-  alert('💾 Datos guardados localmente. Sincronizando con la nube...');
-  await syncPendingSuppliersToFirebase();
 }
 
 // ESTADO TEMPORAL PARA ALTA DE PROVEEDOR Y ARTÍCULOS COTIZADOS
