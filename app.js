@@ -2505,7 +2505,7 @@ function speakTranslationResult() {
 function startSpeechToTextTranslation() {
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SpeechRecognition) {
-    alert('⚠️ Tu navegador o iPhone no tiene activado el dictado por voz directo. Puedes escribir el texto en el cuadro.');
+    alert('⚠️ Dictado por voz directo no disponible en este navegador.\n\nPuedes presionar el icono de micrófono del teclado de tu celular para dictar directamente en el cuadro de texto.');
     return;
   }
 
@@ -2515,6 +2515,7 @@ function startSpeechToTextTranslation() {
   try {
     const recognition = new SpeechRecognition();
     recognition.lang = srcLang;
+    recognition.continuous = false;
     recognition.interimResults = false;
     recognition.maxAlternatives = 1;
 
@@ -2525,11 +2526,13 @@ function startSpeechToTextTranslation() {
     }
 
     recognition.onresult = (event) => {
-      const transcript = event.results[0][0].transcript;
-      const inputEl = document.getElementById('translatorInput');
-      if (inputEl) {
-        inputEl.value = transcript;
-        translateTradeText();
+      const transcript = event.results && event.results[0] && event.results[0][0] ? event.results[0][0].transcript : '';
+      if (transcript) {
+        const inputEl = document.getElementById('translatorInput');
+        if (inputEl) {
+          inputEl.value = transcript;
+          translateTradeText();
+        }
       }
     };
 
@@ -2538,6 +2541,16 @@ function startSpeechToTextTranslation() {
       if (btn) {
         btn.textContent = '🎙️ Hablar / Dictar';
         btn.style.background = '#9C27B0';
+      }
+
+      if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+        alert('⚠️ Permiso de dictado denegado o desactivado.\n\nEn iPhone:\n1. Ve a Ajustes de iOS -> General -> Teclado -> Activar Dictado (verde 🟢).\n2. O usa el micrófono de tu teclado para dictar en el cuadro.');
+      } else if (event.error === 'no-speech') {
+        alert('🎙️ No se detectó voz. Vuelve a presionar "Hablar / Dictar" y habla directo al micrófono.');
+      } else if (event.error === 'network') {
+        alert('🌐 El dictado por voz requiere conexión a internet activa.');
+      } else if (event.error !== 'aborted') {
+        alert('Aviso de dictado por voz: ' + event.error);
       }
     };
 
@@ -2550,7 +2563,8 @@ function startSpeechToTextTranslation() {
 
     recognition.start();
   } catch (err) {
-    alert('Error al iniciar dictado por voz: ' + err.message);
+    console.error('Speech recognition exception:', err);
+    alert('⚠️ No se pudo iniciar el dictado automático: ' + err.message + '\n\nPuedes usar el micrófono del teclado de tu teléfono para dictar en el cuadro.');
   }
 }
 
