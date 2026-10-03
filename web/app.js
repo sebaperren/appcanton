@@ -448,12 +448,25 @@ function showAuthenticatedApp(userEmail) {
   if (userStatusLbl) userStatusLbl.textContent = 'Firebase User: ' + userEmail;
 }
 
+function saveAuthCredentials(email, password) {
+  if (email) localStorage.setItem('canton_saved_email', email);
+  if (password) localStorage.setItem('canton_saved_password', password);
+}
+
 function showUnauthenticatedLogin() {
   const loginScreen = document.getElementById('loginScreen');
   const appContainer = document.getElementById('appContainer');
 
   if (loginScreen) loginScreen.style.display = 'flex';
   if (appContainer) appContainer.style.display = 'none';
+
+  const savedEmail = localStorage.getItem('canton_saved_email');
+  const savedPassword = localStorage.getItem('canton_saved_password');
+  const emailInput = document.getElementById('fbEmail');
+  const passwordInput = document.getElementById('fbPassword');
+
+  if (emailInput && savedEmail) emailInput.value = savedEmail;
+  if (passwordInput && savedPassword) passwordInput.value = savedPassword;
 }
 
 function initFirebaseAuthListener() {
@@ -492,6 +505,8 @@ function handleFirebaseAuthLogin() {
     alert('Por favor ingrese correo electrónico y contraseña.');
     return;
   }
+
+  saveAuthCredentials(email, password);
 
   if (statusEl) statusEl.textContent = '⏳ Verificando credenciales...';
 
@@ -551,6 +566,8 @@ function handleFirebaseRegister() {
     return;
   }
 
+  saveAuthCredentials(email, password);
+
   if (statusEl) statusEl.textContent = '⏳ Registrando nuevo usuario...';
 
   if (fbAuth) {
@@ -585,7 +602,11 @@ function handleFirebaseRegister() {
 
 function handleOfflineBypassLogin() {
   const emailInput = document.getElementById('fbEmail');
+  const passwordInput = document.getElementById('fbPassword');
   const email = (emailInput?.value || 'comprador@perren.com.ar').trim();
+  const password = (passwordInput?.value || 'canton2026').trim();
+
+  saveAuthCredentials(email, password);
   localStorage.setItem('firebaseAuthSession', email);
   showAuthenticatedApp(email);
 }
