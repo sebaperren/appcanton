@@ -273,17 +273,18 @@
             <div style="margin-top: 10px; background: #E3F2FD; padding: 8px; border-radius: 6px;">
               <label style="font-size: 10px; font-weight: bold; color: var(--secondary-color);">🎙️ GRABAR NOTA DE VOZ (AUDIO RECORDING)</label>
               <div style="display: flex; gap: 8px; margin-top: 4px; align-items: center;">
-                <button class="btn-primary" id="btnRecordVoice" onclick="toggleVoiceRecording()" style="font-size: 10.5px; padding: 6px 10px;">🎙️ Grabar Audio</button>
-                <span id="voiceRecordTimer" style="font-size: 11px; font-weight: bold; color: var(--warning-text);"></span>
+                <button class="btn-primary btn-record-voice" id="btnRecordVoiceSec" onclick="toggleVoiceRecording()" style="font-size: 10.5px; padding: 6px 10px;">🎙️ Grabar Audio</button>
+                <span id="voiceRecordTimerSec" class="voice-record-timer" style="font-size: 11px; font-weight: bold; color: var(--warning-text);"></span>
               </div>
-              <div id="audioPreviewContainer" style="display: none; margin-top: 6px;">
-                <audio id="audioPreview" controls style="width: 100%; height: 32px;"></audio>
+              <div id="audioPreviewContainerSec" class="audio-preview-container" style="display: none; margin-top: 6px;">
+                <audio controls style="width: 100%; height: 32px;"></audio>
               </div>
             </div>
 
             <button class="btn-success" onclick="saveInlineArticle()" style="margin-top: 10px; padding: 8px; font-size: 11.5px; width: 100%;">
               ➕ SUMAR ARTÍCULO A ESTE PROVEEDOR
             </button>
+            <div id="inlineArtStatusMsg" style="margin-top: 6px; font-size: 11px; text-align: center;"></div>
           </div>
 
           <div style="font-size: 11px; font-weight: bold; color: var(--primary-color); margin-bottom: 6px;">
@@ -619,15 +620,18 @@
         <div class="card" style="background: #E3F2FD;">
           <label style="font-size: 10px; font-weight: bold; color: var(--secondary-color);">🎙️ GRABAR NOTA DE VOZ (AUDIO RECORDING)</label>
           <div style="display: flex; gap: 8px; margin-top: 6px; align-items: center;">
-            <button class="btn-primary" id="btnRecordVoice" onclick="toggleVoiceRecording()" style="font-size: 10.5px; padding: 6px 10px;">🎙️ Grabar Audio</button>
-            <span id="voiceRecordTimer" style="font-size: 11px; font-weight: bold; color: var(--warning-text);"></span>
+            <button class="btn-primary btn-record-voice" id="btnRecordVoiceModal" onclick="toggleVoiceRecording()" style="font-size: 10.5px; padding: 6px 10px;">🎙️ Grabar Audio</button>
+            <span id="voiceRecordTimerModal" class="voice-record-timer" style="font-size: 11px; font-weight: bold; color: var(--warning-text);"></span>
           </div>
-          <div id="audioPreviewContainer" style="display: none; margin-top: 8px;">
-            <audio id="audioPreview" controls style="width: 100%; height: 35px;"></audio>
+          <div id="audioPreviewContainerModal" class="audio-preview-container" style="display: none; margin-top: 8px;">
+            <audio controls style="width: 100%; height: 35px;"></audio>
           </div>
         </div>
 
-        <button class="btn-success" onclick="saveArticleFromModal()" style="margin-top: 10px;">💾 AGREGAR ARTÍCULO AL PROVEEDOR</button>
+        <div style="display: flex; gap: 8px; margin-top: 12px;">
+          <button class="btn-success" onclick="saveArticleFromModal()" style="flex: 1; padding: 10px; font-size: 11.5px;">➕ AGREGAR Y SEGUIR CARGANDO</button>
+          <button class="btn-chip" onclick="closeAddArticleModal()" style="padding: 10px; font-size: 11px; background: #666; color: white; border: none;">✔️ LISTO / CERRAR</button>
+        </div>
       </div>
     </div>
 

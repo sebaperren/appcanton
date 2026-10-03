@@ -1082,7 +1082,7 @@ function renderTarjetero() {
     return;
   }
 
-  container.innerHTML = localSuppliers.map(sup => {
+  container.innerHTML = localSuppliers.map((sup, idx) => {
     const cleanPhone = (sup.phone || '').replace(/[^0-9]/g, '');
     const waLink = `https://wa.me/${cleanPhone}?text=Hola%20${encodeURIComponent(sup.contactName || 'contacto')},%20te%20contacto%20desde%20Perren%20%26%20C%C3%ADa.%20por%20la%20Feria%20de%20Cant%C3%B3n`;
     const articles = sup.articles || [];
@@ -1093,7 +1093,7 @@ function renderTarjetero() {
       ? `<span style="font-size: 9px; background: #E8F5E9; color: #2E7D32; padding: 2px 6px; border-radius: 4px; border: 1px solid #C8E6C9; margin-left: 4px;">🟢 Cloud</span>` 
       : `<span style="font-size: 9px; background: #FFF3E0; color: #E65100; padding: 2px 6px; border-radius: 4px; border: 1px solid #FFE0B2; margin-left: 4px;">📱 Local</span>`;
     
-    const targetId = sup.id || sup.firestoreId;
+    const targetId = sup.id || sup.firestoreId || ('idx_' + idx);
     const isExpanded = expandedTarjeteroCards.has(targetId);
 
     return `
@@ -1126,7 +1126,7 @@ function renderTarjetero() {
               💬 WhatsApp
             </a>
             <div style="display: flex; gap: 4px;">
-              <button onclick="openEditSupplierModal('${targetId}')" class="btn-chip" style="color: var(--secondary-color); border-color: var(--secondary-color); font-size: 10px; padding: 2px 6px;">✏️ Editar</button>
+              <button onclick="openEditSupplierModal('${targetId}', ${idx})" class="btn-chip" style="color: var(--secondary-color); border-color: var(--secondary-color); font-size: 10px; padding: 2px 6px;">✏️ Editar</button>
               <button onclick="deleteSupplier('${targetId}')" class="btn-chip" style="color: #D32F2F; border-color: #D32F2F; font-size: 10px; padding: 2px 6px;">🗑️</button>
             </div>
           </div>
@@ -1197,14 +1197,18 @@ function renderTarjetero() {
 }
 
 // FUNCIONES PARA EDITAR PROVEEDOR Y SUS ARTÍCULOS
-function openEditSupplierModal(supId) {
-  const sup = localSuppliers.find(s => s.id === supId || s.firestoreId === supId);
+function openEditSupplierModal(supId, fallbackIndex) {
+  let sup = localSuppliers.find(s => String(s.id) === String(supId) || (s.firestoreId && String(s.firestoreId) === String(supId)));
+  if (!sup && typeof fallbackIndex === 'number' && localSuppliers[fallbackIndex]) {
+    sup = localSuppliers[fallbackIndex];
+  }
   if (!sup) {
     alert('Proveedor no encontrado');
     return;
   }
   currentEditingSupplier = JSON.parse(JSON.stringify(sup));
   if (!currentEditingSupplier.photos) currentEditingSupplier.photos = [];
+  if (!currentEditingSupplier.articles) currentEditingSupplier.articles = [];
   
   document.getElementById('editSupplierId').value = currentEditingSupplier.id || currentEditingSupplier.firestoreId || '';
   document.getElementById('editCompName').value = currentEditingSupplier.companyName || '';
@@ -1221,12 +1225,19 @@ function openEditSupplierModal(supId) {
   renderEditSupplierPhotos();
   renderEditSupplierArticles();
   const modal = document.getElementById('modalEditSupplier');
-  if (modal) modal.classList.add('open');
+  if (modal) {
+    modal.classList.add('open');
+    modal.style.display = 'flex';
+    modal.style.zIndex = '99999';
+  }
 }
 
 function closeEditSupplierModal() {
   const modal = document.getElementById('modalEditSupplier');
-  if (modal) modal.classList.remove('open');
+  if (modal) {
+    modal.classList.remove('open');
+    modal.style.display = 'none';
+  }
   currentEditingSupplier = null;
 }
 
@@ -1859,6 +1870,42 @@ function playAudioDirectly(id) {
   }
 }
 
+function updateVoiceRecordingUI(state, extra = '') {
+  const btns = document.querySelectorAll('.btn-record-voice, #btnRecordVoice, #btnRecordVoiceSec, #btnRecordVoiceModal');
+  const timers = document.querySelectorAll('.voice-record-timer, #voiceRecordTimer, #voiceRecordTimerSec, #voiceRecordTimerModal');
+  const containers = document.querySelectorAll('.audio-preview-container, #audioPreviewContainer, #audioPreviewContainerSec, #audioPreviewContainerModal');
+
+  btns.forEach(b => {
+    if (state === 'recording') {
+      b.textContent = '⏹️ Detener Grabación';
+      b.style.background = '#D32F2F';
+    } else {
+      b.textContent = '🎙️ Grabar Audio';
+      b.style.background = 'var(--primary-color)';
+    }
+  });
+
+  timers.forEach(t => {
+    if (state === 'recording') {
+      t.textContent = `🔴 ${extra}s`;
+    } else if (state === 'stopped') {
+      t.textContent = `✅ Audio Grabado (${extra}s)`;
+    } else if (state === 'reset') {
+      t.textContent = '';
+    }
+  });
+
+  containers.forEach(c => {
+    if (state === 'preview' && voiceAudioBase64) {
+      c.innerHTML = renderAudioPlayerHtml(voiceAudioBase64);
+      c.style.display = 'block';
+    } else if (state === 'reset') {
+      c.innerHTML = '';
+      c.style.display = 'none';
+    }
+  });
+}
+
 function toggleVoiceRecording() {
   if (voiceMediaRecorder && voiceMediaRecorder.state === 'recording') {
     stopVoiceRecording();
@@ -1878,15 +1925,7 @@ function stopVoiceRecording() {
   if (voiceRecordTimerInterval) {
     clearInterval(voiceRecordTimerInterval);
   }
-  const btn = document.getElementById('btnRecordVoice');
-  const timer = document.getElementById('voiceRecordTimer');
-  if (btn) {
-    btn.textContent = '🎙️ Grabar Audio';
-    btn.style.background = 'var(--primary-color)';
-  }
-  if (timer && !voiceAudioBase64) {
-    timer.textContent = '';
-  }
+  updateVoiceRecordingUI(voiceAudioBase64 ? 'stopped' : 'reset', voiceRecordSeconds);
 }
 
 function startVoiceRecording() {
@@ -1911,20 +1950,12 @@ function startVoiceRecording() {
       voiceMediaRecorder.start(200);
       
       voiceRecordSeconds = 0;
-      const btn = document.getElementById('btnRecordVoice');
-      const timer = document.getElementById('voiceRecordTimer');
-      if (btn) {
-        btn.textContent = '⏹️ Detener Grabación';
-        btn.style.background = '#D32F2F';
-      }
-      if (timer) {
-        timer.textContent = '🔴 0s';
-      }
+      updateVoiceRecordingUI('recording', 0);
 
       clearInterval(voiceRecordTimerInterval);
       voiceRecordTimerInterval = setInterval(() => {
         voiceRecordSeconds++;
-        if (timer) timer.textContent = `🔴 ${voiceRecordSeconds}s`;
+        updateVoiceRecordingUI('recording', voiceRecordSeconds);
       }, 1000);
 
       voiceMediaRecorder.ondataavailable = e => {
@@ -1935,24 +1966,12 @@ function startVoiceRecording() {
 
       voiceMediaRecorder.onstop = () => {
         clearInterval(voiceRecordTimerInterval);
-        if (btn) {
-          btn.textContent = '🎙️ Grabar Audio';
-          btn.style.background = 'var(--primary-color)';
-        }
-        if (timer) {
-          timer.textContent = '✅ Audio Grabado (' + voiceRecordSeconds + 's)';
-        }
-
         const mimeToUse = (voiceMediaRecorder && voiceMediaRecorder.mimeType) || mimeType || 'audio/mp4';
         const audioBlob = new Blob(voiceAudioChunks, { type: mimeToUse });
         const reader = new FileReader();
         reader.onloadend = () => {
           voiceAudioBase64 = reader.result;
-          const container = document.getElementById('audioPreviewContainer');
-          if (container) {
-            container.innerHTML = renderAudioPlayerHtml(voiceAudioBase64);
-            container.style.display = 'block';
-          }
+          updateVoiceRecordingUI('preview', voiceRecordSeconds);
         };
         reader.readAsDataURL(audioBlob);
 
@@ -1961,18 +1980,20 @@ function startVoiceRecording() {
     })
     .catch(err => {
       alert('Permiso de micrófono o error de grabación: ' + err.message);
+      updateVoiceRecordingUI('reset');
     });
 }
 
 function saveInlineArticle() {
-  const name = document.getElementById('inlineArtName')?.value.trim() || document.getElementById('mArtName')?.value.trim();
-  let code = document.getElementById('inlineArtCode')?.value.trim() || document.getElementById('mArtCode')?.value.trim();
+  const nameInp = document.getElementById('inlineArtName') || document.getElementById('pArtName') || document.getElementById('mArtName');
+  const name = nameInp?.value.trim();
+  let code = document.getElementById('inlineArtCode')?.value.trim() || document.getElementById('pArtCode')?.value.trim() || document.getElementById('mArtCode')?.value.trim();
   if (!code) code = 'CF26-ART-' + Math.floor(100 + Math.random() * 900);
-  const fob = parseFloat(document.getElementById('inlineArtFob')?.value || document.getElementById('mArtFob')?.value) || 0.0;
-  const moq = parseInt(document.getElementById('inlineArtMoq')?.value || document.getElementById('mArtMoq')?.value) || 0;
-  const port = document.getElementById('inlineArtPort')?.value || document.getElementById('mArtPort')?.value || 'Foshan, China';
-  const leadTime = document.getElementById('inlineArtLeadTime')?.value || document.getElementById('mArtLeadTime')?.value || '30 días';
-  const note = document.getElementById('inlineArtNote')?.value || document.getElementById('mArtNote')?.value || '';
+  const fob = parseFloat(document.getElementById('inlineArtFob')?.value || document.getElementById('pArtFob')?.value || document.getElementById('mArtFob')?.value) || 0.0;
+  const moq = parseInt(document.getElementById('inlineArtMoq')?.value || document.getElementById('pArtMoq')?.value || document.getElementById('mArtMoq')?.value) || 0;
+  const port = document.getElementById('inlineArtPort')?.value || document.getElementById('pArtPort')?.value || document.getElementById('mArtPort')?.value || 'Foshan, China';
+  const leadTime = document.getElementById('inlineArtLeadTime')?.value || document.getElementById('pArtLeadTime')?.value || document.getElementById('mArtLeadTime')?.value || '30 días';
+  const note = document.getElementById('inlineArtNote')?.value || document.getElementById('pArtNote')?.value || document.getElementById('mArtNote')?.value || '';
 
   if (!name) {
     alert('Por favor ingresa la descripción o nombre del artículo');
@@ -1983,6 +2004,7 @@ function saveInlineArticle() {
     id: 'ART-' + Date.now(),
     code: code,
     name: name,
+    description: name,
     fob: fob,
     moq: moq,
     port: port,
@@ -2006,26 +2028,32 @@ function saveInlineArticle() {
   });
   saveSavedArticles();
 
-  // Limpiar campos del formulario inline
-  if (document.getElementById('inlineArtName')) document.getElementById('inlineArtName').value = '';
-  if (document.getElementById('inlineArtCode')) document.getElementById('inlineArtCode').value = '';
-  if (document.getElementById('inlineArtFob')) document.getElementById('inlineArtFob').value = '';
-  if (document.getElementById('inlineArtMoq')) document.getElementById('inlineArtMoq').value = '';
-  if (document.getElementById('inlineArtNote')) document.getElementById('inlineArtNote').value = '';
+  // Limpiar campos del formulario inline para permitir carga consecutiva inmediata
+  ['inlineArtName', 'pArtName', 'inlineArtFob', 'pArtFob', 'inlineArtMoq', 'pArtMoq', 'inlineArtNote', 'pArtNote'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  const codeEl = document.getElementById('inlineArtCode') || document.getElementById('pArtCode');
+  if (codeEl) codeEl.value = 'CF26-ART-' + Math.floor(100 + Math.random() * 900);
   
   currentArticlePhotos = [];
   renderArticlePhotosPreview();
   voiceAudioBase64 = null;
   voiceAudioChunks = [];
-  const container = document.getElementById('audioPreviewContainer');
-  if (container) {
-    container.innerHTML = '';
-    container.style.display = 'none';
-  }
+  updateVoiceRecordingUI('reset');
 
   renderSupplierArticlesList();
   renderTab2List();
-  alert(`✅ Artículo "${newArticle.name}" agregado correctamente a este proveedor (${currentSupplierArticles.length} en lista).`);
+  
+  if (nameInp) nameInp.focus();
+
+  const statusMsg = document.getElementById('inlineArtStatusMsg');
+  if (statusMsg) {
+    statusMsg.innerHTML = `<div style="background: #E8F5E9; color: #2E7D32; padding: 6px; border-radius: 6px; font-weight: bold; border: 1px solid #C8E6C9;">✅ "${newArticle.name}" agregado (${currentSupplierArticles.length} artículos en total). ¡Puedes cargar el siguiente!</div>`;
+    setTimeout(() => { if (statusMsg) statusMsg.innerHTML = ''; }, 4000);
+  } else {
+    alert(`✅ Artículo "${newArticle.name}" agregado (${currentSupplierArticles.length} en total). ¡Puedes cargar el siguiente!`);
+  }
 }
 
 function saveArticleFromModal() {
@@ -2046,6 +2074,7 @@ function saveArticleFromModal() {
     id: 'ART-' + Date.now(),
     code: code,
     name: name,
+    description: name,
     fob: fob,
     moq: moq,
     port: port,
@@ -2069,20 +2098,26 @@ function saveArticleFromModal() {
   });
   saveSavedArticles();
 
+  // Reset modal inputs so user can immediately load another article without closing modal
+  if (document.getElementById('mArtName')) document.getElementById('mArtName').value = '';
+  if (document.getElementById('mArtFob')) document.getElementById('mArtFob').value = '';
+  if (document.getElementById('mArtMoq')) document.getElementById('mArtMoq').value = '';
+  if (document.getElementById('mArtNote')) document.getElementById('mArtNote').value = '';
+  if (document.getElementById('mArtCode')) document.getElementById('mArtCode').value = 'CF26-ART-' + Math.floor(100 + Math.random() * 900);
+
   currentArticlePhotos = [];
   renderArticlePhotosPreview();
   voiceAudioBase64 = null;
   voiceAudioChunks = [];
-  const container = document.getElementById('audioPreviewContainer');
-  if (container) {
-    container.innerHTML = '';
-    container.style.display = 'none';
-  }
+  updateVoiceRecordingUI('reset');
 
   renderSupplierArticlesList();
   renderTab2List();
-  closeAddArticleModal();
-  alert(`✅ Artículo "${newArticle.name}" agregado correctamente al proveedor (${currentSupplierArticles.length} en lista).`);
+  
+  const modalNameInput = document.getElementById('mArtName');
+  if (modalNameInput) modalNameInput.focus();
+
+  alert(`✅ Artículo "${newArticle.name}" agregado (${currentSupplierArticles.length} en total). ¡Puedes cargar el siguiente artículo!`);
 }
 
 function removeSupplierArticle(index) {
