@@ -358,28 +358,52 @@ async function syncPendingSuppliersToFirebase(forceAll = false) {
 
   for (const supplier of suppliersToSync) {
     try {
-      // Compress supplier photos for cloud sync
+      // 1. Process supplier photos safely
       const compressedSupPhotos = [];
-      if (supplier.photos && supplier.photos.length > 0) {
+      if (supplier.photos && Array.isArray(supplier.photos)) {
         for (const photo of supplier.photos.slice(0, 3)) {
-          const comp = await compressBase64ForCloud(photo, 500, 0.5);
-          if (comp) compressedSupPhotos.push(comp);
+          try {
+            if (!photo || typeof photo !== 'string') continue;
+            if (photo.length < 150000) {
+              compressedSupPhotos.push(photo);
+            } else {
+              const comp = await Promise.race([
+                compressBase64ForCloud(photo, 400, 0.4),
+                new Promise(r => setTimeout(() => r(null), 2000))
+              ]);
+              if (comp) compressedSupPhotos.push(comp);
+            }
+          } catch (pErr) {
+            console.warn('Photo compress notice:', pErr);
+          }
         }
       }
 
-      // Compress article photos for cloud sync
+      // 2. Process article photos safely
       const cleanArticlesForFirestore = [];
       for (const art of (supplier.articles || [])) {
         const artCopy = { ...art };
-        if (artCopy.photos && artCopy.photos.length > 0) {
-          const compArtPhotos = [];
+        const compArtPhotos = [];
+        if (artCopy.photos && Array.isArray(artCopy.photos)) {
           for (const p of artCopy.photos.slice(0, 2)) {
-            const cP = await compressBase64ForCloud(p, 400, 0.5);
-            if (cP) compArtPhotos.push(cP);
+            try {
+              if (!p || typeof p !== 'string') continue;
+              if (p.length < 150000) {
+                compArtPhotos.push(p);
+              } else {
+                const cP = await Promise.race([
+                  compressBase64ForCloud(p, 300, 0.4),
+                  new Promise(r => setTimeout(() => r(null), 2000))
+                ]);
+                if (cP) compArtPhotos.push(cP);
+              }
+            } catch (aErr) {
+              console.warn('Article photo compress notice:', aErr);
+            }
           }
-          artCopy.photos = compArtPhotos;
         }
-        if (artCopy.voiceNoteUrl && artCopy.voiceNoteUrl.length > 150000) {
+        artCopy.photos = compArtPhotos;
+        if (artCopy.voiceNoteUrl && artCopy.voiceNoteUrl.length > 100000) {
           artCopy.voiceNoteUrl = artCopy.voiceNoteUrl.substring(0, 50) + '...[truncated_for_cloud]';
         }
         cleanArticlesForFirestore.push(artCopy);
@@ -391,13 +415,13 @@ async function syncPendingSuppliersToFirebase(forceAll = false) {
       const docId = supplier.id;
       const payload = {
         id: docId,
-        companyName: supplier.companyName || '',
+        companyName: supplier.companyName || 'Proveedor',
         companyNameChinese: supplier.companyNameChinese || '',
         stand: supplier.stand || 'Stand s/d',
         category: supplier.category || 'General',
         contactName: supplier.contactName || 'Contacto',
         weChat: supplier.weChat || '',
-        phone: supplier.phone || '+86',
+        phone: supplier.phone || '',
         email: supplier.email || '',
         notes: supplier.notes || '',
         photos: compressedSupPhotos,
@@ -405,13 +429,15 @@ async function syncPendingSuppliersToFirebase(forceAll = false) {
         createdAt: supplier.createdAt || new Date().toISOString()
       };
 
+      console.log(`📤 Enviando ${supplier.companyName} (${docId}) a Firestore...`);
       await fbDb.collection('suppliers').doc(docId).set(payload, { merge: true });
       supplier.syncState = 'synced';
       supplier.firestoreId = docId;
       supplier.id = docId;
-      console.log(`🟢 Proveedor ${supplier.companyName} sincronizado en Firestore:`, docId);
+      console.log(`🟢 ¡ÉXITO! Proveedor ${supplier.companyName} subido a Firestore Cloud:`, docId);
     } catch (err) {
-      console.error(`❌ Error al auto-sincronizar ${supplier.companyName}:`, err);
+      console.error(`❌ Error al subir ${supplier.companyName} a Firestore:`, err);
+      supplier.syncState = 'pending';
     }
   }
 
