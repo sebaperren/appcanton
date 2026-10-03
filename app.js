@@ -252,23 +252,43 @@ async function compressBase64ForCloud(base64Str, maxWidth = 500, quality = 0.5) 
     return (base64Str && base64Str.length > 100000) ? null : base64Str;
   }
   return new Promise((resolve) => {
+    let resolved = false;
+    const timer = setTimeout(() => {
+      if (!resolved) {
+        resolved = true;
+        resolve((base64Str.length < 100000) ? base64Str : null);
+      }
+    }, 3000);
+
     const img = new Image();
     img.src = base64Str;
     img.onload = () => {
-      let width = img.width;
-      let height = img.height;
-      if (width > maxWidth) {
-        height = Math.round((height * maxWidth) / width);
-        width = maxWidth;
+      if (resolved) return;
+      resolved = true;
+      clearTimeout(timer);
+      try {
+        let width = img.width;
+        let height = img.height;
+        if (width > maxWidth) {
+          height = Math.round((height * maxWidth) / width);
+          width = maxWidth;
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      } catch (e) {
+        resolve(null);
       }
-      const canvas = document.createElement('canvas');
-      canvas.width = width;
-      canvas.height = height;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(img, 0, 0, width, height);
-      resolve(canvas.toDataURL('image/jpeg', quality));
     };
-    img.onerror = () => resolve(null);
+    img.onerror = () => {
+      if (resolved) return;
+      resolved = true;
+      clearTimeout(timer);
+      resolve(null);
+    };
   });
 }
 
