@@ -115,7 +115,7 @@
             <button class="btn-primary" onclick="switchMainSection('comparador')">⚖️ Abrir Módulo Comparador Landed (3 Solapas)</button>
             <button class="btn-success" onclick="switchMainSection('addProveedor')">➕ Cargar Nuevo Proveedor y Cotización</button>
             <button class="btn-chip" onclick="switchMainSection('costos')" style="padding: 10px; font-size: 11px;">🔍 Buscar en Base SQL Perren (12.074 Artículos)</button>
-            <button class="btn-chip" onclick="switchMainSection('tarjetero')" style="padding: 10px; font-size: 11px; border-color: #25D366; color: #25D366;">📇 Tarjetero & WhatsApp Directo</button>
+            <button class="btn-chip" onclick="switchMainSection('tarjetero')" style="padding: 10px; font-size: 11px; border-color: #25D366; color: #25D366;">📦 Catálogo Productos & Proveedores</button>
           </div>
         </div>
       </section>
@@ -438,15 +438,15 @@
         </div>
       </section>
 
-      <!-- ================= SECCIÓN 5: TARJETERO (CONTACTOS & WHATSAPP DIRECTO) ================= -->
+      <!-- ================= SECCIÓN 5: PRODUCTOS & PROVEEDORES (WHATSAPP DIRECTO) ================= -->
       <section id="secTarjetero" style="display: none;">
         <div class="card">
           <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;">
             <div>
-              <h3 style="font-size: 13px; color: var(--primary-color); margin-bottom: 4px;">📇 TARJETERO DIGITAL DE PROVEEDORES</h3>
+              <h3 style="font-size: 13px; color: var(--primary-color); margin-bottom: 4px;">📦 CATÁLOGO DE PRODUCTOS Y PROVEEDORES</h3>
               <p style="font-size: 10px; color: var(--text-muted); margin-bottom: 10px;">Contactos relevados con enlace directo a WhatsApp sin agendar número:</p>
             </div>
-            <button class="btn-chip" onclick="forceCloudSync()" style="font-size: 10.5px; background: #E3F2FD; color: #0288D1; border: 1px solid #0288D1; padding: 4px 8px; white-space: nowrap; cursor: pointer;">🔄 Sincronizar Nube</button>
+            <button class="btn-chip" id="btnForceCloudSync" onclick="forceCloudSync()" style="font-size: 10.5px; background: #E3F2FD; color: #0288D1; border: 1px solid #0288D1; padding: 4px 8px; white-space: nowrap; cursor: pointer;">🔄 Sincronizar Nube</button>
           </div>
           <button class="btn-success" onclick="openOcrCamera()" style="margin-bottom: 10px;">📷 ESCANEAR NUEVA TARJETA (OCR)</button>
         </div>
@@ -475,8 +475,8 @@
         <span>Calculadora</span>
       </button>
       <button class="nav-item" id="navTarjetero" onclick="switchMainSection('tarjetero')">
-        <span class="nav-icon">📇</span>
-        <span>Tarjetero</span>
+        <span class="nav-icon">📦</span>
+        <span>Productos</span>
       </button>
     </nav>
 
@@ -684,7 +684,7 @@
     </div>
 
     <!-- MODAL EDITAR DATOS DEL PROVEEDOR Y SUS ARTÍCULOS -->
-    <div class="modal" id="modalEditSupplier">
+    <div class="modal" id="modalEditSupplier" style="z-index: 999999;">
       <div class="modal-content" style="max-width: 550px; max-height: 90vh; overflow-y: auto;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
           <h3 style="font-size: 14px; color: var(--primary-color);">✏️ EDITAR PROVEEDOR Y COTIZACIONES</h3>

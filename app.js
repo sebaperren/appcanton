@@ -291,28 +291,48 @@ async function syncPendingSuppliersToFirebase() {
 }
 
 async function forceCloudSync() {
-  alert('🔄 Sincronizando proveedores con la nube Firebase...');
-  await syncPendingSuppliersToFirebase();
-  if (fbDb) {
-    try {
+  const btn = document.getElementById('btnForceCloudSync');
+  if (btn) {
+    btn.textContent = '⏳ Sincronizando...';
+    btn.disabled = true;
+  }
+
+  try {
+    await syncPendingSuppliersToFirebase();
+    if (fbDb) {
       const snapshot = await fbDb.collection('suppliers').get();
+      const firestoreSuppliers = [];
       snapshot.forEach(doc => {
-        const data = doc.data();
-        const idx = localSuppliers.findIndex(ls => ls.id === data.id || (ls.companyName && ls.companyName.toLowerCase().trim() === data.companyName.toLowerCase().trim()));
-        if (idx >= 0) {
-          localSuppliers[idx] = { ...localSuppliers[idx], ...data };
-        } else {
-          localSuppliers.unshift({ ...data, firestoreId: doc.id });
-        }
+        firestoreSuppliers.push({ ...doc.data(), firestoreId: doc.id });
       });
+
+      if (firestoreSuppliers.length > 0) {
+        firestoreSuppliers.forEach(fsSup => {
+          const idx = localSuppliers.findIndex(ls => 
+            (ls.id && String(ls.id) === String(fsSup.id)) || 
+            (ls.firestoreId && String(ls.firestoreId) === String(fsSup.firestoreId)) || 
+            (ls.companyName && ls.companyName.toLowerCase().trim() === (fsSup.companyName || '').toLowerCase().trim())
+          );
+          if (idx >= 0) {
+            localSuppliers[idx] = { ...localSuppliers[idx], ...fsSup };
+          } else {
+            localSuppliers.unshift(fsSup);
+          }
+        });
+      }
       saveLocalSuppliers();
       renderTarjetero();
-      alert(`✅ Sincronización finalizada. Total proveedores en Tarjetero: ${localSuppliers.length}`);
-    } catch (err) {
-      alert('❌ Error al consultar Firestore: ' + err.message);
+      alert(`✅ Sincronización con la nube finalizada con éxito. Se muestran ${localSuppliers.length} proveedores en Productos.`);
+    } else {
+      alert(`✅ Guardado local listo. Total proveedores en Productos: ${localSuppliers.length}`);
     }
-  } else {
-    alert(`✅ Proveedores locales guardados: ${localSuppliers.length}`);
+  } catch (err) {
+    alert('❌ Error al sincronizar con la nube: ' + err.message);
+  } finally {
+    if (btn) {
+      btn.textContent = '🔄 Sincronizar Nube';
+      btn.disabled = false;
+    }
   }
 }
 
@@ -1195,8 +1215,8 @@ function renderTarjetero() {
               💬 WhatsApp
             </a>
             <div style="display: flex; gap: 4px;">
-              <button onclick="openEditSupplierModal('${targetId}', ${idx})" class="btn-chip" style="color: var(--secondary-color); border-color: var(--secondary-color); font-size: 10px; padding: 2px 6px;">✏️ Editar</button>
-              <button onclick="deleteSupplier('${targetId}')" class="btn-chip" style="color: #D32F2F; border-color: #D32F2F; font-size: 10px; padding: 2px 6px;">🗑️</button>
+              <button onclick="event.stopPropagation(); openEditSupplierModal('${targetId}', ${idx});" class="btn-chip" style="color: var(--secondary-color); border-color: var(--secondary-color); font-size: 10px; padding: 2px 6px; cursor: pointer;">✏️ Editar</button>
+              <button onclick="event.stopPropagation(); deleteSupplier('${targetId}');" class="btn-chip" style="color: #D32F2F; border-color: #D32F2F; font-size: 10px; padding: 2px 6px; cursor: pointer;">🗑️</button>
             </div>
           </div>
         </div>
@@ -1267,7 +1287,7 @@ function renderTarjetero() {
 
 // FUNCIONES PARA EDITAR PROVEEDOR Y SUS ARTÍCULOS
 function openEditSupplierModal(supId, fallbackIndex) {
-  let sup = localSuppliers.find(s => String(s.id) === String(supId) || (s.firestoreId && String(s.firestoreId) === String(supId)));
+  let sup = localSuppliers.find(s => (s.id && String(s.id) === String(supId)) || (s.firestoreId && String(s.firestoreId) === String(supId)));
   if (!sup && typeof fallbackIndex === 'number' && localSuppliers[fallbackIndex]) {
     sup = localSuppliers[fallbackIndex];
   }
@@ -1276,10 +1296,13 @@ function openEditSupplierModal(supId, fallbackIndex) {
     return;
   }
   currentEditingSupplier = JSON.parse(JSON.stringify(sup));
+  if (!currentEditingSupplier.id) {
+    currentEditingSupplier.id = sup.id || sup.firestoreId || ('SUP-' + Date.now());
+  }
   if (!currentEditingSupplier.photos) currentEditingSupplier.photos = [];
   if (!currentEditingSupplier.articles) currentEditingSupplier.articles = [];
   
-  document.getElementById('editSupplierId').value = currentEditingSupplier.id || currentEditingSupplier.firestoreId || '';
+  document.getElementById('editSupplierId').value = currentEditingSupplier.id;
   document.getElementById('editCompName').value = currentEditingSupplier.companyName || '';
   document.getElementById('editCompChinese').value = currentEditingSupplier.companyNameChinese || '';
   document.getElementById('editStand').value = currentEditingSupplier.stand || '';
@@ -1295,9 +1318,9 @@ function openEditSupplierModal(supId, fallbackIndex) {
   renderEditSupplierArticles();
   const modal = document.getElementById('modalEditSupplier');
   if (modal) {
-    modal.classList.add('open');
     modal.style.display = 'flex';
-    modal.style.zIndex = '99999';
+    modal.style.zIndex = '999999';
+    modal.classList.add('open');
   }
 }
 
