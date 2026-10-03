@@ -2450,6 +2450,7 @@ async function translateTradeText() {
   const pair = document.getElementById('translatorLangPair')?.value || 'es-en';
   const cleanKey = rawText.toLowerCase();
 
+  // 1. Diccionario de feria rápido (Offline / 0 ms)
   if (TRADE_DICTIONARY[cleanKey] && TRADE_DICTIONARY[cleanKey][pair]) {
     resultTextEl.textContent = TRADE_DICTIONARY[cleanKey][pair];
     resultCont.style.display = 'block';
@@ -2459,21 +2460,42 @@ async function translateTradeText() {
   resultTextEl.textContent = '⏳ Traduciendo...';
   resultCont.style.display = 'block';
 
+  const sl = pair.startsWith('en') ? 'en' : (pair.startsWith('zh') ? 'zh' : 'es');
+  const tl = pair.endsWith('en') ? 'en' : (pair.endsWith('zh') ? 'zh-CN' : 'es');
+
+  // 2. Google Translate Client API (Libre de CORS en iOS Safari y Chrome)
   try {
-    const langMap = { 'es-en': 'es|en', 'en-es': 'en|es', 'es-zh': 'es|zh' };
-    const langParam = langMap[pair] || 'es|en';
-    const resp = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(rawText)}&langpair=${langParam}`);
+    const gtxUrl = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${sl}&tl=${tl}&dt=t&q=${encodeURIComponent(rawText)}`;
+    const resp = await fetch(gtxUrl);
+    const data = await resp.json();
+
+    if (data && data[0] && Array.isArray(data[0])) {
+      let translatedText = data[0].map(item => item[0]).join('');
+      if (translatedText) {
+        resultTextEl.textContent = translatedText;
+        return;
+      }
+    }
+  } catch (err1) {
+    console.warn('Google Translate GTX error:', err1);
+  }
+
+  // 3. Fallback a MyMemory API pública
+  try {
+    const langParam = `${sl}|${tl}`;
+    const mmUrl = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(rawText)}&langpair=${langParam}`;
+    const resp = await fetch(mmUrl);
     const data = await resp.json();
 
     if (data && data.responseData && data.responseData.translatedText) {
       resultTextEl.textContent = data.responseData.translatedText;
-    } else {
-      resultTextEl.textContent = rawText;
+      return;
     }
-  } catch (err) {
-    console.warn('Translate API fallback:', err);
-    resultTextEl.textContent = rawText;
+  } catch (err2) {
+    console.warn('MyMemory API error:', err2);
   }
+
+  resultTextEl.textContent = rawText;
 }
 
 function copyTranslationResult() {
@@ -2533,59 +2555,68 @@ function speakTranslationResult() {
   const targetLang = pair.endsWith('en') ? 'en' : (pair.endsWith('zh') ? 'zh-CN' : 'es');
   const selectedOption = document.getElementById('translatorVoiceSelect')?.value || 'GOOGLE_CLOUD';
 
-  // Limpiar anotaciones fonéticas de chino entre paréntesis para pronunciar solo el texto
+  // Limpiar anotaciones fonéticas entre paréntesis
   const cleanText = text.replace(/\s*\([^)]*\)/g, '').trim();
 
-  // 1. Si está seleccionada la voz Neural HD de Google o no se especificó otra voz
+  // En iOS Safari / Moviles, reproducir primero via Audio element si la voz seleccionada es Google
   if (selectedOption === 'GOOGLE_CLOUD' || !selectedOption) {
-    try {
-      const audioUrl = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(cleanText)}&tl=${targetLang}&client=tw-ob`;
-      const audio = new Audio(audioUrl);
-      audio.play().then(() => {
-        console.log('🟢 Reproduciendo Voz Humana Neural HD');
+    const audioUrl = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(cleanText)}&tl=${targetLang}&client=tw-ob`;
+    const audio = new Audio(audioUrl);
+    const playPromise = audio.play();
+
+    if (playPromise !== undefined) {
+      playPromise.then(() => {
+        console.log('🟢 Reproduciendo audio en voz humana');
       }).catch(err => {
-        console.warn('Fallback a síntesis nativa por error de reproducción:', err);
+        console.warn('Fallback a síntesis nativa por política de reproducción:', err);
         speakWithNativeSynthesis(cleanText, pair, selectedOption);
       });
       return;
-    } catch (e) {
-      console.warn('Fallback a síntesis nativa:', e);
     }
   }
 
-  // 2. Si seleccionó una voz de sistema específica o está offline
   speakWithNativeSynthesis(cleanText, pair, selectedOption);
 }
 
 function speakWithNativeSynthesis(text, pair, selectedVoiceName) {
-  if (!('speechSynthesis' in window)) return;
-  window.speechSynthesis.cancel();
-
-  const langCode = pair.endsWith('en') ? 'en-US' : (pair.endsWith('zh') ? 'zh-CN' : 'es-ES');
-  const utterance = new SpeechSynthesisUtterance(text);
-  utterance.lang = langCode;
-  utterance.rate = 0.92;
-
-  const voices = window.speechSynthesis.getVoices();
-
-  if (selectedVoiceName && selectedVoiceName !== 'GOOGLE_CLOUD' && voices.length > 0) {
-    const chosen = voices.find(v => v.name === selectedVoiceName);
-    if (chosen) utterance.voice = chosen;
+  if (!('speechSynthesis' in window)) {
+    alert('🔊 Reproducción de voz no disponible en este dispositivo.');
+    return;
   }
 
-  if (!utterance.voice && voices.length > 0) {
-    const prefix = pair.endsWith('en') ? 'en' : (pair.endsWith('zh') ? 'zh' : 'es');
-    const langVoices = voices.filter(v => v.lang && v.lang.toLowerCase().startsWith(prefix));
-    
-    const bestVoice = langVoices.find(v => {
-      const n = v.name.toLowerCase();
-      return n.includes('natural') || n.includes('neural') || n.includes('google') || n.includes('siri') || n.includes('online');
-    }) || langVoices[0];
+  try {
+    window.speechSynthesis.cancel();
 
-    if (bestVoice) utterance.voice = bestVoice;
+    const langCode = pair.endsWith('en') ? 'en-US' : (pair.endsWith('zh') ? 'zh-CN' : 'es-ES');
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = langCode;
+    utterance.rate = 0.9;
+    utterance.volume = 1.0;
+
+    const voices = window.speechSynthesis.getVoices();
+
+    if (selectedVoiceName && selectedVoiceName !== 'GOOGLE_CLOUD' && voices.length > 0) {
+      const chosen = voices.find(v => v.name === selectedVoiceName);
+      if (chosen) utterance.voice = chosen;
+    }
+
+    if (!utterance.voice && voices.length > 0) {
+      const prefix = pair.endsWith('en') ? 'en' : (pair.endsWith('zh') ? 'zh' : 'es');
+      const langVoices = voices.filter(v => v.lang && v.lang.toLowerCase().startsWith(prefix));
+      
+      const bestVoice = langVoices.find(v => {
+        const n = v.name.toLowerCase();
+        return n.includes('natural') || n.includes('neural') || n.includes('google') || n.includes('siri') || n.includes('online') || n.includes('samantha') || n.includes('monica');
+      }) || langVoices[0];
+
+      if (bestVoice) utterance.voice = bestVoice;
+    }
+
+    window.speechSynthesis.speak(utterance);
+  } catch (err) {
+    console.error('Speech synthesis error:', err);
+    alert('Error al reproducir audio: ' + err.message);
   }
-
-  window.speechSynthesis.speak(utterance);
 }
 
 function startSpeechToTextTranslation() {
