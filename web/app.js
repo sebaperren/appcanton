@@ -1261,7 +1261,15 @@ function renderTarjetero() {
     return;
   }
 
-  container.innerHTML = localSuppliers.map((sup, idx) => {
+  const pendingCount = localSuppliers.filter(s => s.syncState === 'pending' || !s.firestoreId).length;
+  const pendingBanner = pendingCount > 0 ? `
+    <div style="background: #FFF3E0; border: 1px solid #FFE0B2; border-radius: 8px; padding: 8px 12px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+      <span style="font-size: 11px; color: #E65100; font-weight: bold;">📱 ${pendingCount} registro(s) guardado(s) en celular (Pendiente de subida)</span>
+      <button onclick="forceCloudSync()" class="btn-chip" style="font-size: 10px; background: #E65100; color: white; border: none; padding: 3px 8px; cursor: pointer;">Subir Ahora 🔄</button>
+    </div>
+  ` : '';
+
+  const cardsHtml = localSuppliers.map((sup, idx) => {
     const cleanPhone = (sup.phone || '').replace(/[^0-9]/g, '');
     const waLink = `https://wa.me/${cleanPhone}?text=Hola%20${encodeURIComponent(sup.contactName || 'contacto')},%20te%20contacto%20desde%20Perren%20%26%20C%C3%ADa.%20por%20la%20Feria%20de%20Cant%C3%B3n`;
     const articles = sup.articles || [];
@@ -1270,7 +1278,7 @@ function renderTarjetero() {
     const isSynced = sup.syncState === 'synced' || sup.firestoreId;
     const syncBadge = isSynced 
       ? `<span style="font-size: 9px; background: #E8F5E9; color: #2E7D32; padding: 2px 6px; border-radius: 4px; border: 1px solid #C8E6C9; margin-left: 4px;">🟢 Cloud</span>` 
-      : `<span style="font-size: 9px; background: #FFF3E0; color: #E65100; padding: 2px 6px; border-radius: 4px; border: 1px solid #FFE0B2; margin-left: 4px;">📱 Local</span>`;
+      : `<span style="font-size: 9px; background: #FFF3E0; color: #E65100; padding: 2px 6px; border-radius: 4px; border: 1px solid #FFE0B2; margin-left: 4px;">📱 Local (Pendiente)</span>`;
     
     const targetId = sup.id || sup.firestoreId || ('idx_' + idx);
     const isExpanded = expandedTarjeteroCards.has(targetId);
@@ -1373,6 +1381,7 @@ function renderTarjetero() {
       </div>
     `;
   }).join('');
+  container.innerHTML = pendingBanner + cardsHtml;
 }
 
 // FUNCIONES PARA EDITAR PROVEEDOR Y SUS ARTÍCULOS
