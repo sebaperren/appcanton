@@ -2413,6 +2413,12 @@ function startVoiceRecording() {
 
 // TRADUCTOR COMERCIAL DE FERIA DE CANTÓN
 const TRADE_DICTIONARY = {
+  "hola": { "es-en": "Hello", "es-zh": "你好 (Nǐ hǎo)" },
+  "hello": { "en-es": "Hola" },
+  "gracias": { "es-en": "Thank you", "es-zh": "谢谢 (Xièxie)" },
+  "thank you": { "en-es": "Gracias" },
+  "buenos dias": { "es-en": "Good morning", "es-zh": "早上好 (Zǎoshang hǎo)" },
+  "buenas tardes": { "es-en": "Good afternoon", "es-zh": "下午好 (Xiàwǔ hǎo)" },
   "¿cuál es el precio fob?": { "es-en": "What is the FOB price?", "es-zh": "FOB 价格是多少？ (FŌB jiàgé shì duōshǎo?)" },
   "fob price?": { "en-es": "¿Cuál es el precio FOB?" },
   "¿cuál es la cantidad mínima (moq)?": { "es-en": "What is the Minimum Order Quantity (MOQ)?", "es-zh": "最小起订量是多少？ (Zuìxiǎo qǐdìng liàng shì duōshǎo?)" },
@@ -2521,21 +2527,19 @@ function populateTTSVoiceSelect() {
   const pair = document.getElementById('translatorLangPair')?.value || 'es-en';
   const prefix = pair.endsWith('en') ? 'en' : (pair.endsWith('zh') ? 'zh' : 'es');
 
-  const matchingVoices = availableTTSVoices.filter(v => v.lang && v.lang.toLowerCase().startsWith(prefix));
+  const matchingVoices = availableTTSVoices.filter(v => v.lang && v.lang.toLowerCase().replace('_', '-').startsWith(prefix));
 
-  let optionsHtml = '<option value="GOOGLE_CLOUD">⭐ Voz Humana Neural HD (Google)</option>';
+  let optionsHtml = '<option value="AUTO">🗣️ Voz Automática (Alta Calidad)</option>';
 
   if (matchingVoices.length > 0) {
     optionsHtml += matchingVoices.map(v => {
       let tag = '';
       const nameLower = v.name.toLowerCase();
-      if (nameLower.includes('natural') || nameLower.includes('neural') || nameLower.includes('online') || nameLower.includes('google') || nameLower.includes('siri')) {
+      if (nameLower.includes('natural') || nameLower.includes('neural') || nameLower.includes('online') || nameLower.includes('google') || nameLower.includes('siri') || nameLower.includes('samantha')) {
         tag = ' ⭐';
       }
       return `<option value="${v.name}">${v.name}${tag}</option>`;
     }).join('');
-  } else {
-    optionsHtml += '<option value="">🗣️ Voz Nativa del Sistema</option>';
   }
 
   select.innerHTML = optionsHtml;
@@ -2552,30 +2556,13 @@ function speakTranslationResult() {
   if (!text || text === '⏳ Traduciendo...') return;
 
   const pair = document.getElementById('translatorLangPair')?.value || 'es-en';
-  const targetLang = pair.endsWith('en') ? 'en' : (pair.endsWith('zh') ? 'zh-CN' : 'es');
-  const selectedOption = document.getElementById('translatorVoiceSelect')?.value || 'GOOGLE_CLOUD';
+  const selectedVoiceName = document.getElementById('translatorVoiceSelect')?.value;
 
-  // Limpiar anotaciones fonéticas entre paréntesis
+  // Limpiar anotaciones fonéticas entre paréntesis (ej: "(Nǐ hǎo)")
   const cleanText = text.replace(/\s*\([^)]*\)/g, '').trim();
+  if (!cleanText) return;
 
-  // En iOS Safari / Moviles, reproducir primero via Audio element si la voz seleccionada es Google
-  if (selectedOption === 'GOOGLE_CLOUD' || !selectedOption) {
-    const audioUrl = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(cleanText)}&tl=${targetLang}&client=tw-ob`;
-    const audio = new Audio(audioUrl);
-    const playPromise = audio.play();
-
-    if (playPromise !== undefined) {
-      playPromise.then(() => {
-        console.log('🟢 Reproduciendo audio en voz humana');
-      }).catch(err => {
-        console.warn('Fallback a síntesis nativa por política de reproducción:', err);
-        speakWithNativeSynthesis(cleanText, pair, selectedOption);
-      });
-      return;
-    }
-  }
-
-  speakWithNativeSynthesis(cleanText, pair, selectedOption);
+  speakWithNativeSynthesis(cleanText, pair, selectedVoiceName);
 }
 
 function speakWithNativeSynthesis(text, pair, selectedVoiceName) {
@@ -2585,6 +2572,7 @@ function speakWithNativeSynthesis(text, pair, selectedVoiceName) {
   }
 
   try {
+    // Detener reproducciones anteriores de forma síncrona
     window.speechSynthesis.cancel();
 
     const langCode = pair.endsWith('en') ? 'en-US' : (pair.endsWith('zh') ? 'zh-CN' : 'es-ES');
@@ -2593,23 +2581,32 @@ function speakWithNativeSynthesis(text, pair, selectedVoiceName) {
     utterance.rate = 0.9;
     utterance.volume = 1.0;
 
-    const voices = window.speechSynthesis.getVoices();
-
-    if (selectedVoiceName && selectedVoiceName !== 'GOOGLE_CLOUD' && voices.length > 0) {
-      const chosen = voices.find(v => v.name === selectedVoiceName);
-      if (chosen) utterance.voice = chosen;
+    let voices = window.speechSynthesis.getVoices();
+    if (!voices || voices.length === 0) {
+      if (typeof availableTTSVoices !== 'undefined' && availableTTSVoices.length > 0) {
+        voices = availableTTSVoices;
+      }
     }
 
-    if (!utterance.voice && voices.length > 0) {
-      const prefix = pair.endsWith('en') ? 'en' : (pair.endsWith('zh') ? 'zh' : 'es');
-      const langVoices = voices.filter(v => v.lang && v.lang.toLowerCase().startsWith(prefix));
-      
-      const bestVoice = langVoices.find(v => {
-        const n = v.name.toLowerCase();
-        return n.includes('natural') || n.includes('neural') || n.includes('google') || n.includes('siri') || n.includes('online') || n.includes('samantha') || n.includes('monica');
-      }) || langVoices[0];
+    if (voices && voices.length > 0) {
+      if (selectedVoiceName && selectedVoiceName !== 'GOOGLE_CLOUD' && selectedVoiceName !== 'AUTO') {
+        const chosen = voices.find(v => v.name === selectedVoiceName);
+        if (chosen) utterance.voice = chosen;
+      }
 
-      if (bestVoice) utterance.voice = bestVoice;
+      if (!utterance.voice) {
+        const prefix = pair.endsWith('en') ? 'en' : (pair.endsWith('zh') ? 'zh' : 'es');
+        const langVoices = voices.filter(v => v.lang && v.lang.toLowerCase().replace('_', '-').startsWith(prefix));
+
+        if (langVoices.length > 0) {
+          const bestVoice = langVoices.find(v => {
+            const n = v.name.toLowerCase();
+            return n.includes('natural') || n.includes('neural') || n.includes('google') || n.includes('siri') || n.includes('online') || n.includes('samantha') || n.includes('monica') || n.includes('jorge') || n.includes('zhuang');
+          }) || langVoices[0];
+
+          if (bestVoice) utterance.voice = bestVoice;
+        }
+      }
     }
 
     window.speechSynthesis.speak(utterance);
