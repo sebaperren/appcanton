@@ -51,6 +51,32 @@ let stateSettings = {
   incDespachante: true
 };
 
+function saveStateSettings() {
+  try {
+    localStorage.setItem('canton_state_settings', JSON.stringify(stateSettings));
+  } catch (e) {
+    console.log('Error saving settings to localStorage:', e);
+  }
+}
+
+function loadStateSettings() {
+  try {
+    const data = localStorage.getItem('canton_state_settings');
+    if (data) {
+      const parsed = JSON.parse(data);
+      if (parsed && typeof parsed === 'object') {
+        Object.assign(stateSettings, parsed);
+      }
+    }
+  } catch (e) {
+    console.log('Error loading settings from localStorage:', e);
+  }
+  const lblTC = document.getElementById('lblDolarTC');
+  if (lblTC) {
+    lblTC.textContent = `Dólar TC: $${stateSettings.tc.toLocaleString('es-AR', { minimumFractionDigits: 2 })} ARS`;
+  }
+}
+
 // Base de Datos Perren Flexxus BI (Se carga dinámicamente desde articulos_flexxus_perren.csv - 12.074 artículos)
 let perrenSqlDatabase = [];
 
@@ -342,6 +368,7 @@ if ('serviceWorker' in navigator) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+  loadStateSettings();
   loadLocalSuppliers();
   loadSavedArticles();
   initFirebaseAuthListener();
@@ -2655,33 +2682,81 @@ function renderComparisonResult() {
 
 // MODAL AJUSTES
 function openSettingsModal() {
-  document.getElementById('modalSettings').classList.add('open');
+  if (document.getElementById('sTC')) document.getElementById('sTC').value = stateSettings.tc;
+  if (document.getElementById('sFlete')) document.getElementById('sFlete').value = stateSettings.flete;
+  if (document.getElementById('sSeguro')) document.getElementById('sSeguro').value = stateSettings.seguroPct;
+  if (document.getElementById('sArancel')) document.getElementById('sArancel').value = stateSettings.arancelPct;
+  if (document.getElementById('sTasaEstad')) document.getElementById('sTasaEstad').value = stateSettings.tasaEstadPct;
+  if (document.getElementById('sDespachante')) document.getElementById('sDespachante').value = stateSettings.despachantePct;
+  if (document.getElementById('sIVA')) document.getElementById('sIVA').value = stateSettings.ivaPct;
+  if (document.getElementById('sIVAAdic')) document.getElementById('sIVAAdic').value = stateSettings.ivaAdicPct;
+  if (document.getElementById('sGanancias')) document.getElementById('sGanancias').value = stateSettings.gananciasPct;
+  if (document.getElementById('sIIBB')) document.getElementById('sIIBB').value = stateSettings.iibbPct;
+
+  const keys = ['incFlete', 'incSeguro', 'incArancel', 'incTasaEstad', 'incIVA', 'incIVAAdic', 'incGanancias', 'incIIBB', 'incDespachante'];
+  keys.forEach(k => {
+    const chip = document.getElementById('chip_' + k);
+    if (chip) chip.classList.toggle('selected', !!stateSettings[k]);
+  });
+
+  const modal = document.getElementById('modalSettings');
+  if (modal) {
+    modal.style.display = 'flex';
+    modal.style.zIndex = '999999';
+    modal.classList.add('open');
+  }
 }
 
 function closeSettingsModal() {
-  stateSettings.tc = parseFloat(document.getElementById('sTC').value) || 1350;
-  stateSettings.flete = parseFloat(document.getElementById('sFlete').value) || 3400;
-  stateSettings.seguroPct = parseFloat(document.getElementById('sSeguro').value) || 1.2;
-  stateSettings.arancelPct = parseFloat(document.getElementById('sArancel').value) || 20;
-  stateSettings.tasaEstadPct = parseFloat(document.getElementById('sTasaEstad').value) || 3;
-  stateSettings.despachantePct = parseFloat(document.getElementById('sDespachante').value) || 8;
-  stateSettings.ivaPct = parseFloat(document.getElementById('sIVA').value) || 21;
-  stateSettings.ivaAdicPct = parseFloat(document.getElementById('sIVAAdic').value) || 20;
-  stateSettings.gananciasPct = parseFloat(document.getElementById('sGanancias').value) || 6;
-  stateSettings.iibbPct = parseFloat(document.getElementById('sIIBB').value) || 2.5;
+  const tcVal = parseFloat(document.getElementById('sTC')?.value);
+  const fleteVal = parseFloat(document.getElementById('sFlete')?.value);
+  const seguroVal = parseFloat(document.getElementById('sSeguro')?.value);
+  const arancelVal = parseFloat(document.getElementById('sArancel')?.value);
+  const tasaEstadVal = parseFloat(document.getElementById('sTasaEstad')?.value);
+  const despachanteVal = parseFloat(document.getElementById('sDespachante')?.value);
+  const ivaVal = parseFloat(document.getElementById('sIVA')?.value);
+  const ivaAdicVal = parseFloat(document.getElementById('sIVAAdic')?.value);
+  const gananciasVal = parseFloat(document.getElementById('sGanancias')?.value);
+  const iibbVal = parseFloat(document.getElementById('sIIBB')?.value);
 
-  document.getElementById('lblDolarTC').textContent = `Dólar TC: $${stateSettings.tc.toLocaleString('es-AR', { minimumFractionDigits: 2 })} ARS`;
+  if (!isNaN(tcVal)) stateSettings.tc = tcVal;
+  if (!isNaN(fleteVal)) stateSettings.flete = fleteVal;
+  if (!isNaN(seguroVal)) stateSettings.seguroPct = seguroVal;
+  if (!isNaN(arancelVal)) stateSettings.arancelPct = arancelVal;
+  if (!isNaN(tasaEstadVal)) stateSettings.tasaEstadPct = tasaEstadVal;
+  if (!isNaN(despachanteVal)) stateSettings.despachantePct = despachanteVal;
+  if (!isNaN(ivaVal)) stateSettings.ivaPct = ivaVal;
+  if (!isNaN(ivaAdicVal)) stateSettings.ivaAdicPct = ivaAdicVal;
+  if (!isNaN(gananciasVal)) stateSettings.gananciasPct = gananciasVal;
+  if (!isNaN(iibbVal)) stateSettings.iibbPct = iibbVal;
 
-  document.getElementById('modalSettings').classList.remove('open');
+  saveStateSettings();
+
+  const lblTC = document.getElementById('lblDolarTC');
+  if (lblTC) {
+    lblTC.textContent = `Dólar TC: $${stateSettings.tc.toLocaleString('es-AR', { minimumFractionDigits: 2 })} ARS`;
+  }
+
+  const modal = document.getElementById('modalSettings');
+  if (modal) {
+    modal.classList.remove('open');
+    modal.style.display = 'none';
+  }
+
   calculateTab1();
   renderTab2List();
+  if (typeof renderComparisonResult === 'function' && selectedPerrenItem) {
+    renderComparisonResult();
+  }
 }
 
 function toggleInc(key) {
   stateSettings[key] = !stateSettings[key];
   const chip = document.getElementById('chip_' + key);
-  if (chip) chip.classList.toggle('selected', stateSettings[key]);
+  if (chip) chip.classList.toggle('selected', !!stateSettings[key]);
+  saveStateSettings();
   calculateTab1();
+  renderTab2List();
 }
 
 // MODAL CÁMARA OCR
@@ -2796,4 +2871,6 @@ if (typeof window !== 'undefined') {
   window.handleOfflineBypassLogin = handleOfflineBypassLogin;
   window.forceCloudSync = forceCloudSync;
   window.syncPendingSuppliersToFirebase = syncPendingSuppliersToFirebase;
+  window.loadStateSettings = loadStateSettings;
+  window.saveStateSettings = saveStateSettings;
 }
