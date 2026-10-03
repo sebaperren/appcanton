@@ -2501,19 +2501,22 @@ function populateTTSVoiceSelect() {
 
   const matchingVoices = availableTTSVoices.filter(v => v.lang && v.lang.toLowerCase().startsWith(prefix));
 
-  if (matchingVoices.length === 0) {
-    select.innerHTML = '<option value="">🗣️ Voz Estándar HD</option>';
-    return;
+  let optionsHtml = '<option value="GOOGLE_CLOUD">⭐ Voz Humana Neural HD (Google)</option>';
+
+  if (matchingVoices.length > 0) {
+    optionsHtml += matchingVoices.map(v => {
+      let tag = '';
+      const nameLower = v.name.toLowerCase();
+      if (nameLower.includes('natural') || nameLower.includes('neural') || nameLower.includes('online') || nameLower.includes('google') || nameLower.includes('siri')) {
+        tag = ' ⭐';
+      }
+      return `<option value="${v.name}">${v.name}${tag}</option>`;
+    }).join('');
+  } else {
+    optionsHtml += '<option value="">🗣️ Voz Nativa del Sistema</option>';
   }
 
-  select.innerHTML = matchingVoices.map((v, i) => {
-    let tag = '';
-    const nameLower = v.name.toLowerCase();
-    if (nameLower.includes('natural') || nameLower.includes('neural') || nameLower.includes('online') || nameLower.includes('google') || nameLower.includes('siri')) {
-      tag = ' ⭐ (Alta Calidad)';
-    }
-    return `<option value="${v.name}">${v.name}${tag}</option>`;
-  }).join('');
+  select.innerHTML = optionsHtml;
 }
 
 if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
@@ -2526,39 +2529,63 @@ function speakTranslationResult() {
   const text = document.getElementById('translatorResultText')?.textContent;
   if (!text || text === '⏳ Traduciendo...') return;
 
-  if ('speechSynthesis' in window) {
-    window.speechSynthesis.cancel();
+  const pair = document.getElementById('translatorLangPair')?.value || 'es-en';
+  const targetLang = pair.endsWith('en') ? 'en' : (pair.endsWith('zh') ? 'zh-CN' : 'es');
+  const selectedOption = document.getElementById('translatorVoiceSelect')?.value || 'GOOGLE_CLOUD';
 
-    const pair = document.getElementById('translatorLangPair')?.value || 'es-en';
-    const langCode = pair.endsWith('en') ? 'en-US' : (pair.endsWith('zh') ? 'zh-CN' : 'es-ES');
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = langCode;
-    utterance.rate = 0.92; // Tono y ritmo natural
+  // Limpiar anotaciones fonéticas de chino entre paréntesis para pronunciar solo el texto
+  const cleanText = text.replace(/\s*\([^)]*\)/g, '').trim();
 
-    const selectedVoiceName = document.getElementById('translatorVoiceSelect')?.value;
-    const voices = window.speechSynthesis.getVoices();
-
-    if (selectedVoiceName && voices.length > 0) {
-      const chosen = voices.find(v => v.name === selectedVoiceName);
-      if (chosen) utterance.voice = chosen;
+  // 1. Si está seleccionada la voz Neural HD de Google o no se especificó otra voz
+  if (selectedOption === 'GOOGLE_CLOUD' || !selectedOption) {
+    try {
+      const audioUrl = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(cleanText)}&tl=${targetLang}&client=tw-ob`;
+      const audio = new Audio(audioUrl);
+      audio.play().then(() => {
+        console.log('🟢 Reproduciendo Voz Humana Neural HD');
+      }).catch(err => {
+        console.warn('Fallback a síntesis nativa por error de reproducción:', err);
+        speakWithNativeSynthesis(cleanText, pair, selectedOption);
+      });
+      return;
+    } catch (e) {
+      console.warn('Fallback a síntesis nativa:', e);
     }
-
-    if (!utterance.voice && voices.length > 0) {
-      const prefix = pair.endsWith('en') ? 'en' : (pair.endsWith('zh') ? 'zh' : 'es');
-      const langVoices = voices.filter(v => v.lang && v.lang.toLowerCase().startsWith(prefix));
-      
-      const bestVoice = langVoices.find(v => {
-        const n = v.name.toLowerCase();
-        return n.includes('natural') || n.includes('neural') || n.includes('google') || n.includes('siri') || n.includes('online');
-      }) || langVoices[0];
-
-      if (bestVoice) utterance.voice = bestVoice;
-    }
-
-    window.speechSynthesis.speak(utterance);
-  } else {
-    alert('Voz no soportada en este navegador');
   }
+
+  // 2. Si seleccionó una voz de sistema específica o está offline
+  speakWithNativeSynthesis(cleanText, pair, selectedOption);
+}
+
+function speakWithNativeSynthesis(text, pair, selectedVoiceName) {
+  if (!('speechSynthesis' in window)) return;
+  window.speechSynthesis.cancel();
+
+  const langCode = pair.endsWith('en') ? 'en-US' : (pair.endsWith('zh') ? 'zh-CN' : 'es-ES');
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.lang = langCode;
+  utterance.rate = 0.92;
+
+  const voices = window.speechSynthesis.getVoices();
+
+  if (selectedVoiceName && selectedVoiceName !== 'GOOGLE_CLOUD' && voices.length > 0) {
+    const chosen = voices.find(v => v.name === selectedVoiceName);
+    if (chosen) utterance.voice = chosen;
+  }
+
+  if (!utterance.voice && voices.length > 0) {
+    const prefix = pair.endsWith('en') ? 'en' : (pair.endsWith('zh') ? 'zh' : 'es');
+    const langVoices = voices.filter(v => v.lang && v.lang.toLowerCase().startsWith(prefix));
+    
+    const bestVoice = langVoices.find(v => {
+      const n = v.name.toLowerCase();
+      return n.includes('natural') || n.includes('neural') || n.includes('google') || n.includes('siri') || n.includes('online');
+    }) || langVoices[0];
+
+    if (bestVoice) utterance.voice = bestVoice;
+  }
+
+  window.speechSynthesis.speak(utterance);
 }
 
 function startSpeechToTextTranslation() {
