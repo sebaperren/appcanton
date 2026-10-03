@@ -498,54 +498,51 @@ function handleFirebaseAuthLogin() {
   const passwordInput = document.getElementById('fbPassword');
   const statusEl = document.getElementById('fbAuthStatus');
 
-  const email = (emailInput?.value || 'comprador@perren.com.ar').trim();
-  const password = (passwordInput?.value || 'canton2026').trim();
+  const email = (emailInput?.value || '').trim();
+  const password = (passwordInput?.value || '').trim();
 
   if (!email || !password) {
-    alert('Por favor ingrese correo electrónico y contraseña.');
+    alert('Por favor ingresa correo electrónico y contraseña.');
     return;
   }
 
-  saveAuthCredentials(email, password);
+  if (statusEl) statusEl.textContent = '⏳ Verificando credenciales en Firebase...';
 
-  if (statusEl) statusEl.textContent = '⏳ Verificando credenciales...';
-
-  if (fbAuth) {
-    fbAuth.signInWithEmailAndPassword(email, password)
-      .then((userCredential) => {
-        const user = userCredential.user;
-        localStorage.setItem('firebaseAuthSession', user.email || email);
-        if (statusEl) statusEl.textContent = '🟢 Autenticado con Firebase: ' + (user.email || email);
-        showAuthenticatedApp(user.email || email);
-      })
-      .catch((error) => {
-        console.error("Firebase Auth Error:", error.code, error.message);
-        if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
-          if (statusEl) statusEl.textContent = '❌ Contraseña incorrecta de Firebase.';
-          alert('❌ Contraseña incorrecta. Verificá tu clave.');
-        } else if (error.code === 'auth/user-not-found') {
-          // Intentar crear la cuenta automáticamente
-          fbAuth.createUserWithEmailAndPassword(email, password)
-            .then(cred => {
-              const u = cred.user;
-              localStorage.setItem('firebaseAuthSession', u.email || email);
-              showAuthenticatedApp(u.email || email);
-            })
-            .catch(() => {
-              localStorage.setItem('firebaseAuthSession', email);
-              showAuthenticatedApp(email);
-            });
-        } else {
-          // Fallback por problema de red / dominio -> ingresar directamente
-          localStorage.setItem('firebaseAuthSession', email);
-          showAuthenticatedApp(email);
-        }
-      });
-  } else {
-    // Si Firebase no cargó por estar offline -> ingresar con sesión local
-    localStorage.setItem('firebaseAuthSession', email);
-    showAuthenticatedApp(email);
+  if (!fbAuth) {
+    alert('❌ Error: El servicio Firebase Auth no está activo. Verificá tu conexión a internet.');
+    if (statusEl) statusEl.textContent = '❌ Servicio Firebase no disponible.';
+    return;
   }
+
+  fbAuth.signInWithEmailAndPassword(email, password)
+    .then((userCredential) => {
+      const user = userCredential.user;
+      const userEmail = user.email || email;
+      
+      saveAuthCredentials(email, password);
+      localStorage.setItem('firebaseAuthSession', userEmail);
+      if (statusEl) statusEl.textContent = '🟢 Autenticado con Firebase: ' + userEmail;
+      showAuthenticatedApp(userEmail);
+    })
+    .catch((error) => {
+      console.error("Firebase Auth Error:", error.code, error.message);
+      let errorMsg = '❌ Error al iniciar sesión.';
+
+      if (error.code === 'auth/user-not-found') {
+        errorMsg = '❌ Usuario no encontrado. Si no tenés cuenta, tocá en CREAR CUENTA.';
+      } else if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+        errorMsg = '❌ Contraseña incorrecta. Verificá tu clave de acceso.';
+      } else if (error.code === 'auth/invalid-email') {
+        errorMsg = '❌ Formato de correo electrónico inválido.';
+      } else if (error.code === 'auth/too-many-requests') {
+        errorMsg = '⚠️ Demasiados intentos fallidos. Aguardá unos minutos.';
+      } else {
+        errorMsg = '❌ Error de autenticación: ' + error.message;
+      }
+
+      if (statusEl) statusEl.textContent = errorMsg;
+      alert(errorMsg);
+    });
 }
 
 function handleFirebaseRegister() {
@@ -553,11 +550,11 @@ function handleFirebaseRegister() {
   const passwordInput = document.getElementById('fbPassword');
   const statusEl = document.getElementById('fbAuthStatus');
 
-  const email = (emailInput?.value || 'comprador@perren.com.ar').trim();
-  const password = (passwordInput?.value || 'canton2026').trim();
+  const email = (emailInput?.value || '').trim();
+  const password = (passwordInput?.value || '').trim();
 
   if (!email || !password) {
-    alert('Por favor ingrese correo electrónico y contraseña para registrarse.');
+    alert('Por favor ingresa correo electrónico y contraseña para registrarse.');
     return;
   }
 
@@ -566,38 +563,41 @@ function handleFirebaseRegister() {
     return;
   }
 
-  saveAuthCredentials(email, password);
+  if (statusEl) statusEl.textContent = '⏳ Registrando nuevo usuario en Firebase...';
 
-  if (statusEl) statusEl.textContent = '⏳ Registrando nuevo usuario...';
-
-  if (fbAuth) {
-    fbAuth.createUserWithEmailAndPassword(email, password)
-      .then((userCredential) => {
-        const user = userCredential.user;
-        localStorage.setItem('firebaseAuthSession', user.email || email);
-        alert('✅ Usuario creado correctamente!');
-        showAuthenticatedApp(user.email || email);
-      })
-      .catch((error) => {
-        if (error.code === 'auth/email-already-in-use') {
-          fbAuth.signInWithEmailAndPassword(email, password)
-            .then(cred => {
-              localStorage.setItem('firebaseAuthSession', cred.user.email || email);
-              showAuthenticatedApp(cred.user.email || email);
-            })
-            .catch(() => {
-              localStorage.setItem('firebaseAuthSession', email);
-              showAuthenticatedApp(email);
-            });
-        } else {
-          localStorage.setItem('firebaseAuthSession', email);
-          showAuthenticatedApp(email);
-        }
-      });
-  } else {
-    localStorage.setItem('firebaseAuthSession', email);
-    showAuthenticatedApp(email);
+  if (!fbAuth) {
+    alert('❌ Error: El servicio Firebase Auth no está activo. Verificá tu conexión a internet.');
+    if (statusEl) statusEl.textContent = '❌ Servicio Firebase no disponible.';
+    return;
   }
+
+  fbAuth.createUserWithEmailAndPassword(email, password)
+    .then((userCredential) => {
+      const user = userCredential.user;
+      const userEmail = user.email || email;
+
+      saveAuthCredentials(email, password);
+      localStorage.setItem('firebaseAuthSession', userEmail);
+      alert('✅ Cuenta creada y autenticada con éxito en Firebase!');
+      showAuthenticatedApp(userEmail);
+    })
+    .catch((error) => {
+      console.error("Firebase Register Error:", error.code, error.message);
+      let errorMsg = 'Error al registrar usuario: ';
+      
+      if (error.code === 'auth/email-already-in-use') {
+        errorMsg = '⚠️ Este correo ya está registrado en Firebase. Ingresá tu contraseña y tocá INICIAR SESIÓN.';
+      } else if (error.code === 'auth/weak-password') {
+        errorMsg = '⚠️ La contraseña es demasiado débil (mínimo 6 caracteres).';
+      } else if (error.code === 'auth/invalid-email') {
+        errorMsg = '⚠️ Formato de correo inválido.';
+      } else {
+        errorMsg += error.message;
+      }
+
+      if (statusEl) statusEl.textContent = errorMsg;
+      alert(errorMsg);
+    });
 }
 
 function handleOfflineBypassLogin() {
