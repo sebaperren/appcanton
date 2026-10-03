@@ -323,17 +323,20 @@ async function ensureFirebaseAuth() {
   return false;
 }
 
-async function syncPendingSuppliersToFirebase() {
+async function syncPendingSuppliersToFirebase(forceAll = false) {
   if (!fbDb || !navigator.onLine) return;
 
   await ensureFirebaseAuth();
 
-  const pending = localSuppliers.filter(s => s.syncState === 'pending' || !s.firestoreId);
-  if (pending.length === 0) return;
+  const suppliersToSync = forceAll
+    ? localSuppliers
+    : localSuppliers.filter(s => s.syncState === 'pending' || !s.firestoreId);
 
-  console.log(`🔄 Auto-sincronizando ${pending.length} proveedores pendientes a Firestore...`);
+  if (suppliersToSync.length === 0) return;
 
-  for (const supplier of pending) {
+  console.log(`🔄 Auto-sincronizando ${suppliersToSync.length} proveedores a Firestore...`);
+
+  for (const supplier of suppliersToSync) {
     try {
       // Compress supplier photos for cloud sync
       const compressedSupPhotos = [];
@@ -405,7 +408,8 @@ async function forceCloudSync() {
 
   try {
     await ensureFirebaseAuth();
-    await syncPendingSuppliersToFirebase();
+    // Forzar el envío de todos los proveedores locales a la nube
+    await syncPendingSuppliersToFirebase(true);
 
     if (fbDb) {
       const snapshot = await fbDb.collection('suppliers').get();
@@ -429,7 +433,12 @@ async function forceCloudSync() {
       }
       saveLocalSuppliers();
       renderTarjetero();
-      alert(`✅ Sincronización con la nube finalizada con éxito. Se muestran ${localSuppliers.length} proveedores en Productos (tuyos y de otros usuarios).`);
+
+      if (localSuppliers.length === 0) {
+        alert('ℹ️ Sincronización finalizada con éxito. No hay proveedores registrados aún ni en la nube ni en este dispositivo. Puedes cargar el primero en "+ Proveedor".');
+      } else {
+        alert(`✅ Sincronización con la nube finalizada con éxito. Se muestran ${localSuppliers.length} proveedor(es) con sus cotizaciones en la pestaña Productos (tuyos y de otros usuarios).`);
+      }
     } else {
       alert(`✅ Guardado local listo. Total proveedores en Productos: ${localSuppliers.length}`);
     }
@@ -445,7 +454,7 @@ async function forceCloudSync() {
             fbAuth.createUserWithEmailAndPassword('comprador@perren.com.ar', 'canton2026')
           );
         }
-        await syncPendingSuppliersToFirebase();
+        await syncPendingSuppliersToFirebase(true);
         if (fbDb) {
           const snapshot = await fbDb.collection('suppliers').get();
           const firestoreSuppliers = [];
@@ -459,7 +468,7 @@ async function forceCloudSync() {
           }
           saveLocalSuppliers();
           renderTarjetero();
-          alert(`✅ Sincronización corregida y finalizada con éxito. Se muestran ${localSuppliers.length} proveedores en Productos (tuyos y de otros usuarios).`);
+          alert(`✅ Sincronización corregida y finalizada con éxito. Se muestran ${localSuppliers.length} proveedor(es) en Productos.`);
           return;
         }
       } catch (retryErr) {
