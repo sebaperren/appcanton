@@ -1483,8 +1483,8 @@ function renderTarjetero() {
             <a href="${waLink}" target="_blank" class="btn-whatsapp" style="white-space: nowrap; font-size: 10px; padding: 4px 8px;">
               💬 WhatsApp
             </a>
-            <button onclick="event.stopPropagation(); openEditSupplierModal(${idx});" class="btn-chip" style="color: var(--secondary-color); border-color: var(--secondary-color); font-size: 10px; padding: 3px 8px; cursor: pointer; width: 100%; text-align: center;">✏️ Editar</button>
-            <button onclick="event.stopPropagation(); deleteSupplier(${idx});" class="btn-chip" style="color: #D32F2F; border-color: #D32F2F; font-size: 10px; padding: 3px 8px; cursor: pointer; width: 100%; text-align: center;">🗑️ Eliminar</button>
+            <button onclick="event.stopPropagation(); openEditSupplierModal('${targetId}', ${idx});" class="btn-chip" style="color: var(--secondary-color); border-color: var(--secondary-color); font-size: 10px; padding: 3px 8px; cursor: pointer; width: 100%; text-align: center;">✏️ Editar</button>
+            <button onclick="event.stopPropagation(); deleteSupplier('${targetId}', ${idx});" class="btn-chip" style="color: #D32F2F; border-color: #D32F2F; font-size: 10px; padding: 3px 8px; cursor: pointer; width: 100%; text-align: center;">🗑️ Eliminar</button>
           </div>
         </div>
 
@@ -1580,43 +1580,66 @@ function openImageLightbox(imgSrc) {
 
 // FUNCIONES PARA EDITAR PROVEEDOR Y SUS ARTÍCULOS
 function openEditSupplierModal(indexOrId, fallbackIndex) {
+  console.log('✏️ Abriendo modal de edición para:', indexOrId, 'fallbackIndex:', fallbackIndex);
   try {
     let sup = null;
-    if (typeof indexOrId === 'number' && localSuppliers[indexOrId]) {
-      sup = localSuppliers[indexOrId];
-    } else if (indexOrId !== undefined && indexOrId !== null) {
-      const idStr = String(indexOrId);
-      sup = localSuppliers.find(s => (s.id && String(s.id) === idStr) || (s.firestoreId && String(s.firestoreId) === idStr));
+
+    // A. Búsqueda 1: por ID o firestoreId (cadena de caracteres)
+    if (indexOrId !== undefined && indexOrId !== null) {
+      const idStr = String(indexOrId).trim();
+      sup = localSuppliers.find(s => 
+        (s.id && String(s.id).trim() === idStr) || 
+        (s.firestoreId && String(s.firestoreId).trim() === idStr)
+      );
     }
-    if (!sup && typeof fallbackIndex === 'number' && localSuppliers[fallbackIndex]) {
-      sup = localSuppliers[fallbackIndex];
-    }
+
+    // B. Búsqueda 2: por índice numérico
     if (!sup) {
-      alert('Proveedor no encontrado');
+      const numIdx = typeof indexOrId === 'number' ? indexOrId : parseInt(indexOrId, 10);
+      if (!isNaN(numIdx) && numIdx >= 0 && numIdx < localSuppliers.length) {
+        sup = localSuppliers[numIdx];
+      }
+    }
+
+    // C. Búsqueda 3: por fallbackIndex
+    if (!sup && typeof fallbackIndex !== 'undefined' && fallbackIndex !== null) {
+      const fbIdx = typeof fallbackIndex === 'number' ? fallbackIndex : parseInt(fallbackIndex, 10);
+      if (!isNaN(fbIdx) && fbIdx >= 0 && fbIdx < localSuppliers.length) {
+        sup = localSuppliers[fbIdx];
+      }
+    }
+
+    if (!sup) {
+      console.error('❌ openEditSupplierModal: Proveedor no encontrado para target:', indexOrId);
+      alert('⚠️ No se encontró la información de este proveedor para editar. Intenta recargar la página.');
       return;
     }
-    currentEditingSupplier = JSON.parse(JSON.stringify(sup));
+
+    currentEditingSupplier = {
+      ...sup,
+      photos: Array.isArray(sup.photos) ? [...sup.photos] : [],
+      articles: Array.isArray(sup.articles) ? sup.articles.map(a => ({ ...a, photos: Array.isArray(a.photos) ? [...a.photos] : [] })) : []
+    };
+
     if (!currentEditingSupplier.id) {
       currentEditingSupplier.id = sup.id || sup.firestoreId || generateUniqueId('SUP');
     }
-    if (!currentEditingSupplier.photos) currentEditingSupplier.photos = [];
-    if (!currentEditingSupplier.articles) currentEditingSupplier.articles = [];
-    
+
     const setVal = (id, val) => {
       const el = document.getElementById(id);
       if (el) el.value = (val !== null && val !== undefined) ? val : '';
     };
 
     setVal('editSupplierId', currentEditingSupplier.id);
-    setVal('editCompName', currentEditingSupplier.companyName);
-    setVal('editCompChinese', currentEditingSupplier.companyNameChinese);
-    setVal('editStand', currentEditingSupplier.stand);
-    setVal('editCategory', currentEditingSupplier.category);
-    setVal('editContact', currentEditingSupplier.contactName);
-    setVal('editWeChat', currentEditingSupplier.weChat);
-    setVal('editPhone', currentEditingSupplier.phone);
-    setVal('editEmail', currentEditingSupplier.email);
-    setVal('editNotes', currentEditingSupplier.notes);
+    setVal('editCompName', currentEditingSupplier.companyName || '');
+    setVal('editCompChinese', currentEditingSupplier.companyNameChinese || '');
+    setVal('editStand', currentEditingSupplier.stand || '');
+    setVal('editCategory', currentEditingSupplier.category || '');
+    setVal('editContact', currentEditingSupplier.contactName || '');
+    setVal('editWeChat', currentEditingSupplier.weChat || '');
+    setVal('editPhone', currentEditingSupplier.phone || '');
+    setVal('editEmail', currentEditingSupplier.email || '');
+    setVal('editNotes', currentEditingSupplier.notes || '');
 
     renderEditSupplierPhotos();
     renderEditSupplierArticles();
@@ -1624,13 +1647,15 @@ function openEditSupplierModal(indexOrId, fallbackIndex) {
     const modal = document.getElementById('modalEditSupplier');
     if (modal) {
       modal.style.display = 'flex';
-      modal.style.zIndex = '999999';
+      modal.style.zIndex = '9999999';
       modal.classList.add('open');
+      const content = modal.querySelector('.modal-content');
+      if (content) content.scrollTop = 0;
     } else {
-      alert('No se encontró el diálogo de edición en la página');
+      alert('❌ No se encontró el modal de edición en la página');
     }
   } catch (err) {
-    console.error('Error al abrir modal de edición de proveedor:', err);
+    console.error('❌ Error al abrir modal de edición de proveedor:', err);
     alert('Ocurrió un error al abrir la edición: ' + err.message);
   }
 }
