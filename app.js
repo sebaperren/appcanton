@@ -1448,14 +1448,12 @@ function renderTarjetero() {
             </div>
           </div>
 
-          <div style="display: flex; flex-direction: column; gap: 4px; align-items: flex-end;">
+          <div style="display: flex; flex-direction: column; gap: 5px; align-items: flex-end;">
             <a href="${waLink}" target="_blank" class="btn-whatsapp" style="white-space: nowrap; font-size: 10px; padding: 4px 8px;">
               💬 WhatsApp
             </a>
-            <div style="display: flex; gap: 4px;">
-              <button onclick="event.stopPropagation(); openEditSupplierModal(${idx});" class="btn-chip" style="color: var(--secondary-color); border-color: var(--secondary-color); font-size: 10px; padding: 2px 6px; cursor: pointer;">✏️ Editar</button>
-              <button onclick="event.stopPropagation(); deleteSupplier(${idx});" class="btn-chip" style="color: #D32F2F; border-color: #D32F2F; font-size: 10px; padding: 2px 6px; cursor: pointer;">🗑️</button>
-            </div>
+            <button onclick="event.stopPropagation(); openEditSupplierModal(${idx});" class="btn-chip" style="color: var(--secondary-color); border-color: var(--secondary-color); font-size: 10px; padding: 3px 8px; cursor: pointer; width: 100%; text-align: center;">✏️ Editar</button>
+            <button onclick="event.stopPropagation(); deleteSupplier(${idx});" class="btn-chip" style="color: #D32F2F; border-color: #D32F2F; font-size: 10px; padding: 3px 8px; cursor: pointer; width: 100%; text-align: center;">🗑️ Eliminar</button>
           </div>
         </div>
 
