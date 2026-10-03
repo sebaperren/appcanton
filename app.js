@@ -2487,15 +2487,74 @@ function copyTranslationResult() {
   }
 }
 
+let availableTTSVoices = [];
+
+function populateTTSVoiceSelect() {
+  if (!('speechSynthesis' in window)) return;
+  availableTTSVoices = window.speechSynthesis.getVoices();
+
+  const select = document.getElementById('translatorVoiceSelect');
+  if (!select) return;
+
+  const pair = document.getElementById('translatorLangPair')?.value || 'es-en';
+  const prefix = pair.endsWith('en') ? 'en' : (pair.endsWith('zh') ? 'zh' : 'es');
+
+  const matchingVoices = availableTTSVoices.filter(v => v.lang && v.lang.toLowerCase().startsWith(prefix));
+
+  if (matchingVoices.length === 0) {
+    select.innerHTML = '<option value="">🗣️ Voz Estándar HD</option>';
+    return;
+  }
+
+  select.innerHTML = matchingVoices.map((v, i) => {
+    let tag = '';
+    const nameLower = v.name.toLowerCase();
+    if (nameLower.includes('natural') || nameLower.includes('neural') || nameLower.includes('online') || nameLower.includes('google') || nameLower.includes('siri')) {
+      tag = ' ⭐ (Alta Calidad)';
+    }
+    return `<option value="${v.name}">${v.name}${tag}</option>`;
+  }).join('');
+}
+
+if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+  window.speechSynthesis.onvoiceschanged = () => {
+    populateTTSVoiceSelect();
+  };
+}
+
 function speakTranslationResult() {
   const text = document.getElementById('translatorResultText')?.textContent;
   if (!text || text === '⏳ Traduciendo...') return;
 
   if ('speechSynthesis' in window) {
+    window.speechSynthesis.cancel();
+
     const pair = document.getElementById('translatorLangPair')?.value || 'es-en';
     const langCode = pair.endsWith('en') ? 'en-US' : (pair.endsWith('zh') ? 'zh-CN' : 'es-ES');
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = langCode;
+    utterance.rate = 0.92; // Tono y ritmo natural
+
+    const selectedVoiceName = document.getElementById('translatorVoiceSelect')?.value;
+    const voices = window.speechSynthesis.getVoices();
+
+    if (selectedVoiceName && voices.length > 0) {
+      const chosen = voices.find(v => v.name === selectedVoiceName);
+      if (chosen) utterance.voice = chosen;
+    }
+
+    if (!utterance.voice && voices.length > 0) {
+      const prefix = pair.endsWith('en') ? 'en' : (pair.endsWith('zh') ? 'zh' : 'es');
+      const langVoices = voices.filter(v => v.lang && v.lang.toLowerCase().startsWith(prefix));
+      
+      const bestVoice = langVoices.find(v => {
+        const n = v.name.toLowerCase();
+        return n.includes('natural') || n.includes('neural') || n.includes('google') || n.includes('siri') || n.includes('online');
+      }) || langVoices[0];
+
+      if (bestVoice) utterance.voice = bestVoice;
+    }
+
     window.speechSynthesis.speak(utterance);
   } else {
     alert('Voz no soportada en este navegador');
@@ -3345,4 +3404,5 @@ if (typeof window !== 'undefined') {
   window.copyTranslationResult = copyTranslationResult;
   window.speakTranslationResult = speakTranslationResult;
   window.startSpeechToTextTranslation = startSpeechToTextTranslation;
+  window.populateTTSVoiceSelect = populateTTSVoiceSelect;
 }

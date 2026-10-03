@@ -125,11 +125,16 @@
         <div class="card" style="border-left: 4px solid #FF9800; background: #FFFDF7;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 4px;">
             <strong style="font-size: 13px; color: #E65100;">🌐 TRADUCTOR COMERCIAL DE FERIA</strong>
-            <select id="translatorLangPair" class="form-control" style="width: auto; font-size: 10.5px; padding: 2px 6px;" onchange="translateTradeText()">
-              <option value="es-en">Español ➔ Inglés (English)</option>
-              <option value="en-es">Inglés ➔ Español (Spanish)</option>
-              <option value="es-zh">Español ➔ Chino (中文)</option>
-            </select>
+            <div style="display: flex; gap: 4px; flex-wrap: wrap;">
+              <select id="translatorLangPair" class="form-control" style="width: auto; font-size: 10.5px; padding: 2px 6px;" onchange="translateTradeText(); populateTTSVoiceSelect();">
+                <option value="es-en">Español ➔ Inglés (English)</option>
+                <option value="en-es">Inglés ➔ Español (Spanish)</option>
+                <option value="es-zh">Español ➔ Chino (中文)</option>
+              </select>
+              <select id="translatorVoiceSelect" class="form-control" style="width: auto; font-size: 10.5px; padding: 2px 6px;" title="Elegir voz de lectura">
+                <option value="">🗣️ Voz Estándar / HD</option>
+              </select>
+            </div>
           </div>
 
           <!-- Frases rápidas de negociación -->
