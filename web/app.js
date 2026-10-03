@@ -2268,19 +2268,25 @@ function updateVoiceRecordingUI(state, extra = '') {
 
   btns.forEach(b => {
     if (state === 'recording') {
-      b.textContent = '⏹️ Detener Grabación';
+      b.textContent = '⏹️ Detener (Máx. 3 min)';
       b.style.background = '#D32F2F';
     } else {
-      b.textContent = '🎙️ Grabar Audio';
+      b.textContent = '🎙️ Grabar Audio (Máx. 3 min)';
       b.style.background = 'var(--primary-color)';
     }
   });
 
   timers.forEach(t => {
     if (state === 'recording') {
-      t.textContent = `🔴 ${extra}s`;
+      const mins = Math.floor(extra / 60);
+      const secs = extra % 60;
+      const fmtTime = `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+      t.textContent = `🔴 ${fmtTime} / 3:00 (Máx 3 min)`;
     } else if (state === 'stopped') {
-      t.textContent = `✅ Audio Grabado (${extra}s)`;
+      const mins = Math.floor(extra / 60);
+      const secs = extra % 60;
+      const fmtTime = `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+      t.textContent = `✅ Audio Grabado (${fmtTime})`;
     } else if (state === 'reset') {
       t.textContent = '';
     }
@@ -2388,6 +2394,10 @@ function startVoiceRecording() {
       voiceRecordTimerInterval = setInterval(() => {
         voiceRecordSeconds++;
         updateVoiceRecordingUI('recording', voiceRecordSeconds);
+        if (voiceRecordSeconds >= 180) { // Límite de 3 minutos
+          stopVoiceRecording();
+          alert('⏱️ Tiempo máximo de grabación alcanzado (3 minutos).');
+        }
       }, 1000);
     })
     .catch(err => {
@@ -2399,6 +2409,97 @@ function startVoiceRecording() {
       }
       updateVoiceRecordingUI('reset');
     });
+}
+
+// TRADUCTOR COMERCIAL DE FERIA DE CANTÓN
+const TRADE_DICTIONARY = {
+  "¿cuál es el precio fob?": { "es-en": "What is the FOB price?", "es-zh": "FOB 价格是多少？ (FŌB jiàgé shì duōshǎo?)" },
+  "fob price?": { "en-es": "¿Cuál es el precio FOB?" },
+  "¿cuál es la cantidad mínima (moq)?": { "es-en": "What is the Minimum Order Quantity (MOQ)?", "es-zh": "最小起订量是多少？ (Zuìxiǎo qǐdìng liàng shì duōshǎo?)" },
+  "moq?": { "en-es": "¿Cuál es la cantidad mínima de pedido (MOQ)?" },
+  "¿cuál es el tiempo de entrega (lead time)?": { "es-en": "What is the delivery lead time?", "es-zh": "交货期需要多久？ (Jiāohuò qī xūyào duōjiǔ?)" },
+  "lead time?": { "en-es": "¿Cuál es el tiempo de entrega?" },
+  "¿descuento por contenedor completo?": { "es-en": "Do you offer a discount for a full container (FCL)?", "es-zh": "整柜下单有折扣吗？ (Zhěngguì xiàdān yǒu zhékòu ma?)" },
+  "container discount?": { "en-es": "¿Hay descuento si compro un contenedor completo?" },
+  "¿pueden enviarme una muestra (sample)?": { "es-en": "Can you provide or send a sample?", "es-zh": "可以提供样品吗？ (Kěyǐ tígōng yàngpǐn ma?)" },
+  "sample?": { "en-es": "¿Tienen muestras disponibles?" },
+  "¿tienen catálogo digital o impreso?": { "es-en": "Do you have a digital or printed catalog?", "es-zh": "有电子版或纸质目录吗？ (Yǒu diànzǐ bǎn huò zhǐzhì mùlù ma?)" },
+  "catalog?": { "en-es": "¿Tienen catálogo disponible?" }
+};
+
+function useQuickTranslatePhrase(phrase) {
+  const input = document.getElementById('translatorInput');
+  if (input) {
+    input.value = phrase;
+    translateTradeText();
+  }
+}
+
+async function translateTradeText() {
+  const inputEl = document.getElementById('translatorInput');
+  const resultCont = document.getElementById('translatorResultContainer');
+  const resultTextEl = document.getElementById('translatorResultText');
+  if (!inputEl || !resultCont || !resultTextEl) return;
+
+  const rawText = inputEl.value.trim();
+  if (!rawText) {
+    resultCont.style.display = 'none';
+    return;
+  }
+
+  const pair = document.getElementById('translatorLangPair')?.value || 'es-en';
+  const cleanKey = rawText.toLowerCase();
+
+  if (TRADE_DICTIONARY[cleanKey] && TRADE_DICTIONARY[cleanKey][pair]) {
+    resultTextEl.textContent = TRADE_DICTIONARY[cleanKey][pair];
+    resultCont.style.display = 'block';
+    return;
+  }
+
+  resultTextEl.textContent = '⏳ Traduciendo...';
+  resultCont.style.display = 'block';
+
+  try {
+    const langMap = { 'es-en': 'es|en', 'en-es': 'en|es', 'es-zh': 'es|zh' };
+    const langParam = langMap[pair] || 'es|en';
+    const resp = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(rawText)}&langpair=${langParam}`);
+    const data = await resp.json();
+
+    if (data && data.responseData && data.responseData.translatedText) {
+      resultTextEl.textContent = data.responseData.translatedText;
+    } else {
+      resultTextEl.textContent = rawText;
+    }
+  } catch (err) {
+    console.warn('Translate API fallback:', err);
+    resultTextEl.textContent = rawText;
+  }
+}
+
+function copyTranslationResult() {
+  const text = document.getElementById('translatorResultText')?.textContent;
+  if (text && text !== '⏳ Traduciendo...') {
+    navigator.clipboard.writeText(text).then(() => {
+      alert('📋 Traducción copiada al portapapeles');
+    }).catch(() => {
+      alert('Copiado: ' + text);
+    });
+  }
+}
+
+function speakTranslationResult() {
+  const text = document.getElementById('translatorResultText')?.textContent;
+  if (!text || text === '⏳ Traduciendo...') return;
+
+  if ('speechSynthesis' in window) {
+    const pair = document.getElementById('translatorLangPair')?.value || 'es-en';
+    const langCode = pair.endsWith('en') ? 'en-US' : (pair.endsWith('zh') ? 'zh-CN' : 'es-ES');
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = langCode;
+    window.speechSynthesis.speak(utterance);
+  } else {
+    alert('Voz no soportada en este navegador');
+  }
 }
 
 function saveInlineArticle() {
@@ -3173,4 +3274,8 @@ if (typeof window !== 'undefined') {
   window.saveStateSettings = saveStateSettings;
   window.ensureFirebaseAuth = ensureFirebaseAuth;
   window.openImageLightbox = openImageLightbox;
+  window.useQuickTranslatePhrase = useQuickTranslatePhrase;
+  window.translateTradeText = translateTradeText;
+  window.copyTranslationResult = copyTranslationResult;
+  window.speakTranslationResult = speakTranslationResult;
 }

@@ -120,6 +120,44 @@
             <button class="btn-chip" onclick="switchMainSection('tarjetero')" style="padding: 10px; font-size: 11px; border-color: #25D366; color: #25D366;">📦 Catálogo Productos & Proveedores</button>
           </div>
         </div>
+
+        <!-- MÓDULO TRADUCTOR COMERCIAL DE FERIA (ESPAÑOL <-> INGLÉS / CHINO) -->
+        <div class="card" style="border-left: 4px solid #FF9800; background: #FFFDF7;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 4px;">
+            <strong style="font-size: 13px; color: #E65100;">🌐 TRADUCTOR COMERCIAL DE FERIA</strong>
+            <select id="translatorLangPair" class="form-control" style="width: auto; font-size: 10.5px; padding: 2px 6px;" onchange="translateTradeText()">
+              <option value="es-en">Español ➔ Inglés (English)</option>
+              <option value="en-es">Inglés ➔ Español (Spanish)</option>
+              <option value="es-zh">Español ➔ Chino (中文)</option>
+            </select>
+          </div>
+
+          <!-- Frases rápidas de negociación -->
+          <div style="margin-bottom: 8px;">
+            <div style="font-size: 10px; font-weight: bold; color: var(--text-muted); margin-bottom: 4px;">⚡ Frases Frecuentes de Negociación:</div>
+            <div style="display: flex; gap: 4px; overflow-x: auto; padding-bottom: 4px;">
+              <button type="button" class="btn-chip" onclick="useQuickTranslatePhrase('¿Cuál es el precio FOB?')">FOB Price?</button>
+              <button type="button" class="btn-chip" onclick="useQuickTranslatePhrase('¿Cuál es la cantidad mínima (MOQ)?')">MOQ?</button>
+              <button type="button" class="btn-chip" onclick="useQuickTranslatePhrase('¿Cuál es el tiempo de entrega (Lead Time)?')">Lead Time?</button>
+              <button type="button" class="btn-chip" onclick="useQuickTranslatePhrase('¿Descuento por contenedor completo?')">Container Discount?</button>
+              <button type="button" class="btn-chip" onclick="useQuickTranslatePhrase('¿Pueden enviarme una muestra (sample)?')">Sample?</button>
+              <button type="button" class="btn-chip" onclick="useQuickTranslatePhrase('¿Tienen catálogo digital o impreso?')">Catalog?</button>
+            </div>
+          </div>
+
+          <textarea id="translatorInput" class="form-control" style="height: 55px; font-size: 11.5px;" placeholder="Escribe una frase comercial para traducir..."></textarea>
+
+          <div style="display: flex; gap: 6px; margin-top: 8px;">
+            <button class="btn-primary" onclick="translateTradeText()" style="flex: 2; font-size: 11px; padding: 6px 10px;">⚡ Traducir Ahora</button>
+            <button class="btn-chip" onclick="copyTranslationResult()" style="font-size: 11px; padding: 6px 10px;">📋 Copiar</button>
+            <button class="btn-chip" onclick="speakTranslationResult()" style="font-size: 11px; padding: 6px 10px;">🔊 Escuchar</button>
+          </div>
+
+          <div id="translatorResultContainer" style="display: none; margin-top: 8px; background: white; padding: 10px; border-radius: 6px; border: 1px solid #FFE082;">
+            <div style="font-size: 10px; font-weight: bold; color: #E65100;">TRADUCCIÓN:</div>
+            <div id="translatorResultText" style="font-size: 13px; font-weight: bold; color: #111; margin-top: 3px; word-break: break-word;"></div>
+          </div>
+        </div>
       </section>
 
       <!-- ================= SECCIÓN 2: + PROVEEDOR (ALTA PROVEEDOR & COTIZACIÓN) ================= -->
@@ -275,7 +313,7 @@
             <div style="margin-top: 10px; background: #E3F2FD; padding: 8px; border-radius: 6px;">
               <label style="font-size: 10px; font-weight: bold; color: var(--secondary-color);">🎙️ GRABAR NOTA DE VOZ (AUDIO RECORDING)</label>
               <div style="display: flex; gap: 8px; margin-top: 4px; align-items: center;">
-                <button class="btn-primary btn-record-voice" id="btnRecordVoiceSec" onclick="toggleVoiceRecording()" style="font-size: 10.5px; padding: 6px 10px;">🎙️ Grabar Audio</button>
+                <button class="btn-primary btn-record-voice" id="btnRecordVoiceSec" onclick="toggleVoiceRecording()" style="font-size: 10.5px; padding: 6px 10px;">🎙️ Grabar Audio (Máx. 3 min)</button>
                 <span id="voiceRecordTimerSec" class="voice-record-timer" style="font-size: 11px; font-weight: bold; color: var(--warning-text);"></span>
               </div>
               <div id="audioPreviewContainerSec" class="audio-preview-container" style="display: none; margin-top: 6px;">
@@ -627,7 +665,7 @@
         <div class="card" style="background: #E3F2FD;">
           <label style="font-size: 10px; font-weight: bold; color: var(--secondary-color);">🎙️ GRABAR NOTA DE VOZ (AUDIO RECORDING)</label>
           <div style="display: flex; gap: 8px; margin-top: 6px; align-items: center;">
-            <button class="btn-primary btn-record-voice" id="btnRecordVoiceModal" onclick="toggleVoiceRecording()" style="font-size: 10.5px; padding: 6px 10px;">🎙️ Grabar Audio</button>
+            <button class="btn-primary btn-record-voice" id="btnRecordVoiceModal" onclick="toggleVoiceRecording()" style="font-size: 10.5px; padding: 6px 10px;">🎙️ Grabar Audio (Máx. 3 min)</button>
             <span id="voiceRecordTimerModal" class="voice-record-timer" style="font-size: 11px; font-weight: bold; color: var(--warning-text);"></span>
           </div>
           <div id="audioPreviewContainerModal" class="audio-preview-container" style="display: none; margin-top: 8px;">
