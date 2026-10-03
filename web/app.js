@@ -218,7 +218,7 @@ function loadSavedArticles() {
   }
 }
 
-function deleteSupplier(supplierIdOrIdx) {
+async function deleteSupplier(supplierIdOrIdx) {
   if (!confirm('¿Estás seguro de eliminar este proveedor?')) return;
   
   let supToDelete = null;
@@ -229,31 +229,49 @@ function deleteSupplier(supplierIdOrIdx) {
     supToDelete = localSuppliers.find(s => (s.id && String(s.id) === idStr) || (s.firestoreId && String(s.firestoreId) === idStr));
   }
 
+  if (!supToDelete && typeof supplierIdOrIdx === 'number') {
+    supToDelete = localSuppliers[supplierIdOrIdx];
+  }
+
   if (supToDelete) {
     const idToMatch = supToDelete.id || supToDelete.firestoreId;
-    localSuppliers = localSuppliers.filter(s => s !== supToDelete && (s.id ? s.id !== idToMatch : true) && (s.firestoreId ? s.firestoreId !== idToMatch : true));
+    localSuppliers = localSuppliers.filter(s => s !== supToDelete && (s.id ? String(s.id) !== String(idToMatch) : true) && (s.firestoreId ? String(s.firestoreId) !== String(idToMatch) : true));
   } else if (typeof supplierIdOrIdx === 'number') {
     localSuppliers.splice(supplierIdOrIdx, 1);
   }
   
   saveLocalSuppliers();
   
-  if (fbDb && supToDelete && supToDelete.firestoreId) {
-    fbDb.collection('suppliers').doc(supToDelete.firestoreId).delete().catch(err => console.log('Firestore delete notice:', err));
-  }
-
-  if (db && db.objectStoreNames && db.objectStoreNames.contains && db.objectStoreNames.contains('suppliers_store')) {
-    try {
-      const tx = db.transaction('suppliers_store', 'readwrite');
-      if (supToDelete && supToDelete.id) {
-        tx.objectStore('suppliers_store').delete(supToDelete.id);
-      }
-    } catch (_) {}
-  }
-  
   const lbl = document.getElementById('lblTotalSuppliers');
   if (lbl) lbl.textContent = localSuppliers.length;
   renderTarjetero();
+
+  if (supToDelete) {
+    const docId = supToDelete.firestoreId || supToDelete.id;
+
+    if (db && db.objectStoreNames && db.objectStoreNames.contains && db.objectStoreNames.contains('suppliers_store')) {
+      try {
+        const tx = db.transaction('suppliers_store', 'readwrite');
+        const store = tx.objectStore('suppliers_store');
+        if (docId) store.delete(docId);
+        if (supToDelete.id) store.delete(supToDelete.id);
+      } catch (_) {}
+    }
+
+    if (fbDb && docId) {
+      try {
+        await ensureFirebaseAuth();
+        console.log('🗑️ Eliminando proveedor de Firestore Cloud:', docId);
+        await fbDb.collection('suppliers').doc(docId).delete();
+        if (supToDelete.id && supToDelete.id !== docId) {
+          await fbDb.collection('suppliers').doc(supToDelete.id).delete().catch(() => {});
+        }
+        console.log('🟢 Proveedor eliminado de Firestore Cloud con éxito:', docId);
+      } catch (err) {
+        console.error('Error al eliminar proveedor de Firestore:', err);
+      }
+    }
+  }
 }
 
 // Background sync listener for offline-first architecture
@@ -575,11 +593,23 @@ async function initFirestoreSuppliersListener() {
       const data = doc.data();
       firestoreSuppliers.push({ ...data, firestoreId: doc.id });
     });
+
+    const firestoreIdSet = new Set(firestoreSuppliers.map(s => String(s.firestoreId || s.id)));
+
+    // 1. Purge synced suppliers that are no longer in Firestore Cloud
+    localSuppliers = localSuppliers.filter(ls => {
+      if (ls.syncState === 'pending') return true;
+      const targetId = String(ls.firestoreId || ls.id || '');
+      return firestoreIdSet.has(targetId);
+    });
+
+    // 2. Merge incoming firestore suppliers
     if (firestoreSuppliers.length > 0) {
       firestoreSuppliers.forEach(fsSup => {
+        const fsId = String(fsSup.firestoreId || fsSup.id);
         const idx = localSuppliers.findIndex(ls => 
-          (ls.id && String(ls.id) === String(fsSup.id)) || 
-          (ls.firestoreId && String(ls.firestoreId) === String(fsSup.firestoreId))
+          (ls.id && String(ls.id) === fsId) || 
+          (ls.firestoreId && String(ls.firestoreId) === fsId)
         );
         if (idx >= 0) {
           const locSup = localSuppliers[idx];
@@ -599,16 +629,17 @@ async function initFirestoreSuppliersListener() {
           if (locSup && locSup.photos && locSup.photos.length > (fsSup.photos || []).length) {
             fsSup.photos = locSup.photos;
           }
-          localSuppliers[idx] = fsSup;
+          localSuppliers[idx] = { ...fsSup, syncState: 'synced' };
         } else {
-          localSuppliers.unshift(fsSup);
+          localSuppliers.unshift({ ...fsSup, syncState: 'synced' });
         }
       });
-      saveLocalSuppliers();
-      const lblSuppliers = document.getElementById('lblTotalSuppliers');
-      if (lblSuppliers) lblSuppliers.textContent = localSuppliers.length;
-      renderTarjetero();
     }
+
+    saveLocalSuppliers();
+    const lblSuppliers = document.getElementById('lblTotalSuppliers');
+    if (lblSuppliers) lblSuppliers.textContent = localSuppliers.length;
+    renderTarjetero();
   }, err => {
     console.log('Firestore suppliers listener notice:', err);
     if (err.code === 'permission-denied' || (err.message && err.message.toLowerCase().includes('permission'))) {
