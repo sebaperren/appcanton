@@ -441,8 +441,13 @@
       <!-- ================= SECCIÓN 5: TARJETERO (CONTACTOS & WHATSAPP DIRECTO) ================= -->
       <section id="secTarjetero" style="display: none;">
         <div class="card">
-          <h3 style="font-size: 13px; color: var(--primary-color); margin-bottom: 4px;">📇 TARJETERO DIGITAL DE PROVEEDORES</h3>
-          <p style="font-size: 10px; color: var(--text-muted); margin-bottom: 10px;">Contactos relevados con enlace directo a WhatsApp sin agendar número:</p>
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;">
+            <div>
+              <h3 style="font-size: 13px; color: var(--primary-color); margin-bottom: 4px;">📇 TARJETERO DIGITAL DE PROVEEDORES</h3>
+              <p style="font-size: 10px; color: var(--text-muted); margin-bottom: 10px;">Contactos relevados con enlace directo a WhatsApp sin agendar número:</p>
+            </div>
+            <button class="btn-chip" onclick="forceCloudSync()" style="font-size: 10.5px; background: #E3F2FD; color: #0288D1; border: 1px solid #0288D1; padding: 4px 8px; white-space: nowrap; cursor: pointer;">🔄 Sincronizar Nube</button>
+          </div>
           <button class="btn-success" onclick="openOcrCamera()" style="margin-bottom: 10px;">📷 ESCANEAR NUEVA TARJETA (OCR)</button>
         </div>
 

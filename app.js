@@ -197,47 +197,90 @@ window.addEventListener('online', () => {
   syncPendingSuppliersToFirebase();
 });
 
+async function compressBase64ForCloud(base64Str, maxWidth = 500, quality = 0.5) {
+  if (!base64Str || typeof base64Str !== 'string' || !base64Str.startsWith('data:image')) {
+    return (base64Str && base64Str.length > 100000) ? null : base64Str;
+  }
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.src = base64Str;
+    img.onload = () => {
+      let width = img.width;
+      let height = img.height;
+      if (width > maxWidth) {
+        height = Math.round((height * maxWidth) / width);
+        width = maxWidth;
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, width, height);
+      resolve(canvas.toDataURL('image/jpeg', quality));
+    };
+    img.onerror = () => resolve(null);
+  });
+}
+
 async function syncPendingSuppliersToFirebase() {
   if (!fbDb || !navigator.onLine) return;
 
-  const pending = localSuppliers.filter(s => s.syncState === 'pending');
+  const pending = localSuppliers.filter(s => s.syncState === 'pending' || !s.firestoreId);
   if (pending.length === 0) return;
 
   console.log(`🔄 Auto-sincronizando ${pending.length} proveedores pendientes a Firestore...`);
 
   for (const supplier of pending) {
-    const cleanArticlesForFirestore = (supplier.articles || []).map(art => {
-      const artCopy = { ...art };
-      if (artCopy.photos && artCopy.photos.length > 0) {
-        artCopy.photos = artCopy.photos.slice(0, 2).map(p => {
-          return p.length > 150000 ? (p.substring(0, 50) + '...[truncated_for_cloud]') : p;
-        });
-      }
-      if (artCopy.voiceNoteUrl && artCopy.voiceNoteUrl.length > 250000) {
-        artCopy.voiceNoteUrl = artCopy.voiceNoteUrl.substring(0, 50) + '...[truncated_for_cloud]';
-      }
-      return artCopy;
-    });
-
-    const payload = {
-      id: supplier.id,
-      companyName: supplier.companyName || '',
-      companyNameChinese: supplier.companyNameChinese || '',
-      stand: supplier.stand || 'Stand s/d',
-      category: supplier.category || 'General',
-      contactName: supplier.contactName || 'Contacto',
-      weChat: supplier.weChat || '',
-      phone: supplier.phone || '+86',
-      email: supplier.email || '',
-      articles: cleanArticlesForFirestore,
-      createdAt: supplier.createdAt || new Date().toISOString()
-    };
-
     try {
-      const docRef = await fbDb.collection('suppliers').add(payload);
+      // Compress supplier photos for cloud sync
+      const compressedSupPhotos = [];
+      if (supplier.photos && supplier.photos.length > 0) {
+        for (const photo of supplier.photos.slice(0, 3)) {
+          const comp = await compressBase64ForCloud(photo, 500, 0.5);
+          if (comp) compressedSupPhotos.push(comp);
+        }
+      }
+
+      // Compress article photos for cloud sync
+      const cleanArticlesForFirestore = [];
+      for (const art of (supplier.articles || [])) {
+        const artCopy = { ...art };
+        if (artCopy.photos && artCopy.photos.length > 0) {
+          const compArtPhotos = [];
+          for (const p of artCopy.photos.slice(0, 2)) {
+            const cP = await compressBase64ForCloud(p, 400, 0.5);
+            if (cP) compArtPhotos.push(cP);
+          }
+          artCopy.photos = compArtPhotos;
+        }
+        if (artCopy.voiceNoteUrl && artCopy.voiceNoteUrl.length > 150000) {
+          artCopy.voiceNoteUrl = artCopy.voiceNoteUrl.substring(0, 50) + '...[truncated_for_cloud]';
+        }
+        cleanArticlesForFirestore.push(artCopy);
+      }
+
+      const docId = supplier.id || ('SUP-' + Date.now());
+      const payload = {
+        id: docId,
+        companyName: supplier.companyName || '',
+        companyNameChinese: supplier.companyNameChinese || '',
+        stand: supplier.stand || 'Stand s/d',
+        category: supplier.category || 'General',
+        contactName: supplier.contactName || 'Contacto',
+        weChat: supplier.weChat || '',
+        phone: supplier.phone || '+86',
+        email: supplier.email || '',
+        notes: supplier.notes || '',
+        photos: compressedSupPhotos,
+        articles: cleanArticlesForFirestore,
+        createdAt: supplier.createdAt || new Date().toISOString()
+      };
+
+      await fbDb.collection('suppliers').doc(docId).set(payload, { merge: true });
       supplier.syncState = 'synced';
-      supplier.firestoreId = docRef.id;
-      console.log(`🟢 Proveedor ${supplier.companyName} sincronizado en Firestore:`, docRef.id);
+      supplier.firestoreId = docId;
+      supplier.id = docId;
+      console.log(`🟢 Proveedor ${supplier.companyName} sincronizado en Firestore:`, docId);
     } catch (err) {
       console.error(`❌ Error al auto-sincronizar ${supplier.companyName}:`, err);
     }
@@ -245,6 +288,32 @@ async function syncPendingSuppliersToFirebase() {
 
   saveLocalSuppliers();
   renderTarjetero();
+}
+
+async function forceCloudSync() {
+  alert('🔄 Sincronizando proveedores con la nube Firebase...');
+  await syncPendingSuppliersToFirebase();
+  if (fbDb) {
+    try {
+      const snapshot = await fbDb.collection('suppliers').get();
+      snapshot.forEach(doc => {
+        const data = doc.data();
+        const idx = localSuppliers.findIndex(ls => ls.id === data.id || (ls.companyName && ls.companyName.toLowerCase().trim() === data.companyName.toLowerCase().trim()));
+        if (idx >= 0) {
+          localSuppliers[idx] = { ...localSuppliers[idx], ...data };
+        } else {
+          localSuppliers.unshift({ ...data, firestoreId: doc.id });
+        }
+      });
+      saveLocalSuppliers();
+      renderTarjetero();
+      alert(`✅ Sincronización finalizada. Total proveedores en Tarjetero: ${localSuppliers.length}`);
+    } catch (err) {
+      alert('❌ Error al consultar Firestore: ' + err.message);
+    }
+  } else {
+    alert(`✅ Proveedores locales guardados: ${localSuppliers.length}`);
+  }
 }
 
 // Initialize PWA Service Worker
@@ -2702,4 +2771,6 @@ if (typeof window !== 'undefined') {
   window.handleFirebaseRegister = handleFirebaseRegister;
   window.handleFirebaseLogout = handleFirebaseLogout;
   window.handleOfflineBypassLogin = handleOfflineBypassLogin;
+  window.forceCloudSync = forceCloudSync;
+  window.syncPendingSuppliersToFirebase = syncPendingSuppliersToFirebase;
 }
