@@ -418,7 +418,7 @@ async function syncPendingSuppliersToFirebase(forceAll = false) {
           }
         }
         artCopy.photos = compArtPhotos;
-        if (artCopy.voiceNoteUrl && artCopy.voiceNoteUrl.length > 100000) {
+        if (artCopy.voiceNoteUrl && artCopy.voiceNoteUrl.length > 900000) {
           artCopy.voiceNoteUrl = artCopy.voiceNoteUrl.substring(0, 50) + '...[truncated_for_cloud]';
         }
         cleanArticlesForFirestore.push(artCopy);
@@ -2231,10 +2231,13 @@ function getBestSupportedAudioMimeType() {
 function renderAudioPlayerHtml(audioUrl) {
   if (!audioUrl) return '';
   
-  let mimeType = 'audio/mp4';
-  if (audioUrl.includes('data:audio/webm')) mimeType = 'audio/webm';
-  else if (audioUrl.includes('data:audio/mp4') || audioUrl.includes('data:audio/aac')) mimeType = 'audio/mp4';
-  else if (audioUrl.includes('data:audio/wav')) mimeType = 'audio/wav';
+  if (audioUrl.includes('[truncated_for_cloud]')) {
+    return `
+      <div style="margin-top: 6px; background: #FFF3E0; padding: 6px 8px; border-radius: 6px; border: 1px solid #FFE0B2; font-size: 10px; color: #E65100;">
+        🎙️ <strong>Nota de voz muy extensa:</strong> Disponible únicamente en el celular origen donde fue grabada.
+      </div>
+    `;
+  }
 
   const uniqueId = 'audio_' + Math.random().toString(36).substr(2, 9);
 
@@ -2242,12 +2245,9 @@ function renderAudioPlayerHtml(audioUrl) {
     <div style="margin-top: 6px; background: #FFF8E1; padding: 6px 8px; border-radius: 6px; border: 1px solid #FFE082;">
       <div style="display: flex; align-items: center; justify-content: space-between;">
         <span style="font-size: 10px; font-weight: bold; color: #E65100;">🎙️ Nota de Voz Grabada</span>
-        <button onclick="playAudioDirectly('${uniqueId}')" class="btn-chip" style="font-size: 10px; background: #FF9800; color: white; border: none; padding: 2px 8px;">▶️ Reproducir</button>
+        <button onclick="playAudioDirectly('${uniqueId}')" class="btn-chip" style="font-size: 10px; background: #FF9800; color: white; border: none; padding: 2px 8px; cursor: pointer;">▶️ Reproducir</button>
       </div>
-      <audio id="${uniqueId}" controls preload="metadata" style="width: 100%; height: 32px; margin-top: 4px;">
-        <source src="${audioUrl}" type="${mimeType}">
-        <source src="${audioUrl}">
-      </audio>
+      <audio id="${uniqueId}" controls preload="auto" src="${audioUrl}" style="width: 100%; height: 32px; margin-top: 4px;"></audio>
     </div>
   `;
 }
