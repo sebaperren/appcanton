@@ -248,8 +248,38 @@ async function compressBase64ForCloud(base64Str, maxWidth = 500, quality = 0.5) 
   });
 }
 
+async function ensureFirebaseAuth() {
+  if (!fbAuth) return false;
+  if (fbAuth.currentUser) return true;
+
+  const savedEmail = localStorage.getItem('canton_saved_email');
+  const savedPassword = localStorage.getItem('canton_saved_password');
+
+  if (savedEmail && savedPassword) {
+    try {
+      await fbAuth.signInWithEmailAndPassword(savedEmail, savedPassword);
+      console.log('🟢 Auto-autenticado en Firebase Auth con credenciales guardadas:', savedEmail);
+      return true;
+    } catch (err) {
+      console.log('Aviso auto-login Firebase Auth con credenciales:', err.message);
+    }
+  }
+
+  try {
+    await fbAuth.signInAnonymously();
+    console.log('🟢 Auto-autenticado de forma anónima en Firebase Auth');
+    return true;
+  } catch (err) {
+    console.log('Aviso auto-login anónimo Firebase Auth:', err.message);
+  }
+
+  return false;
+}
+
 async function syncPendingSuppliersToFirebase() {
   if (!fbDb || !navigator.onLine) return;
+
+  await ensureFirebaseAuth();
 
   const pending = localSuppliers.filter(s => s.syncState === 'pending' || !s.firestoreId);
   if (pending.length === 0) return;
@@ -324,7 +354,9 @@ async function forceCloudSync() {
   }
 
   try {
+    await ensureFirebaseAuth();
     await syncPendingSuppliersToFirebase();
+
     if (fbDb) {
       const snapshot = await fbDb.collection('suppliers').get();
       const firestoreSuppliers = [];
@@ -353,7 +385,8 @@ async function forceCloudSync() {
       alert(`✅ Guardado local listo. Total proveedores en Productos: ${localSuppliers.length}`);
     }
   } catch (err) {
-    alert('❌ Error al sincronizar con la nube: ' + err.message);
+    console.error("Error en forceCloudSync:", err);
+    alert('❌ Error al sincronizar con la nube: ' + (err.message || 'Permisos insuficientes en Firebase'));
   } finally {
     if (btn) {
       btn.textContent = '🔄 Sincronizar Nube';
@@ -383,8 +416,9 @@ document.addEventListener('DOMContentLoaded', () => {
   }, 100);
 });
 
-function initFirestoreSuppliersListener() {
+async function initFirestoreSuppliersListener() {
   if (!fbDb) return;
+  await ensureFirebaseAuth();
   fbDb.collection('suppliers').onSnapshot(snapshot => {
     const firestoreSuppliers = [];
     snapshot.forEach(doc => {
@@ -2873,4 +2907,5 @@ if (typeof window !== 'undefined') {
   window.syncPendingSuppliersToFirebase = syncPendingSuppliersToFirebase;
   window.loadStateSettings = loadStateSettings;
   window.saveStateSettings = saveStateSettings;
+  window.ensureFirebaseAuth = ensureFirebaseAuth;
 }
