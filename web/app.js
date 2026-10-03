@@ -2290,19 +2290,16 @@ function startVoiceRecording() {
       try {
         voiceMediaRecorder = new MediaRecorder(stream, recorderOptions);
       } catch (e) {
-        voiceMediaRecorder = new MediaRecorder(stream);
+        try {
+          voiceMediaRecorder = new MediaRecorder(stream);
+        } catch (e2) {
+          console.error('Error al instanciar MediaRecorder:', e2);
+          alert('No se pudo inicializar la grabación en este navegador: ' + e2.message);
+          return;
+        }
       }
-      voiceMediaRecorder.start(200);
-      
-      voiceRecordSeconds = 0;
-      updateVoiceRecordingUI('recording', 0);
 
-      clearInterval(voiceRecordTimerInterval);
-      voiceRecordTimerInterval = setInterval(() => {
-        voiceRecordSeconds++;
-        updateVoiceRecordingUI('recording', voiceRecordSeconds);
-      }, 1000);
-
+      // IMPORTANTE para iOS Safari: Adjuntar eventos antes de iniciar la grabación
       voiceMediaRecorder.ondataavailable = e => {
         if (e.data && e.data.size > 0) {
           voiceAudioChunks.push(e.data);
@@ -2320,11 +2317,36 @@ function startVoiceRecording() {
         };
         reader.readAsDataURL(audioBlob);
 
-        stream.getTracks().forEach(track => track.stop());
+        try {
+          stream.getTracks().forEach(track => track.stop());
+        } catch (tErr) {}
       };
+
+      // IMPORTANTE para iOS Safari: Iniciar grabación sin timeslice
+      try {
+        voiceMediaRecorder.start();
+      } catch (startErr) {
+        console.warn('Fallo start() sin timeslice, intentando start(1000):', startErr);
+        try {
+          voiceMediaRecorder.start(1000);
+        } catch (sErr2) {
+          alert('Error al iniciar la grabación: ' + sErr2.message);
+          return;
+        }
+      }
+      
+      voiceRecordSeconds = 0;
+      updateVoiceRecordingUI('recording', 0);
+
+      clearInterval(voiceRecordTimerInterval);
+      voiceRecordTimerInterval = setInterval(() => {
+        voiceRecordSeconds++;
+        updateVoiceRecordingUI('recording', voiceRecordSeconds);
+      }, 1000);
     })
     .catch(err => {
-      alert('Permiso de micrófono o error de grabación: ' + err.message);
+      console.error('Error en getUserMedia:', err);
+      alert('Permiso de micrófono denegado o no soportado: ' + (err.name || err.message));
       updateVoiceRecordingUI('reset');
     });
 }
