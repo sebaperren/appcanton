@@ -1901,10 +1901,9 @@ function startVoiceRecording() {
         const reader = new FileReader();
         reader.onloadend = () => {
           voiceAudioBase64 = reader.result;
-          const audioPreview = document.getElementById('audioPreview');
           const container = document.getElementById('audioPreviewContainer');
-          if (audioPreview && container) {
-            audioPreview.src = voiceAudioBase64;
+          if (container) {
+            container.innerHTML = renderAudioPlayerHtml(voiceAudioBase64);
             container.style.display = 'block';
           }
         };
@@ -1914,13 +1913,13 @@ function startVoiceRecording() {
       };
     })
     .catch(err => {
-      alert('Permiso de micrófono denegado: ' + err.message);
+      alert('Permiso de micrófono o error de grabación: ' + err.message);
     });
 }
 
 function saveInlineArticle() {
-  const name = document.getElementById('inlineArtName')?.value || document.getElementById('mArtName')?.value;
-  let code = document.getElementById('inlineArtCode')?.value || document.getElementById('mArtCode')?.value;
+  const name = document.getElementById('inlineArtName')?.value.trim() || document.getElementById('mArtName')?.value.trim();
+  let code = document.getElementById('inlineArtCode')?.value.trim() || document.getElementById('mArtCode')?.value.trim();
   if (!code) code = 'CF26-ART-' + Math.floor(100 + Math.random() * 900);
   const fob = parseFloat(document.getElementById('inlineArtFob')?.value || document.getElementById('mArtFob')?.value) || 0.0;
   const moq = parseInt(document.getElementById('inlineArtMoq')?.value || document.getElementById('mArtMoq')?.value) || 0;
@@ -1929,7 +1928,7 @@ function saveInlineArticle() {
   const note = document.getElementById('inlineArtNote')?.value || document.getElementById('mArtNote')?.value || '';
 
   if (!name) {
-    alert('Por favor ingresa el nombre del producto');
+    alert('Por favor ingresa la descripción o nombre del artículo');
     return;
   }
 
@@ -1952,7 +1951,7 @@ function saveInlineArticle() {
   savedArticles.unshift({
     code: newArticle.code,
     name: newArticle.name,
-    supplier: document.getElementById('pCompany').value || 'Proveedor Feria',
+    supplier: document.getElementById('pCompany')?.value || 'Proveedor Feria',
     fob: newArticle.fob,
     moq: newArticle.moq,
     port: newArticle.port,
@@ -1971,23 +1970,28 @@ function saveInlineArticle() {
   renderArticlePhotosPreview();
   voiceAudioBase64 = null;
   voiceAudioChunks = [];
-  if (document.getElementById('audioPreviewContainer')) document.getElementById('audioPreviewContainer').style.display = 'none';
+  const container = document.getElementById('audioPreviewContainer');
+  if (container) {
+    container.innerHTML = '';
+    container.style.display = 'none';
+  }
 
   renderSupplierArticlesList();
   renderTab2List();
+  alert(`✅ Artículo "${newArticle.name}" agregado correctamente a este proveedor (${currentSupplierArticles.length} en lista).`);
 }
 
 function saveArticleFromModal() {
-  const code = document.getElementById('mArtCode').value || ('CF26-ART-' + Math.floor(100 + Math.random() * 900));
-  const name = document.getElementById('mArtName').value;
-  const fob = parseFloat(document.getElementById('mArtFob').value) || 0.0;
-  const moq = parseInt(document.getElementById('mArtMoq').value) || 0;
-  const port = document.getElementById('mArtPort').value || 'Foshan, China';
-  const leadTime = document.getElementById('mArtLeadTime').value || '30 días';
-  const note = document.getElementById('mArtNote').value || '';
+  const code = document.getElementById('mArtCode')?.value.trim() || ('CF26-ART-' + Math.floor(100 + Math.random() * 900));
+  const name = document.getElementById('mArtName')?.value.trim();
+  const fob = parseFloat(document.getElementById('mArtFob')?.value) || 0.0;
+  const moq = parseInt(document.getElementById('mArtMoq')?.value) || 0;
+  const port = document.getElementById('mArtPort')?.value || 'Foshan, China';
+  const leadTime = document.getElementById('mArtLeadTime')?.value || '30 días';
+  const note = document.getElementById('mArtNote')?.value || '';
 
   if (!name) {
-    alert('Por favor ingresa el nombre del producto');
+    alert('Por favor ingresa la descripción o nombre del artículo');
     return;
   }
 
@@ -2010,7 +2014,7 @@ function saveArticleFromModal() {
   savedArticles.unshift({
     code: newArticle.code,
     name: newArticle.name,
-    supplier: document.getElementById('pCompany').value || 'Proveedor Feria',
+    supplier: document.getElementById('pCompany')?.value || 'Proveedor Feria',
     fob: newArticle.fob,
     moq: newArticle.moq,
     port: newArticle.port,
@@ -2018,9 +2022,20 @@ function saveArticleFromModal() {
   });
   saveSavedArticles();
 
+  currentArticlePhotos = [];
+  renderArticlePhotosPreview();
+  voiceAudioBase64 = null;
+  voiceAudioChunks = [];
+  const container = document.getElementById('audioPreviewContainer');
+  if (container) {
+    container.innerHTML = '';
+    container.style.display = 'none';
+  }
+
   renderSupplierArticlesList();
   renderTab2List();
   closeAddArticleModal();
+  alert(`✅ Artículo "${newArticle.name}" agregado correctamente al proveedor (${currentSupplierArticles.length} en lista).`);
 }
 
 function removeSupplierArticle(index) {
@@ -2591,6 +2606,16 @@ if (typeof window !== 'undefined') {
   window.handleEditSupplierPhotoUpload = handleEditSupplierPhotoUpload;
   window.removeEditSupplierPhoto = removeEditSupplierPhoto;
   window.assignOcrField = assignOcrField;
+  window.saveArticleFromModal = saveArticleFromModal;
+  window.openSettingsModal = openSettingsModal;
+  window.closeSettingsModal = closeSettingsModal;
+  window.toggleInc = toggleInc;
+  window.filterCategory = filterCategory;
+  window.toggleWeightProrating = toggleWeightProrating;
+  window.processOcrImage = processOcrImage;
+  window.openOcrCamera = openOcrCamera;
+  window.closeOcrCamera = closeOcrCamera;
+  window.renderPerrenSearchResults = renderPerrenSearchResults;
   window.handleFirebaseAuthLogin = handleFirebaseAuthLogin;
   window.handleFirebaseRegister = handleFirebaseRegister;
   window.handleFirebaseLogout = handleFirebaseLogout;
