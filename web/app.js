@@ -27,6 +27,30 @@ let currentTab = 1;
 let currencyMode = 'USD'; // Default to 'USD'
 let weightModeEnabled = false;
 
+// UNIQUE DEVICE & ID GENERATION TO PREVENT OVERWRITING ACROSS MULTIPLE CELL PHONES
+function getDeviceId() {
+  let devId = localStorage.getItem('canton_device_id');
+  if (!devId) {
+    devId = 'DEV' + Math.floor(100 + Math.random() * 900) + Math.random().toString(36).substring(2, 6).toUpperCase();
+    localStorage.setItem('canton_device_id', devId);
+  }
+  return devId;
+}
+
+function generateUniqueId(prefix = 'ID') {
+  const devId = getDeviceId();
+  const timestamp = Date.now().toString(36).toUpperCase();
+  const randomSuffix = Math.random().toString(36).substring(2, 7).toUpperCase();
+  return `${prefix}-${devId}-${timestamp}-${randomSuffix}`;
+}
+
+function generateUniqueArticleCode() {
+  const devId = getDeviceId();
+  const timestamp = Date.now().toString(36).substring(3, 7).toUpperCase();
+  const randomSuffix = Math.random().toString(36).substring(2, 5).toUpperCase();
+  return `CF26-${devId.substring(0, 5)}-${timestamp}${randomSuffix}`;
+}
+
 // Settings Parameters
 let stateSettings = {
   tc: 1350.0,
@@ -315,7 +339,10 @@ async function syncPendingSuppliersToFirebase() {
         cleanArticlesForFirestore.push(artCopy);
       }
 
-      const docId = supplier.id || ('SUP-' + Date.now());
+      if (!supplier.id || supplier.id.startsWith('SUP-16') || supplier.id.startsWith('SUP-17')) {
+        supplier.id = generateUniqueId('SUP');
+      }
+      const docId = supplier.id;
       const payload = {
         id: docId,
         companyName: supplier.companyName || '',
@@ -368,8 +395,7 @@ async function forceCloudSync() {
         firestoreSuppliers.forEach(fsSup => {
           const idx = localSuppliers.findIndex(ls => 
             (ls.id && String(ls.id) === String(fsSup.id)) || 
-            (ls.firestoreId && String(ls.firestoreId) === String(fsSup.firestoreId)) || 
-            (ls.companyName && ls.companyName.toLowerCase().trim() === (fsSup.companyName || '').toLowerCase().trim())
+            (ls.firestoreId && String(ls.firestoreId) === String(fsSup.firestoreId))
           );
           if (idx >= 0) {
             localSuppliers[idx] = { ...localSuppliers[idx], ...fsSup };
@@ -427,7 +453,10 @@ async function initFirestoreSuppliersListener() {
     });
     if (firestoreSuppliers.length > 0) {
       firestoreSuppliers.forEach(fsSup => {
-        const idx = localSuppliers.findIndex(ls => ls.id === fsSup.id || (ls.companyName && ls.companyName.toLowerCase().trim() === fsSup.companyName.toLowerCase().trim()));
+        const idx = localSuppliers.findIndex(ls => 
+          (ls.id && String(ls.id) === String(fsSup.id)) || 
+          (ls.firestoreId && String(ls.firestoreId) === String(fsSup.firestoreId))
+        );
         if (idx >= 0) {
           const locSup = localSuppliers[idx];
           if (locSup && locSup.articles && fsSup.articles) {
@@ -1359,7 +1388,7 @@ function openEditSupplierModal(supId, fallbackIndex) {
     }
     currentEditingSupplier = JSON.parse(JSON.stringify(sup));
     if (!currentEditingSupplier.id) {
-      currentEditingSupplier.id = sup.id || sup.firestoreId || ('SUP-' + Date.now());
+      currentEditingSupplier.id = sup.id || sup.firestoreId || generateUniqueId('SUP');
     }
     if (!currentEditingSupplier.photos) currentEditingSupplier.photos = [];
     if (!currentEditingSupplier.articles) currentEditingSupplier.articles = [];
@@ -1546,7 +1575,7 @@ function addArticleToEditSupplier() {
   currentEditingSupplier.articles.push({
     name: 'Nuevo Artículo',
     description: 'Nuevo Artículo',
-    code: 'CF26-ART-' + Math.floor(100 + Math.random() * 900),
+    code: generateUniqueArticleCode(),
     fob: 0,
     moq: 100,
     port: 'Foshan, China',
@@ -1944,7 +1973,7 @@ function applySupplierCardOcrText() {
 
 // MODAL DE ALTA DE ARTÍCULOS PARA PROVEEDOR
 function openAddArticleModal() {
-  document.getElementById('mArtCode').value = 'CF26-ART-' + Math.floor(100 + Math.random() * 900);
+  document.getElementById('mArtCode').value = generateUniqueArticleCode();
   document.getElementById('mArtName').value = '';
   document.getElementById('mArtFob').value = '';
   document.getElementById('mArtMoq').value = '';
@@ -2170,7 +2199,7 @@ function saveInlineArticle() {
   const nameInp = document.getElementById('inlineArtName') || document.getElementById('pArtName') || document.getElementById('mArtName');
   const name = nameInp?.value.trim();
   let code = document.getElementById('inlineArtCode')?.value.trim() || document.getElementById('pArtCode')?.value.trim() || document.getElementById('mArtCode')?.value.trim();
-  if (!code) code = 'CF26-ART-' + Math.floor(100 + Math.random() * 900);
+  if (!code) code = generateUniqueArticleCode();
   const fob = parseFloat(document.getElementById('inlineArtFob')?.value || document.getElementById('pArtFob')?.value || document.getElementById('mArtFob')?.value) || 0.0;
   const moq = parseInt(document.getElementById('inlineArtMoq')?.value || document.getElementById('pArtMoq')?.value || document.getElementById('mArtMoq')?.value) || 0;
   const port = document.getElementById('inlineArtPort')?.value || document.getElementById('pArtPort')?.value || document.getElementById('mArtPort')?.value || 'Foshan, China';
@@ -2183,7 +2212,7 @@ function saveInlineArticle() {
   }
 
   const newArticle = {
-    id: 'ART-' + Date.now(),
+    id: generateUniqueId('ART'),
     code: code,
     name: name,
     description: name,
@@ -2216,7 +2245,7 @@ function saveInlineArticle() {
     if (el) el.value = '';
   });
   const codeEl = document.getElementById('inlineArtCode') || document.getElementById('pArtCode');
-  if (codeEl) codeEl.value = 'CF26-ART-' + Math.floor(100 + Math.random() * 900);
+  if (codeEl) codeEl.value = generateUniqueArticleCode();
   
   currentArticlePhotos = [];
   renderArticlePhotosPreview();
@@ -2239,7 +2268,7 @@ function saveInlineArticle() {
 }
 
 function saveArticleFromModal() {
-  const code = document.getElementById('mArtCode')?.value.trim() || ('CF26-ART-' + Math.floor(100 + Math.random() * 900));
+  const code = document.getElementById('mArtCode')?.value.trim() || generateUniqueArticleCode();
   const name = document.getElementById('mArtName')?.value.trim();
   const fob = parseFloat(document.getElementById('mArtFob')?.value) || 0.0;
   const moq = parseInt(document.getElementById('mArtMoq')?.value) || 0;
@@ -2253,7 +2282,7 @@ function saveArticleFromModal() {
   }
 
   const newArticle = {
-    id: 'ART-' + Date.now(),
+    id: generateUniqueId('ART'),
     code: code,
     name: name,
     description: name,
@@ -2285,7 +2314,7 @@ function saveArticleFromModal() {
   if (document.getElementById('mArtFob')) document.getElementById('mArtFob').value = '';
   if (document.getElementById('mArtMoq')) document.getElementById('mArtMoq').value = '';
   if (document.getElementById('mArtNote')) document.getElementById('mArtNote').value = '';
-  if (document.getElementById('mArtCode')) document.getElementById('mArtCode').value = 'CF26-ART-' + Math.floor(100 + Math.random() * 900);
+  if (document.getElementById('mArtCode')) document.getElementById('mArtCode').value = generateUniqueArticleCode();
 
   currentArticlePhotos = [];
   renderArticlePhotosPreview();
@@ -2368,7 +2397,7 @@ async function saveSupplierFromForm() {
   }
 
   const supplierData = {
-    id: 'SUP-' + Date.now(),
+    id: generateUniqueId('SUP'),
     companyName: name,
     companyNameChinese: companyChinese || '',
     stand: stand || 'Stand s/d',
@@ -2525,7 +2554,7 @@ function selectQuickCantonArticle() {
   }
 
   selectedCantonItem = {
-    code: 'ART-QUICK-' + Date.now(),
+    code: generateUniqueArticleCode(),
     name: name,
     supplier: 'Cotización Directa',
     fob: fob,
