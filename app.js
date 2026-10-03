@@ -218,21 +218,36 @@ function loadSavedArticles() {
   }
 }
 
-function deleteSupplier(supplierId) {
+function deleteSupplier(supplierIdOrIdx) {
   if (!confirm('¿Estás seguro de eliminar este proveedor?')) return;
   
-  const supToDelete = localSuppliers.find(s => s.id === supplierId || s.firestoreId === supplierId);
-  localSuppliers = localSuppliers.filter(s => s.id !== supplierId && s.firestoreId !== supplierId);
+  let supToDelete = null;
+  if (typeof supplierIdOrIdx === 'number' && localSuppliers[supplierIdOrIdx]) {
+    supToDelete = localSuppliers[supplierIdOrIdx];
+  } else {
+    const idStr = String(supplierIdOrIdx);
+    supToDelete = localSuppliers.find(s => (s.id && String(s.id) === idStr) || (s.firestoreId && String(s.firestoreId) === idStr));
+  }
+
+  if (supToDelete) {
+    const idToMatch = supToDelete.id || supToDelete.firestoreId;
+    localSuppliers = localSuppliers.filter(s => s !== supToDelete && (s.id ? s.id !== idToMatch : true) && (s.firestoreId ? s.firestoreId !== idToMatch : true));
+  } else if (typeof supplierIdOrIdx === 'number') {
+    localSuppliers.splice(supplierIdOrIdx, 1);
+  }
+  
   saveLocalSuppliers();
   
   if (fbDb && supToDelete && supToDelete.firestoreId) {
     fbDb.collection('suppliers').doc(supToDelete.firestoreId).delete().catch(err => console.log('Firestore delete notice:', err));
   }
 
-  if (db && db.objectStoreNames.contains('suppliers_store')) {
+  if (db && db.objectStoreNames && db.objectStoreNames.contains && db.objectStoreNames.contains('suppliers_store')) {
     try {
       const tx = db.transaction('suppliers_store', 'readwrite');
-      tx.objectStore('suppliers_store').delete(supplierId);
+      if (supToDelete && supToDelete.id) {
+        tx.objectStore('suppliers_store').delete(supToDelete.id);
+      }
     } catch (_) {}
   }
   
@@ -1438,8 +1453,8 @@ function renderTarjetero() {
               💬 WhatsApp
             </a>
             <div style="display: flex; gap: 4px;">
-              <button onclick="event.stopPropagation(); openEditSupplierModal('${String(targetId).replace(/'/g, "\\'")}', ${idx});" class="btn-chip" style="color: var(--secondary-color); border-color: var(--secondary-color); font-size: 10px; padding: 2px 6px; cursor: pointer;">✏️ Editar</button>
-              <button onclick="event.stopPropagation(); deleteSupplier('${String(targetId).replace(/'/g, "\\'")}');" class="btn-chip" style="color: #D32F2F; border-color: #D32F2F; font-size: 10px; padding: 2px 6px; cursor: pointer;">🗑️</button>
+              <button onclick="event.stopPropagation(); openEditSupplierModal(${idx});" class="btn-chip" style="color: var(--secondary-color); border-color: var(--secondary-color); font-size: 10px; padding: 2px 6px; cursor: pointer;">✏️ Editar</button>
+              <button onclick="event.stopPropagation(); deleteSupplier(${idx});" class="btn-chip" style="color: #D32F2F; border-color: #D32F2F; font-size: 10px; padding: 2px 6px; cursor: pointer;">🗑️</button>
             </div>
           </div>
         </div>
@@ -1469,7 +1484,7 @@ function renderTarjetero() {
                   🏢 Fotos del Stand / Tarjeta / Fachada (${supPhotos.length}):
                 </div>
                 <div style="display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px;">
-                  ${supPhotos.map(p => `<img src="${p}" onclick="window.open('${p}', '_blank')" style="width: 80px; height: 80px; object-fit: cover; border-radius: 6px; border: 1px solid #CCC; cursor: pointer;">`).join('')}
+                  ${supPhotos.map(p => `<img src="${p}" onclick="openImageLightbox(this.src)" style="width: 80px; height: 80px; object-fit: cover; border-radius: 6px; border: 1px solid #CCC; cursor: pointer;">`).join('')}
                 </div>
               </div>
             ` : ''}
@@ -1492,7 +1507,7 @@ function renderTarjetero() {
                     
                     ${art.photos && art.photos.length > 0 ? `
                       <div style="display: flex; gap: 4px; overflow-x: auto; margin-top: 6px;">
-                        ${art.photos.map(p => `<img src="${p}" onclick="window.open('${p}', '_blank')" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; border: 1px solid #DDD; cursor: pointer;">`).join('')}
+                        ${art.photos.map(p => `<img src="${p}" onclick="openImageLightbox(this.src)" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; border: 1px solid #DDD; cursor: pointer;">`).join('')}
                       </div>
                     ` : ''}
 
@@ -1509,10 +1524,41 @@ function renderTarjetero() {
   container.innerHTML = pendingBanner + cardsHtml;
 }
 
+function openImageLightbox(imgSrc) {
+  if (!imgSrc) return;
+  let modal = document.getElementById('imageLightboxModal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'imageLightboxModal';
+    modal.className = 'modal';
+    modal.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.85); z-index: 9999999; display: flex; align-items: center; justify-content: center; padding: 16px;';
+    modal.onclick = (e) => {
+      if (e.target === modal || e.target.tagName === 'BUTTON' || e.target.id === 'closeLightboxBtn') {
+        modal.style.display = 'none';
+      }
+    };
+    document.body.appendChild(modal);
+  }
+  
+  modal.innerHTML = `
+    <div style="position: relative; max-width: 95vw; max-height: 90vh; display: flex; flex-direction: column; align-items: center;">
+      <button id="closeLightboxBtn" onclick="document.getElementById('imageLightboxModal').style.display='none'" style="position: absolute; top: -12px; right: -12px; background: #D32F2F; color: white; border: 2px solid white; border-radius: 50%; width: 32px; height: 32px; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; z-index: 10000000; box-shadow: 0 2px 8px rgba(0,0,0,0.5);">✖</button>
+      <img src="${imgSrc}" style="max-width: 95vw; max-height: 85vh; object-fit: contain; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.6); background: #111;">
+    </div>
+  `;
+  modal.style.display = 'flex';
+}
+
 // FUNCIONES PARA EDITAR PROVEEDOR Y SUS ARTÍCULOS
-function openEditSupplierModal(supId, fallbackIndex) {
+function openEditSupplierModal(indexOrId, fallbackIndex) {
   try {
-    let sup = localSuppliers.find(s => (s.id && String(s.id) === String(supId)) || (s.firestoreId && String(s.firestoreId) === String(supId)));
+    let sup = null;
+    if (typeof indexOrId === 'number' && localSuppliers[indexOrId]) {
+      sup = localSuppliers[indexOrId];
+    } else if (indexOrId !== undefined && indexOrId !== null) {
+      const idStr = String(indexOrId);
+      sup = localSuppliers.find(s => (s.id && String(s.id) === idStr) || (s.firestoreId && String(s.firestoreId) === idStr));
+    }
     if (!sup && typeof fallbackIndex === 'number' && localSuppliers[fallbackIndex]) {
       sup = localSuppliers[fallbackIndex];
     }
@@ -3126,4 +3172,5 @@ if (typeof window !== 'undefined') {
   window.loadStateSettings = loadStateSettings;
   window.saveStateSettings = saveStateSettings;
   window.ensureFirebaseAuth = ensureFirebaseAuth;
+  window.openImageLightbox = openImageLightbox;
 }
