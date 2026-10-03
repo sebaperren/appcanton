@@ -2346,7 +2346,11 @@ function startVoiceRecording() {
     })
     .catch(err => {
       console.error('Error en getUserMedia:', err);
-      alert('Permiso de micrófono denegado o no soportado: ' + (err.name || err.message));
+      if (err.name === 'NotAllowedError' || (err.message && err.message.toLowerCase().includes('not allowed'))) {
+        alert('⚠️ El micrófono está bloqueado en tu navegador o en el iPhone.\n\nPara habilitarlo:\n1. Toca los tres puntos (...) o el candado/ajustes en la barra superior de sebaperren.github.io\n2. Entra en "Configuración del sitio" o "Permisos"\n3. Cambia "Micrófono" a "Permitir"\n\nO ve a Ajustes de iOS -> Privacidad -> Micrófono.');
+      } else {
+        alert('Permiso de micrófono denegado o no soportado: ' + (err.name || err.message));
+      }
       updateVoiceRecordingUI('reset');
     });
 }
