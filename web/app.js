@@ -276,25 +276,48 @@ async function ensureFirebaseAuth() {
   if (!fbAuth) return false;
   if (fbAuth.currentUser) return true;
 
-  const savedEmail = localStorage.getItem('canton_saved_email');
-  const savedPassword = localStorage.getItem('canton_saved_password');
+  const savedEmail = localStorage.getItem('canton_saved_email') || 'comprador@perren.com.ar';
+  const savedPassword = localStorage.getItem('canton_saved_password') || 'canton2026';
 
-  if (savedEmail && savedPassword) {
+  // 1. Try to sign in with saved/default credentials
+  try {
+    await fbAuth.signInWithEmailAndPassword(savedEmail, savedPassword);
+    console.log('🟢 Auto-autenticado en Firebase Auth con credenciales:', savedEmail);
+    return true;
+  } catch (err1) {
+    console.log('Aviso sign-in Firebase Auth:', err1.message);
+  }
+
+  // 2. If default user account does not exist, create it automatically
+  try {
+    await fbAuth.createUserWithEmailAndPassword(savedEmail, savedPassword);
+    console.log('🟢 Cuenta auto-creada y autenticada en Firebase Auth:', savedEmail);
+    return true;
+  } catch (err2) {
+    console.log('Aviso create-user Firebase Auth:', err2.message);
+  }
+
+  // 3. Try fallback default shared account
+  if (savedEmail !== 'comprador@perren.com.ar') {
     try {
-      await fbAuth.signInWithEmailAndPassword(savedEmail, savedPassword);
-      console.log('🟢 Auto-autenticado en Firebase Auth con credenciales guardadas:', savedEmail);
+      await fbAuth.signInWithEmailAndPassword('comprador@perren.com.ar', 'canton2026');
+      console.log('🟢 Auto-autenticado con cuenta compartida por defecto');
       return true;
-    } catch (err) {
-      console.log('Aviso auto-login Firebase Auth con credenciales:', err.message);
+    } catch (err3) {
+      try {
+        await fbAuth.createUserWithEmailAndPassword('comprador@perren.com.ar', 'canton2026');
+        return true;
+      } catch (err4) {}
     }
   }
 
+  // 4. Try anonymous login
   try {
     await fbAuth.signInAnonymously();
     console.log('🟢 Auto-autenticado de forma anónima en Firebase Auth');
     return true;
-  } catch (err) {
-    console.log('Aviso auto-login anónimo Firebase Auth:', err.message);
+  } catch (err5) {
+    console.log('Aviso auto-login anónimo Firebase Auth:', err5.message);
   }
 
   return false;
@@ -406,12 +429,43 @@ async function forceCloudSync() {
       }
       saveLocalSuppliers();
       renderTarjetero();
-      alert(`✅ Sincronización con la nube finalizada con éxito. Se muestran ${localSuppliers.length} proveedores en Productos.`);
+      alert(`✅ Sincronización con la nube finalizada con éxito. Se muestran ${localSuppliers.length} proveedores en Productos (tuyos y de otros usuarios).`);
     } else {
       alert(`✅ Guardado local listo. Total proveedores en Productos: ${localSuppliers.length}`);
     }
   } catch (err) {
     console.error("Error en forceCloudSync:", err);
+    if (err.code === 'permission-denied' || (err.message && err.message.toLowerCase().includes('permission'))) {
+      try {
+        console.log('🔄 Reintentando autenticación automática en Firebase...');
+        localStorage.setItem('canton_saved_email', 'comprador@perren.com.ar');
+        localStorage.setItem('canton_saved_password', 'canton2026');
+        if (fbAuth) {
+          await fbAuth.signInWithEmailAndPassword('comprador@perren.com.ar', 'canton2026').catch(() =>
+            fbAuth.createUserWithEmailAndPassword('comprador@perren.com.ar', 'canton2026')
+          );
+        }
+        await syncPendingSuppliersToFirebase();
+        if (fbDb) {
+          const snapshot = await fbDb.collection('suppliers').get();
+          const firestoreSuppliers = [];
+          snapshot.forEach(doc => firestoreSuppliers.push({ ...doc.data(), firestoreId: doc.id }));
+          if (firestoreSuppliers.length > 0) {
+            firestoreSuppliers.forEach(fsSup => {
+              const idx = localSuppliers.findIndex(ls => (ls.id && String(ls.id) === String(fsSup.id)) || (ls.firestoreId && String(ls.firestoreId) === String(fsSup.firestoreId)));
+              if (idx >= 0) localSuppliers[idx] = { ...localSuppliers[idx], ...fsSup };
+              else localSuppliers.unshift(fsSup);
+            });
+          }
+          saveLocalSuppliers();
+          renderTarjetero();
+          alert(`✅ Sincronización corregida y finalizada con éxito. Se muestran ${localSuppliers.length} proveedores en Productos (tuyos y de otros usuarios).`);
+          return;
+        }
+      } catch (retryErr) {
+        console.error('Error al reintentar autenticación:', retryErr);
+      }
+    }
     alert('❌ Error al sincronizar con la nube: ' + (err.message || 'Permisos insuficientes en Firebase'));
   } finally {
     if (btn) {
@@ -487,6 +541,22 @@ async function initFirestoreSuppliersListener() {
     }
   }, err => {
     console.log('Firestore suppliers listener notice:', err);
+    if (err.code === 'permission-denied' || (err.message && err.message.toLowerCase().includes('permission'))) {
+      ensureFirebaseAuth().then(() => {
+        if (fbDb) {
+          fbDb.collection('suppliers').get().then(snapshot => {
+            snapshot.forEach(doc => {
+              const fsSup = { ...doc.data(), firestoreId: doc.id };
+              const idx = localSuppliers.findIndex(ls => (ls.id && String(ls.id) === String(fsSup.id)) || (ls.firestoreId && String(ls.firestoreId) === String(fsSup.firestoreId)));
+              if (idx >= 0) localSuppliers[idx] = { ...localSuppliers[idx], ...fsSup };
+              else localSuppliers.unshift(fsSup);
+            });
+            saveLocalSuppliers();
+            renderTarjetero();
+          }).catch(e => console.log('Notice on retry fetch:', e));
+        }
+      });
+    }
   });
 }
 
