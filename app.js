@@ -2502,6 +2502,58 @@ function speakTranslationResult() {
   }
 }
 
+function startSpeechToTextTranslation() {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) {
+    alert('⚠️ Tu navegador o iPhone no tiene activado el dictado por voz directo. Puedes escribir el texto en el cuadro.');
+    return;
+  }
+
+  const pair = document.getElementById('translatorLangPair')?.value || 'es-en';
+  const srcLang = pair.startsWith('en') ? 'en-US' : (pair.startsWith('zh') ? 'zh-CN' : 'es-ES');
+
+  try {
+    const recognition = new SpeechRecognition();
+    recognition.lang = srcLang;
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    const btn = document.getElementById('btnSpeechTranslate');
+    if (btn) {
+      btn.textContent = '🔴 Escuchando...';
+      btn.style.background = '#D32F2F';
+    }
+
+    recognition.onresult = (event) => {
+      const transcript = event.results[0][0].transcript;
+      const inputEl = document.getElementById('translatorInput');
+      if (inputEl) {
+        inputEl.value = transcript;
+        translateTradeText();
+      }
+    };
+
+    recognition.onerror = (event) => {
+      console.warn('Speech recognition notice:', event.error);
+      if (btn) {
+        btn.textContent = '🎙️ Hablar / Dictar';
+        btn.style.background = '#9C27B0';
+      }
+    };
+
+    recognition.onend = () => {
+      if (btn) {
+        btn.textContent = '🎙️ Hablar / Dictar';
+        btn.style.background = '#9C27B0';
+      }
+    };
+
+    recognition.start();
+  } catch (err) {
+    alert('Error al iniciar dictado por voz: ' + err.message);
+  }
+}
+
 function saveInlineArticle() {
   const nameInp = document.getElementById('inlineArtName') || document.getElementById('pArtName') || document.getElementById('mArtName');
   const name = nameInp?.value.trim();
@@ -3278,4 +3330,5 @@ if (typeof window !== 'undefined') {
   window.translateTradeText = translateTradeText;
   window.copyTranslationResult = copyTranslationResult;
   window.speakTranslationResult = speakTranslationResult;
+  window.startSpeechToTextTranslation = startSpeechToTextTranslation;
 }
