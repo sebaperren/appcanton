@@ -3342,6 +3342,9 @@ function toggleInc(key) {
   saveStateSettings();
   calculateTab1();
   renderTab2List();
+  if (typeof renderComparisonResult === 'function' && selectedPerrenItem) {
+    renderComparisonResult();
+  }
 }
 
 // MODAL CÁMARA OCR
