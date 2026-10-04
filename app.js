@@ -1024,13 +1024,24 @@ function capitalize(str) {
 
 // EVENT LISTENERS & CONTROLS
 function setupEventListeners() {
-  document.getElementById('btnCurrARS').addEventListener('click', () => setCurrency('ARS'));
-  document.getElementById('btnCurrUSD').addEventListener('click', () => setCurrency('USD'));
-  document.getElementById('btnOpenSettings').addEventListener('click', openSettingsModal);
+  document.getElementById('btnCurrARS')?.addEventListener('click', () => setCurrency('ARS'));
+  document.getElementById('btnCurrUSD')?.addEventListener('click', () => setCurrency('USD'));
+  document.getElementById('btnOpenSettings')?.addEventListener('click', openSettingsModal);
 
   ['t1Fob', 't1Qty', 't1Weight'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.addEventListener('input', calculateTab1);
+  });
+
+  document.addEventListener('click', (e) => {
+    const editBtn = e.target.closest('.btn-edit-supplier');
+    if (editBtn) {
+      e.stopPropagation();
+      const idxAttr = editBtn.getAttribute('data-idx');
+      const idAttr = editBtn.getAttribute('data-id');
+      console.log('📌 Delegación click capturó Editar:', idxAttr, idAttr);
+      openEditSupplierModal(idxAttr !== null ? parseInt(idxAttr, 10) : idAttr, idAttr);
+    }
   });
 }
 
@@ -1479,12 +1490,12 @@ function renderTarjetero() {
             </div>
           </div>
 
-          <div style="display: flex; flex-direction: column; gap: 5px; align-items: flex-end;">
+          <div style="display: flex; flex-direction: column; gap: 4px; align-items: flex-end;">
             <a href="${waLink}" target="_blank" class="btn-whatsapp" style="white-space: nowrap; font-size: 10px; padding: 4px 8px;">
               💬 WhatsApp
             </a>
-            <button onclick="event.stopPropagation(); openEditSupplierModal('${targetId}', ${idx});" class="btn-chip" style="color: var(--secondary-color); border-color: var(--secondary-color); font-size: 10px; padding: 3px 8px; cursor: pointer; width: 100%; text-align: center;">✏️ Editar</button>
-            <button onclick="event.stopPropagation(); deleteSupplier('${targetId}', ${idx});" class="btn-chip" style="color: #D32F2F; border-color: #D32F2F; font-size: 10px; padding: 3px 8px; cursor: pointer; width: 100%; text-align: center;">🗑️ Eliminar</button>
+            <button type="button" onclick="event.stopPropagation(); openEditSupplierModal(${idx});" class="btn-chip btn-edit-supplier" data-idx="${idx}" data-id="${targetId}" style="color: var(--secondary-color); border-color: var(--secondary-color); font-size: 10.5px; padding: 4px 8px; cursor: pointer; width: 100%; text-align: center; margin-bottom: 2px; font-weight: bold;">✏️ Editar</button>
+            <button type="button" onclick="event.stopPropagation(); deleteSupplier('${targetId}', ${idx});" class="btn-chip" style="color: #D32F2F; border-color: #D32F2F; font-size: 10px; padding: 3px 8px; cursor: pointer; width: 100%; text-align: center;">🗑️ Eliminar</button>
           </div>
         </div>
 
@@ -1580,12 +1591,22 @@ function openImageLightbox(imgSrc) {
 
 // FUNCIONES PARA EDITAR PROVEEDOR Y SUS ARTÍCULOS
 function openEditSupplierModal(indexOrId, fallbackIndex) {
-  console.log('✏️ Abriendo modal de edición para:', indexOrId, 'fallbackIndex:', fallbackIndex);
+  console.log('✏️ openEditSupplierModal ejecutado con indexOrId:', indexOrId, 'fallbackIndex:', fallbackIndex);
   try {
     let sup = null;
 
-    // A. Búsqueda 1: por ID o firestoreId (cadena de caracteres)
-    if (indexOrId !== undefined && indexOrId !== null) {
+    // 1. Búsqueda por índice numérico directo
+    if (typeof indexOrId === 'number') {
+      sup = localSuppliers[indexOrId];
+    } else if (typeof indexOrId === 'string') {
+      const parsedIdx = parseInt(indexOrId, 10);
+      if (!isNaN(parsedIdx) && parsedIdx >= 0 && parsedIdx < localSuppliers.length && String(parsedIdx) === indexOrId.trim()) {
+        sup = localSuppliers[parsedIdx];
+      }
+    }
+
+    // 2. Búsqueda por ID / firestoreId
+    if (!sup && indexOrId !== undefined && indexOrId !== null) {
       const idStr = String(indexOrId).trim();
       sup = localSuppliers.find(s => 
         (s.id && String(s.id).trim() === idStr) || 
@@ -1593,15 +1614,7 @@ function openEditSupplierModal(indexOrId, fallbackIndex) {
       );
     }
 
-    // B. Búsqueda 2: por índice numérico
-    if (!sup) {
-      const numIdx = typeof indexOrId === 'number' ? indexOrId : parseInt(indexOrId, 10);
-      if (!isNaN(numIdx) && numIdx >= 0 && numIdx < localSuppliers.length) {
-        sup = localSuppliers[numIdx];
-      }
-    }
-
-    // C. Búsqueda 3: por fallbackIndex
+    // 3. Búsqueda por fallbackIndex
     if (!sup && typeof fallbackIndex !== 'undefined' && fallbackIndex !== null) {
       const fbIdx = typeof fallbackIndex === 'number' ? fallbackIndex : parseInt(fallbackIndex, 10);
       if (!isNaN(fbIdx) && fbIdx >= 0 && fbIdx < localSuppliers.length) {
@@ -1609,21 +1622,41 @@ function openEditSupplierModal(indexOrId, fallbackIndex) {
       }
     }
 
+    // 4. Auxilio de emergencia: si aún no lo encuentra y hay proveedores guardados, tomar el primero
+    if (!sup && localSuppliers.length > 0) {
+      sup = localSuppliers[0];
+    }
+
     if (!sup) {
-      console.error('❌ openEditSupplierModal: Proveedor no encontrado para target:', indexOrId);
-      alert('⚠️ No se encontró la información de este proveedor para editar. Intenta recargar la página.');
+      alert('⚠️ No hay proveedores guardados para editar. Carga el primero en "+ Proveedor".');
       return;
     }
 
     currentEditingSupplier = {
-      ...sup,
+      id: sup.id || sup.firestoreId || generateUniqueId('SUP'),
+      companyName: sup.companyName || '',
+      companyNameChinese: sup.companyNameChinese || '',
+      stand: sup.stand || 'Stand s/d',
+      category: sup.category || 'General',
+      contactName: sup.contactName || 'Contacto',
+      weChat: sup.weChat || '',
+      phone: sup.phone || '',
+      email: sup.email || '',
+      notes: sup.notes || '',
       photos: Array.isArray(sup.photos) ? [...sup.photos] : [],
-      articles: Array.isArray(sup.articles) ? sup.articles.map(a => ({ ...a, photos: Array.isArray(a.photos) ? [...a.photos] : [] })) : []
+      articles: Array.isArray(sup.articles) ? sup.articles.map(a => ({
+        code: a.code || generateUniqueArticleCode(),
+        name: a.name || a.description || 'Artículo',
+        description: a.description || a.name || 'Artículo',
+        fob: parseFloat(a.fob) || 0,
+        moq: parseInt(a.moq) || 0,
+        port: a.port || 'Foshan, China',
+        leadTime: a.leadTime || '30 días',
+        note: a.note || '',
+        photos: Array.isArray(a.photos) ? [...a.photos] : [],
+        voiceNoteUrl: a.voiceNoteUrl || null
+      })) : []
     };
-
-    if (!currentEditingSupplier.id) {
-      currentEditingSupplier.id = sup.id || sup.firestoreId || generateUniqueId('SUP');
-    }
 
     const setVal = (id, val) => {
       const el = document.getElementById(id);
@@ -1631,15 +1664,15 @@ function openEditSupplierModal(indexOrId, fallbackIndex) {
     };
 
     setVal('editSupplierId', currentEditingSupplier.id);
-    setVal('editCompName', currentEditingSupplier.companyName || '');
-    setVal('editCompChinese', currentEditingSupplier.companyNameChinese || '');
-    setVal('editStand', currentEditingSupplier.stand || '');
-    setVal('editCategory', currentEditingSupplier.category || '');
-    setVal('editContact', currentEditingSupplier.contactName || '');
-    setVal('editWeChat', currentEditingSupplier.weChat || '');
-    setVal('editPhone', currentEditingSupplier.phone || '');
-    setVal('editEmail', currentEditingSupplier.email || '');
-    setVal('editNotes', currentEditingSupplier.notes || '');
+    setVal('editCompName', currentEditingSupplier.companyName);
+    setVal('editCompChinese', currentEditingSupplier.companyNameChinese);
+    setVal('editStand', currentEditingSupplier.stand);
+    setVal('editCategory', currentEditingSupplier.category);
+    setVal('editContact', currentEditingSupplier.contactName);
+    setVal('editWeChat', currentEditingSupplier.weChat);
+    setVal('editPhone', currentEditingSupplier.phone);
+    setVal('editEmail', currentEditingSupplier.email);
+    setVal('editNotes', currentEditingSupplier.notes);
 
     renderEditSupplierPhotos();
     renderEditSupplierArticles();
@@ -1647,16 +1680,16 @@ function openEditSupplierModal(indexOrId, fallbackIndex) {
     const modal = document.getElementById('modalEditSupplier');
     if (modal) {
       modal.style.display = 'flex';
-      modal.style.zIndex = '9999999';
+      modal.style.zIndex = '99999999';
       modal.classList.add('open');
       const content = modal.querySelector('.modal-content');
       if (content) content.scrollTop = 0;
     } else {
-      alert('❌ No se encontró el modal de edición en la página');
+      alert('❌ No se encontró el modal de edición #modalEditSupplier en la página');
     }
   } catch (err) {
-    console.error('❌ Error al abrir modal de edición de proveedor:', err);
-    alert('Ocurrió un error al abrir la edición: ' + err.message);
+    console.error('❌ Error en openEditSupplierModal:', err);
+    alert('❌ Error al abrir ventana de edición: ' + err.message);
   }
 }
 
