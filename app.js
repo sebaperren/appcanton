@@ -736,7 +736,7 @@ function showAuthenticatedApp(userEmail) {
 
   if (loginScreen) loginScreen.style.display = 'none';
   if (appContainer) appContainer.style.display = 'block';
-  if (userStatusLbl) userStatusLbl.textContent = 'Firebase User: ' + userEmail;
+  if (userStatusLbl) userStatusLbl.textContent = 'Usuario: ' + userEmail;
 }
 
 function showUnauthenticatedLogin() {
@@ -795,11 +795,11 @@ function handleFirebaseAuthLogin() {
     return;
   }
 
-  if (statusEl) statusEl.textContent = '⏳ Verificando credenciales en Firebase...';
+  if (statusEl) statusEl.textContent = '⏳ Verificando credenciales...';
 
   if (!fbAuth) {
-    alert('❌ Error: El servicio Firebase Auth no está activo. Verificá tu conexión a internet.');
-    if (statusEl) statusEl.textContent = '❌ Servicio Firebase no disponible.';
+    alert('❌ Error de conexión. Verificá tu acceso a internet.');
+    if (statusEl) statusEl.textContent = '❌ Servicio no disponible.';
     return;
   }
 
@@ -809,23 +809,19 @@ function handleFirebaseAuthLogin() {
       const userEmail = user.email || email;
       
       localStorage.setItem('firebaseAuthSession', userEmail);
-      if (statusEl) statusEl.textContent = '🟢 Autenticado con Firebase: ' + userEmail;
+      if (statusEl) statusEl.textContent = '🟢 Autenticado: ' + userEmail;
       showAuthenticatedApp(userEmail);
     })
     .catch((error) => {
-      console.error("Firebase Auth Error:", error.code, error.message);
-      let errorMsg = '❌ Error al iniciar sesión.';
+      console.error("Auth Error:", error.code, error.message);
+      let errorMsg = '❌ Error de usuario o password.';
 
-      if (error.code === 'auth/user-not-found') {
-        errorMsg = '❌ Usuario no encontrado. Si no tenés cuenta, tocá en CREAR CUENTA.';
-      } else if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
-        errorMsg = '❌ Contraseña incorrecta. Verificá tu clave de acceso.';
-      } else if (error.code === 'auth/invalid-email') {
+      if (error.code === 'auth/invalid-email') {
         errorMsg = '❌ Formato de correo electrónico inválido.';
       } else if (error.code === 'auth/too-many-requests') {
         errorMsg = '⚠️ Demasiados intentos fallidos. Aguardá unos minutos.';
       } else {
-        errorMsg = '❌ Error de autenticación: ' + error.message;
+        errorMsg = '❌ Error de usuario o password.';
       }
 
       if (statusEl) statusEl.textContent = errorMsg;
@@ -851,11 +847,11 @@ function handleFirebaseRegister() {
     return;
   }
 
-  if (statusEl) statusEl.textContent = '⏳ Registrando nuevo usuario en Firebase...';
+  if (statusEl) statusEl.textContent = '⏳ Registrando nuevo usuario...';
 
   if (!fbAuth) {
-    alert('❌ Error: El servicio Firebase Auth no está activo. Verificá tu conexión a internet.');
-    if (statusEl) statusEl.textContent = '❌ Servicio Firebase no disponible.';
+    alert('❌ Error de conexión. Verificá tu acceso a internet.');
+    if (statusEl) statusEl.textContent = '❌ Servicio no disponible.';
     return;
   }
 
@@ -865,21 +861,21 @@ function handleFirebaseRegister() {
       const userEmail = user.email || email;
 
       localStorage.setItem('firebaseAuthSession', userEmail);
-      alert('✅ Cuenta creada y autenticada con éxito en Firebase!');
+      alert('✅ Cuenta creada y autenticada con éxito!');
       showAuthenticatedApp(userEmail);
     })
     .catch((error) => {
-      console.error("Firebase Register Error:", error.code, error.message);
-      let errorMsg = 'Error al registrar usuario: ';
+      console.error("Register Error:", error.code, error.message);
+      let errorMsg = '❌ Error al registrar usuario.';
       
       if (error.code === 'auth/email-already-in-use') {
-        errorMsg = '⚠️ Este correo ya está registrado en Firebase. Ingresá tu contraseña y tocá INICIAR SESIÓN.';
+        errorMsg = '⚠️ Este correo ya está registrado. Ingresá tu contraseña y tocá INICIAR SESIÓN.';
       } else if (error.code === 'auth/weak-password') {
         errorMsg = '⚠️ La contraseña es demasiado débil (mínimo 6 caracteres).';
       } else if (error.code === 'auth/invalid-email') {
         errorMsg = '⚠️ Formato de correo inválido.';
       } else {
-        errorMsg += error.message;
+        errorMsg = '❌ Error de usuario o password.';
       }
 
       if (statusEl) statusEl.textContent = errorMsg;
