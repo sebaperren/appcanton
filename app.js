@@ -1413,7 +1413,7 @@ function renderTarjetero() {
             <a href="${waLink}" target="_blank" class="btn-whatsapp" style="white-space: nowrap; font-size: 10px; padding: 4px 8px;">
               💬 WhatsApp
             </a>
-            <button type="button" onclick="event.stopPropagation(); openEditSupplierModal(${idx});" class="btn-chip btn-edit-supplier" data-idx="${idx}" data-id="${targetId}" style="color: var(--secondary-color); border-color: var(--secondary-color); font-size: 10.5px; padding: 4px 8px; cursor: pointer; width: 100%; text-align: center; margin-bottom: 2px; font-weight: bold;">✏️ Editar</button>
+            <button type="button" onclick="event.stopPropagation(); openEditSupplierModal('${targetId}', ${idx});" class="btn-chip btn-edit-supplier" data-idx="${idx}" data-id="${targetId}" style="color: var(--secondary-color); border-color: var(--secondary-color); font-size: 10.5px; padding: 4px 8px; cursor: pointer; width: 100%; text-align: center; margin-bottom: 2px; font-weight: bold;">✏️ Editar</button>
             <button type="button" onclick="event.stopPropagation(); deleteSupplier('${targetId}', ${idx});" class="btn-chip" style="color: #D32F2F; border-color: #D32F2F; font-size: 10px; padding: 3px 8px; cursor: pointer; width: 100%; text-align: center;">🗑️ Eliminar</button>
           </div>
         </div>
@@ -1514,23 +1514,25 @@ function openEditSupplierModal(indexOrId, fallbackIndex) {
   try {
     let sup = null;
 
-    // 1. Búsqueda por índice numérico directo
-    if (typeof indexOrId === 'number') {
-      sup = localSuppliers[indexOrId];
-    } else if (typeof indexOrId === 'string') {
-      const parsedIdx = parseInt(indexOrId, 10);
-      if (!isNaN(parsedIdx) && parsedIdx >= 0 && parsedIdx < localSuppliers.length && String(parsedIdx) === indexOrId.trim()) {
-        sup = localSuppliers[parsedIdx];
-      }
-    }
-
-    // 2. Búsqueda por ID / firestoreId
-    if (!sup && indexOrId !== undefined && indexOrId !== null) {
+    // 1. Búsqueda por ID o firestoreId (Prioridad Máxima)
+    if (indexOrId !== undefined && indexOrId !== null) {
       const idStr = String(indexOrId).trim();
       sup = localSuppliers.find(s => 
         (s.id && String(s.id).trim() === idStr) || 
         (s.firestoreId && String(s.firestoreId).trim() === idStr)
       );
+    }
+
+    // 2. Búsqueda por índice numérico directo
+    if (!sup) {
+      if (typeof indexOrId === 'number') {
+        sup = localSuppliers[indexOrId];
+      } else if (typeof indexOrId === 'string') {
+        const parsedIdx = parseInt(indexOrId, 10);
+        if (!isNaN(parsedIdx) && parsedIdx >= 0 && parsedIdx < localSuppliers.length) {
+          sup = localSuppliers[parsedIdx];
+        }
+      }
     }
 
     // 3. Búsqueda por fallbackIndex
@@ -1548,6 +1550,19 @@ function openEditSupplierModal(indexOrId, fallbackIndex) {
 
     if (!sup) {
       alert('⚠️ No hay proveedores guardados para editar. Carga el primero en "+ Proveedor".');
+      return;
+    }
+
+    // MOSTRAR EL MODAL DE INMEDIATO PARA ASEGURAR FEEDBACK VISUAL
+    const modal = document.getElementById('modalEditSupplier');
+    if (modal) {
+      modal.style.display = 'flex';
+      modal.style.zIndex = '99999999';
+      modal.classList.add('open');
+      const content = modal.querySelector('.modal-content');
+      if (content) content.scrollTop = 0;
+    } else {
+      alert('❌ No se encontró el modal de edición #modalEditSupplier en la página');
       return;
     }
 
@@ -1595,17 +1610,6 @@ function openEditSupplierModal(indexOrId, fallbackIndex) {
 
     renderEditSupplierPhotos();
     renderEditSupplierArticles();
-
-    const modal = document.getElementById('modalEditSupplier');
-    if (modal) {
-      modal.style.display = 'flex';
-      modal.style.zIndex = '99999999';
-      modal.classList.add('open');
-      const content = modal.querySelector('.modal-content');
-      if (content) content.scrollTop = 0;
-    } else {
-      alert('❌ No se encontró el modal de edición #modalEditSupplier en la página');
-    }
   } catch (err) {
     console.error('❌ Error en openEditSupplierModal:', err);
     alert('❌ Error al abrir ventana de edición: ' + err.message);
