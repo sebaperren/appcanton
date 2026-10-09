@@ -497,6 +497,80 @@
         </div>
 
         <div id="tarjeteroList"></div>
+      <!-- ================= SECCIÓN AGENDA (GUÍA DE VISITA CANTON FAIR 140) ================= -->
+      <section id="secAgenda" style="display: none;">
+        <div class="card" style="background: linear-gradient(135deg, #1B365D 0%, #1565C0 100%); color: white; margin-bottom: 10px;">
+          <h2 style="font-size: 14px; margin-bottom: 3px;">📅 GUÍA DE VISITA POR DÍAS (CANTON FAIR 140)</h2>
+          <p style="font-size: 10px; opacity: 0.9;">Planificación oficial de visitas a stands por Fase 1 y Fase 2. Marca proveedores visitados o cárgalos directo a tu tarjetero.</p>
+        </div>
+
+        <!-- Tabs de Fase -->
+        <div class="nav-tabs" style="margin-bottom: 10px; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+          <button class="tab-btn active" id="agendaPhaseTabFase1" onclick="switchAgendaPhase('Fase 1')">Fase 1</button>
+          <button class="tab-btn" id="agendaPhaseTabFase2" onclick="switchAgendaPhase('Fase 2')">Fase 2</button>
+          <button class="tab-btn" id="agendaPhaseTabFase3" onclick="switchAgendaPhase('Fase 3')">Fase 3</button>
+          <button class="tab-btn" id="agendaPhaseTabPorConfirmar" onclick="switchAgendaPhase('Por confirmar')">Por Confirmar</button>
+        </div>
+
+        <!-- Filtros de Día y Estado -->
+        <div class="card" style="padding: 8px 10px; margin-bottom: 10px;">
+          <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
+            <div style="flex: 1; min-width: 120px;">
+              <label style="font-size: 9.5px; font-weight: bold; color: var(--primary-color);">📆 FILTRAR POR DÍA:</label>
+              <select id="agendaDayFilter" class="form-control" style="font-size: 11px; padding: 4px;" onchange="renderAgenda()">
+                <option value="TODOS">Todos los Días</option>
+              </select>
+            </div>
+            <div style="flex: 1; min-width: 120px;">
+              <label style="font-size: 9.5px; font-weight: bold; color: var(--primary-color);">👁️ ESTADO DE VISITA:</label>
+              <select id="agendaStatusFilter" class="form-control" style="font-size: 11px; padding: 4px;" onchange="renderAgenda()">
+                <option value="PENDIENTES">📍 Pendientes de Visita</option>
+                <option value="VISITADOS">✅ Visitados</option>
+                <option value="TODOS">Ver Todos</option>
+              </select>
+            </div>
+          </div>
+          <div id="agendaSummaryBadge" style="margin-top: 6px; font-size: 10.5px; font-weight: bold; color: var(--secondary-color); text-align: center;"></div>
+        </div>
+
+        <!-- Contenedor de Lista de Agenda -->
+        <div id="agendaList"></div>
+      </section>
+
+      <!-- ================= SECCIÓN FERIA 140 (CATÁLOGO COMPLETO CANTON FAIR 140) ================= -->
+      <section id="secFeria140" style="display: none;">
+        <div class="card" style="background: linear-gradient(135deg, #1B365D 0%, #2E7D32 100%); color: white; margin-bottom: 10px;">
+          <h2 style="font-size: 14px; margin-bottom: 3px;">🏛️ CATÁLOGO CANTON FAIR 140</h2>
+          <p style="font-size: 10px; opacity: 0.9;">Buscador rápido del catálogo unificado de 36.849 expositores oficiales (Fases 1, 2 y 3).</p>
+        </div>
+
+        <!-- Buscador y Filtros del Catálogo -->
+        <div class="card" style="padding: 10px; margin-bottom: 10px;">
+          <input type="text" id="feria140SearchInput" class="form-control" placeholder="🔍 Buscar proveedor, stand o rubro..." oninput="onFeria140SearchInput()" style="font-size: 12px; margin-bottom: 8px;">
+          
+          <div class="row-2" style="margin-bottom: 0;">
+            <div class="form-group" style="margin-bottom: 0;">
+              <label style="font-size: 9.5px; font-weight: bold; color: var(--primary-color);">🎪 FASE:</label>
+              <select id="feria140PhaseFilter" class="form-control" style="font-size: 11px; padding: 4px;" onchange="renderFeria140()">
+                <option value="TODAS">Todas las Fases</option>
+                <option value="Fase 1">Fase 1</option>
+                <option value="Fase 2">Fase 2</option>
+                <option value="Fase 3">Fase 3</option>
+              </select>
+            </div>
+            <div class="form-group" style="margin-bottom: 0;">
+              <label style="font-size: 9.5px; font-weight: bold; color: var(--primary-color);">🏷️ CATEGORÍA / RUBRO:</label>
+              <select id="feria140CategoryFilter" class="form-control" style="font-size: 11px; padding: 4px;" onchange="renderFeria140()">
+                <option value="TODAS">Todas las Categorías</option>
+              </select>
+            </div>
+          </div>
+          
+          <div id="feria140StatusBadge" style="margin-top: 6px; font-size: 10px; color: var(--text-muted); text-align: center;"></div>
+        </div>
+
+        <!-- Contenedor de Resultados -->
+        <div id="feria140List"></div>
       </section>
 
     </main>
@@ -507,13 +581,21 @@
         <span class="nav-icon">🏠</span>
         <span>Inicio</span>
       </button>
+      <button class="nav-item" id="navAgenda" onclick="switchMainSection('agenda')">
+        <span class="nav-icon">📅</span>
+        <span>Agenda</span>
+      </button>
+      <button class="nav-item" id="navFeria140" onclick="switchMainSection('feria140')">
+        <span class="nav-icon">🏛️</span>
+        <span>Feria 140</span>
+      </button>
       <button class="nav-item" id="navAddProveedor" onclick="switchMainSection('addProveedor')">
         <span class="nav-icon">➕</span>
         <span>+ Proveedor</span>
       </button>
       <button class="nav-item" id="navCostos" onclick="switchMainSection('costos')">
         <span class="nav-icon">🔍</span>
-        <span>Buscador SQL</span>
+        <span>Buscador</span>
       </button>
       <button class="nav-item" id="navComparador" onclick="switchMainSection('comparador')">
         <span class="nav-icon">🧮</span>
@@ -824,6 +906,8 @@
 
   </div> <!-- FIN DE #appContainer -->
 
+  <script src="data_agenda140.js"></script>
+  <script src="data_canton140.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

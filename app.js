@@ -904,7 +904,7 @@ function handleFirebaseLogout() {
 // MAIN SECTION SWITCHING
 function switchMainSection(secId) {
   currentSection = secId;
-  const sections = ['secInicio', 'secAddProveedor', 'secCostos', 'secComparador', 'secTarjetero'];
+  const sections = ['secInicio', 'secAgenda', 'secFeria140', 'secAddProveedor', 'secCostos', 'secComparador', 'secTarjetero'];
   sections.forEach(s => {
     const el = document.getElementById(s);
     if (el) el.style.display = (s === 'sec' + capitalize(secId)) ? 'block' : 'none';
@@ -912,6 +912,8 @@ function switchMainSection(secId) {
 
   const navItems = {
     'inicio': 'navInicio',
+    'agenda': 'navAgenda',
+    'feria140': 'navFeria140',
     'addProveedor': 'navAddProveedor',
     'costos': 'navCostos',
     'comparador': 'navComparador',
@@ -928,6 +930,10 @@ function switchMainSection(secId) {
 
   if (secId === 'costos') {
     renderSecSearchResults();
+  } else if (secId === 'agenda') {
+    switchAgendaPhase(activeAgendaPhase || 'Fase 1');
+  } else if (secId === 'feria140') {
+    renderFeria140();
   }
 
   window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -2910,6 +2916,12 @@ async function saveSupplierFromForm() {
   localSuppliers.unshift(supplierData);
   saveLocalSuppliers();
 
+  // Si proviene de la guía de visita de Agenda, marcarlo como visitado
+  if (currentAgendaLinkId) {
+    markAgendaItemVisited(currentAgendaLinkId, true);
+    currentAgendaLinkId = null;
+  }
+
   // Limpiar campos del formulario
   document.getElementById('pCompany').value = '';
   document.getElementById('pCompanyChinese').value = '';
@@ -3469,4 +3481,312 @@ if (typeof window !== 'undefined') {
   window.speakTranslationResult = speakTranslationResult;
   window.startSpeechToTextTranslation = startSpeechToTextTranslation;
   window.populateTTSVoiceSelect = populateTTSVoiceSelect;
+  window.switchAgendaPhase = switchAgendaPhase;
+  window.renderAgenda = renderAgenda;
+  window.markAgendaItemVisited = markAgendaItemVisited;
+  window.loadSupplierFromAgenda = loadSupplierFromAgenda;
+  window.onFeria140SearchInput = onFeria140SearchInput;
+  window.renderFeria140 = renderFeria140;
+  window.loadSupplierFromCatalog = loadSupplierFromCatalog;
+}
+
+// =========================================================================
+// GUÍA DE VISITA (AGENDA) Y CATÁLOGO FERIA 140
+// =========================================================================
+
+let activeAgendaPhase = 'Fase 1';
+let currentAgendaLinkId = null;
+let feria140Catalog = null;
+let feria140SearchTimeout = null;
+
+function getVisitedAgendaIds() {
+  try {
+    const raw = localStorage.getItem('canton_agenda_visited');
+    if (raw) return JSON.parse(raw);
+  } catch (e) {
+    console.error('Error reading visited agenda items:', e);
+  }
+  return [];
+}
+
+function markAgendaItemVisited(agendaId, visitedStatus = true) {
+  try {
+    let visited = getVisitedAgendaIds();
+    const targetId = String(agendaId);
+    if (visitedStatus) {
+      if (!visited.includes(targetId)) visited.push(targetId);
+    } else {
+      visited = visited.filter(id => id !== targetId);
+    }
+    localStorage.setItem('canton_agenda_visited', JSON.stringify(visited));
+    renderAgenda();
+  } catch (e) {
+    console.error('Error marking agenda visited:', e);
+  }
+}
+
+function switchAgendaPhase(phaseName) {
+  activeAgendaPhase = phaseName;
+  ['Fase1', 'Fase2', 'Fase3', 'PorConfirmar'].forEach(pKey => {
+    const btn = document.getElementById('agendaPhaseTab' + pKey);
+    const targetKey = phaseName.replace(/\s+/g, '');
+    if (btn) {
+      if (pKey === targetKey || (pKey === 'PorConfirmar' && phaseName === 'Por confirmar')) {
+        btn.classList.add('active');
+      } else {
+        btn.classList.remove('active');
+      }
+    }
+  });
+
+  const daySelect = document.getElementById('agendaDayFilter');
+  if (daySelect) {
+    const phaseItems = (window.CANTON_AGENDA_DATA && window.CANTON_AGENDA_DATA[phaseName]) || [];
+    const days = [...new Set(phaseItems.map(item => item.dia).filter(Boolean))].sort((a,b) => parseInt(a) - parseInt(b));
+    daySelect.innerHTML = `<option value="TODOS">Todos los Días (${days.length > 0 ? 'Días ' + days.join(', ') : ''})</option>` +
+      days.map(d => `<option value="${d}">Día ${d}</option>`).join('');
+  }
+
+  renderAgenda();
+}
+
+function renderAgenda() {
+  const container = document.getElementById('agendaList');
+  if (!container) return;
+
+  if (!window.CANTON_AGENDA_DATA) {
+    container.innerHTML = `<div class="card" style="text-align: center; font-size: 11px;">⚠️ Datos de agenda no cargados.</div>`;
+    return;
+  }
+
+  const phaseItems = window.CANTON_AGENDA_DATA[activeAgendaPhase] || [];
+  const selectedDay = document.getElementById('agendaDayFilter')?.value || 'TODOS';
+  const statusFilter = document.getElementById('agendaStatusFilter')?.value || 'PENDIENTES';
+  const visitedIds = getVisitedAgendaIds();
+
+  let filtered = phaseItems.filter(item => {
+    if (selectedDay !== 'TODOS' && String(item.dia) !== String(selectedDay)) return false;
+    const isVisited = visitedIds.includes(String(item.id));
+    if (statusFilter === 'PENDIENTES' && isVisited) return false;
+    if (statusFilter === 'VISITADOS' && !isVisited) return false;
+    return true;
+  });
+
+  const totalPhase = phaseItems.length;
+  const visitedCountPhase = phaseItems.filter(i => visitedIds.includes(String(i.id))).length;
+  const pendingCountPhase = totalPhase - visitedCountPhase;
+
+  const badgeEl = document.getElementById('agendaSummaryBadge');
+  if (badgeEl) {
+    badgeEl.innerHTML = `📍 <strong>${activeAgendaPhase}:</strong> ${pendingCountPhase} Pendiente(s) | ✅ ${visitedCountPhase} Visitado(s) (Total ${totalPhase})`;
+  }
+
+  if (filtered.length === 0) {
+    container.innerHTML = `<div class="card" style="text-align: center; font-size: 11px; color: var(--text-muted);">No hay proveedores en esta vista de agenda (${statusFilter.toLowerCase()}).</div>`;
+    return;
+  }
+
+  container.innerHTML = filtered.map(item => {
+    const isVisited = visitedIds.includes(String(item.id));
+    return `
+      <div class="card" style="border-left: 4px solid ${isVisited ? '#2E7D32' : '#E65100'}; margin-bottom: 10px; background: ${isVisited ? '#F1F8E9' : 'white'};">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+          <div>
+            <span class="badge" style="background: ${isVisited ? '#C8E6C9' : '#FFE0B2'}; color: ${isVisited ? '#2E7D32' : '#E65100'};">
+              ${isVisited ? '✅ VISITADO' : '⏳ PENDIENTE'}
+            </span>
+            <span class="badge" style="background: #E3F2FD; color: #1565C0; margin-left: 4px;">
+              Día ${item.dia || '1'} • Orden #${item.orden || item.id}
+            </span>
+          </div>
+          <button class="btn-chip" onclick="markAgendaItemVisited('${item.id}', ${!isVisited})" style="font-size: 10px; padding: 2px 6px; color: ${isVisited ? '#E65100' : '#2E7D32'}; border-color: ${isVisited ? '#E65100' : '#2E7D32'};">
+            ${isVisited ? '↩️ Marcar Pendiente' : '✅ Marcar Visitado'}
+          </button>
+        </div>
+
+        <strong style="font-size: 13.5px; color: var(--primary-color); display: block; margin-top: 6px;">${item.proveedor}</strong>
+        
+        <div style="font-size: 10.5px; color: var(--text-muted); margin-top: 2px;">
+          📍 <strong>Pabellón ${item.pabellon || 's/d'}</strong> • Stand: <strong>${item.stand || 's/d'}</strong> ${item.area ? `(Área ${item.area})` : ''}
+        </div>
+
+        <div style="font-size: 10.5px; color: #333; margin-top: 4px;">
+          🏷️ <strong>Rubro:</strong> ${item.rubro || 'General'}
+        </div>
+        ${item.descripcion ? `<div style="font-size: 10px; color: #555; margin-top: 2px;">📝 ${item.descripcion}</div>` : ''}
+        ${item.otrosStands ? `<div style="font-size: 9.5px; color: #777; margin-top: 2px;">🎪 Otros stands: ${item.otrosStands}</div>` : ''}
+        ${item.visita ? `<div style="font-size: 9.5px; color: var(--secondary-color); font-weight: bold; margin-top: 2px;">🎯 Visita: ${item.visita}</div>` : ''}
+
+        <div style="margin-top: 10px; display: flex; gap: 6px;">
+          <button class="btn-primary" onclick="loadSupplierFromAgenda('${item.id}')" style="flex: 1; padding: 7px 10px; font-size: 11px;">
+            📍 Visitar / Cargar Ficha (+ Proveedor)
+          </button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function loadSupplierFromAgenda(agendaId) {
+  let foundItem = null;
+  if (window.CANTON_AGENDA_DATA) {
+    Object.keys(window.CANTON_AGENDA_DATA).forEach(p => {
+      const match = window.CANTON_AGENDA_DATA[p].find(i => String(i.id) === String(agendaId));
+      if (match) foundItem = match;
+    });
+  }
+
+  if (!foundItem) {
+    alert('No se encontró la información del proveedor seleccionado.');
+    return;
+  }
+
+  currentAgendaLinkId = String(foundItem.id);
+
+  const setVal = (id, val) => {
+    const el = document.getElementById(id);
+    if (el) el.value = val;
+  };
+
+  setVal('pCompany', foundItem.proveedor || '');
+  setVal('pCompanyChinese', '');
+  const standStr = `Área ${foundItem.area || ''} - Pabellón ${foundItem.pabellon || ''} - Stand ${foundItem.stand || ''}`;
+  setVal('pStand', standStr);
+  setVal('pCategory', foundItem.rubro || 'General');
+  setVal('pContact', '');
+  setVal('pWeChat', '');
+  setVal('pPhone', '+86');
+  setVal('pEmail', '');
+
+  const noteStr = `[Agenda Canton Fair 140 - ${foundItem.fase || ''}]\nVisita: ${foundItem.visita || ''}\nDescripción: ${foundItem.descripcion || ''}${foundItem.otrosStands ? '\nOtros stands: ' + foundItem.otrosStands : ''}`;
+  setVal('pNotes', noteStr);
+
+  switchMainSection('addProveedor');
+  alert(`📍 Datos de "${foundItem.proveedor}" cargados en la ficha. Al guardar el proveedor, se marcará automáticamente como VISITADO en la Agenda.`);
+}
+
+function onFeria140SearchInput() {
+  if (feria140SearchTimeout) clearTimeout(feria140SearchTimeout);
+  feria140SearchTimeout = setTimeout(() => {
+    renderFeria140();
+  }, 250);
+}
+
+function renderFeria140() {
+  const container = document.getElementById('feria140List');
+  const badgeEl = document.getElementById('feria140StatusBadge');
+  if (!container) return;
+
+  if (!feria140Catalog) {
+    if (typeof window.loadCanton140Catalog === 'function') {
+      if (badgeEl) badgeEl.textContent = '⏳ Descomprimiendo catálogo oficial de 36.849 proveedores...';
+      setTimeout(() => {
+        try {
+          feria140Catalog = window.loadCanton140Catalog();
+          populateFeria140CategoryFilter();
+          renderFeria140();
+        } catch (e) {
+          console.error('Error uncompressing catalog:', e);
+          if (badgeEl) badgeEl.textContent = '❌ Error al cargar el catálogo de Feria 140.';
+        }
+      }, 50);
+      return;
+    } else {
+      container.innerHTML = `<div class="card" style="text-align: center; font-size: 11px;">⚠️ Script data_canton140.js no cargado.</div>`;
+      return;
+    }
+  }
+
+  const query = (document.getElementById('feria140SearchInput')?.value || '').trim().toLowerCase();
+  const phaseFilter = document.getElementById('feria140PhaseFilter')?.value || 'TODAS';
+  const catFilter = document.getElementById('feria140CategoryFilter')?.value || 'TODAS';
+
+  let results = feria140Catalog;
+
+  if (phaseFilter !== 'TODAS') {
+    results = results.filter(item => (item.phase || '').toLowerCase() === phaseFilter.toLowerCase());
+  }
+
+  if (catFilter !== 'TODAS') {
+    results = results.filter(item => (item.category || '').toLowerCase() === catFilter.toLowerCase());
+  }
+
+  if (query) {
+    results = results.filter(item => {
+      return (item.company_en || '').toLowerCase().includes(query) ||
+             (item.company_zh || '').toLowerCase().includes(query) ||
+             (item.booth || '').toLowerCase().includes(query) ||
+             (item.category || '').toLowerCase().includes(query) ||
+             (item.product_desc || '').toLowerCase().includes(query);
+    });
+  }
+
+  if (badgeEl) {
+    badgeEl.textContent = `Mostrando ${Math.min(results.length, 50).toLocaleString('es-AR')} de ${results.length.toLocaleString('es-AR')} expositor(es) encontrado(s)`;
+  }
+
+  if (results.length === 0) {
+    container.innerHTML = `<div class="card" style="text-align: center; font-size: 11px; color: var(--text-muted);">No se encontraron proveedores que coincidan con la búsqueda.</div>`;
+    return;
+  }
+
+  const pageLimit = 50;
+  const pageResults = results.slice(0, pageLimit);
+
+  container.innerHTML = pageResults.map((item, idx) => `
+    <div class="card" style="border-left: 4px solid var(--secondary-color); margin-bottom: 8px; padding: 10px 12px;">
+      <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+        <div>
+          <strong style="font-size: 13px; color: var(--primary-color);">${item.company_en || 'Empresa sin nombre'}</strong>
+          ${item.company_zh ? `<div style="font-size: 11px; color: var(--secondary-color); font-weight: bold;">🇨🇳 ${item.company_zh}</div>` : ''}
+        </div>
+        <span class="badge" style="background: #E3F2FD; color: #1565C0;">${item.phase || 'Canton 140'}</span>
+      </div>
+
+      <div style="font-size: 10.5px; color: var(--text-muted); margin-top: 3px;">
+        📍 <strong>Stand:</strong> ${item.booth || 's/d'} • 🏷️ <strong>Categoría:</strong> ${item.category || 'General'}
+      </div>
+
+      ${item.product_desc ? `<div style="font-size: 10px; color: #444; margin-top: 3px;">📦 ${item.product_desc}</div>` : ''}
+
+      <button class="btn-primary" onclick="loadSupplierFromCatalog(${idx}, '${(item.booth || '').replace(/'/g, "\\'")}')" style="margin-top: 8px; width: 100%; font-size: 10.5px; padding: 6px;">
+        ➕ Cargar Ficha (+ Proveedor)
+      </button>
+    </div>
+  `).join('') + (results.length > pageLimit ? `<div style="text-align: center; font-size: 10px; color: var(--text-muted); padding: 8px;">Afiná la búsqueda para ver más de los ${results.length.toLocaleString('es-AR')} resultados.</div>` : '');
+}
+
+function populateFeria140CategoryFilter() {
+  const catSelect = document.getElementById('feria140CategoryFilter');
+  if (!catSelect || !feria140Catalog) return;
+
+  const categories = [...new Set(feria140Catalog.map(i => i.category).filter(Boolean))].sort();
+  catSelect.innerHTML = `<option value="TODAS">Todas las Categorías (${categories.length})</option>` +
+    categories.map(c => `<option value="${c}">${c}</option>`).join('');
+}
+
+function loadSupplierFromCatalog(recordIdx, boothCode) {
+  if (!feria140Catalog) return;
+  const item = feria140Catalog.find(i => (i.booth || '') === boothCode) || feria140Catalog[recordIdx];
+  if (!item) return;
+
+  const setVal = (id, val) => {
+    const el = document.getElementById(id);
+    if (el) el.value = val;
+  };
+
+  setVal('pCompany', item.company_en || item.company_zh || '');
+  setVal('pCompanyChinese', item.company_zh || '');
+  setVal('pStand', item.booth || '');
+  setVal('pCategory', item.category || 'General');
+  setVal('pContact', '');
+  setVal('pWeChat', '');
+  setVal('pPhone', '+86');
+  setVal('pEmail', '');
+
+  const noteStr = `[Catálogo Cantón 140 - ${item.phase || ''}]\nDescripción: ${item.product_desc || ''}`;
+  setVal('pNotes', noteStr);
+
+  switchMainSection('addProveedor');
+  alert(`➕ Proveedor "${item.company_en || item.company_zh}" cargado en el formulario "+ Proveedor". Completa los datos y presiona Guardar.`);
 }
