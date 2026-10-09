@@ -3545,6 +3545,7 @@ function switchAgendaPhase(phaseName) {
     const days = [...new Set(phaseItems.map(item => item.dia).filter(Boolean))].sort((a,b) => parseInt(a) - parseInt(b));
     daySelect.innerHTML = `<option value="TODOS">Todos los Días (${days.length > 0 ? 'Días ' + days.join(', ') : ''})</option>` +
       days.map(d => `<option value="${d}">Día ${d}</option>`).join('');
+    daySelect.value = "TODOS";
   }
 
   renderAgenda();
@@ -3565,7 +3566,7 @@ function renderAgenda() {
   const visitedIds = getVisitedAgendaIds();
 
   let filtered = phaseItems.filter(item => {
-    if (selectedDay !== 'TODOS' && String(item.dia) !== String(selectedDay)) return false;
+    if (selectedDay && selectedDay !== 'TODOS' && String(item.dia) !== String(selectedDay)) return false;
     const isVisited = visitedIds.includes(String(item.id));
     if (statusFilter === 'PENDIENTES' && isVisited) return false;
     if (statusFilter === 'VISITADOS' && !isVisited) return false;
@@ -3672,24 +3673,23 @@ function onFeria140SearchInput() {
   }, 250);
 }
 
-function renderFeria140() {
+async function renderFeria140() {
   const container = document.getElementById('feria140List');
   const badgeEl = document.getElementById('feria140StatusBadge');
   if (!container) return;
 
-  if (!feria140Catalog) {
+  if (!feria140Catalog || !Array.isArray(feria140Catalog)) {
     if (typeof window.loadCanton140Catalog === 'function') {
       if (badgeEl) badgeEl.textContent = '⏳ Descomprimiendo catálogo oficial de 36.849 proveedores...';
-      setTimeout(() => {
-        try {
-          feria140Catalog = window.loadCanton140Catalog();
-          populateFeria140CategoryFilter();
-          renderFeria140();
-        } catch (e) {
-          console.error('Error uncompressing catalog:', e);
-          if (badgeEl) badgeEl.textContent = '❌ Error al cargar el catálogo de Feria 140.';
-        }
-      }, 50);
+      try {
+        const res = await window.loadCanton140Catalog();
+        feria140Catalog = Array.isArray(res) ? res : [];
+        populateFeria140CategoryFilter();
+        renderFeria140();
+      } catch (e) {
+        console.error('Error uncompressing catalog:', e);
+        if (badgeEl) badgeEl.textContent = '❌ Error al cargar el catálogo de Feria 140.';
+      }
       return;
     } else {
       container.innerHTML = `<div class="card" style="text-align: center; font-size: 11px;">⚠️ Script data_canton140.js no cargado.</div>`;
