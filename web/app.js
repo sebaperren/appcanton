@@ -492,6 +492,26 @@ if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('./sw.js').catch(err => console.log('SW reg error', err));
 }
 
+function ensureCanton140ScriptLoaded() {
+  return new Promise((resolve, reject) => {
+    if (typeof window.loadCanton140Catalog === 'function') {
+      return resolve();
+    }
+    const existing = document.querySelector('script[src*="data_canton140.js"]');
+    if (existing) {
+      existing.addEventListener('load', () => resolve());
+      existing.addEventListener('error', (e) => reject(e));
+      return;
+    }
+    const script = document.createElement('script');
+    script.src = 'data_canton140.js';
+    script.async = true;
+    script.onload = () => resolve();
+    script.onerror = (e) => reject(e);
+    document.head.appendChild(script);
+  });
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   loadStateSettings();
   loadLocalSuppliers();
@@ -502,10 +522,12 @@ document.addEventListener('DOMContentLoaded', () => {
   calculateTab1();
   renderTab2List();
   renderTarjetero();
+  switchAgendaPhase(activeAgendaPhase || 'Fase 1');
   setTimeout(() => {
     loadFlexxusCsvDatabase();
     syncPendingSuppliersToFirebase();
-  }, 100);
+    ensureCanton140ScriptLoaded().catch(e => console.log('Background catalog script notice:', e));
+  }, 1000);
 });
 
 async function initFirestoreSuppliersListener() {
@@ -3679,22 +3701,23 @@ async function renderFeria140() {
   if (!container) return;
 
   if (!feria140Catalog || !Array.isArray(feria140Catalog)) {
-    if (typeof window.loadCanton140Catalog === 'function') {
-      if (badgeEl) badgeEl.textContent = '⏳ Descomprimiendo catálogo oficial de 36.849 proveedores...';
-      try {
+    if (badgeEl) badgeEl.textContent = '⏳ Cargando catálogo oficial de 36.849 proveedores... Por favor aguarda un instante...';
+    try {
+      await ensureCanton140ScriptLoaded();
+      if (typeof window.loadCanton140Catalog === 'function') {
+        if (badgeEl) badgeEl.textContent = '⏳ Descomprimiendo expositores de Feria 140...';
         const res = await window.loadCanton140Catalog();
         feria140Catalog = Array.isArray(res) ? res : [];
         populateFeria140CategoryFilter();
         renderFeria140();
-      } catch (e) {
-        console.error('Error uncompressing catalog:', e);
-        if (badgeEl) badgeEl.textContent = '❌ Error al cargar el catálogo de Feria 140.';
+      } else {
+        container.innerHTML = `<div class="card" style="text-align: center; font-size: 11px;">⚠️ Script data_canton140.js no cargado.</div>`;
       }
-      return;
-    } else {
-      container.innerHTML = `<div class="card" style="text-align: center; font-size: 11px;">⚠️ Script data_canton140.js no cargado.</div>`;
-      return;
+    } catch (e) {
+      console.error('Error loading or uncompressing catalog:', e);
+      if (badgeEl) badgeEl.textContent = '❌ Error al cargar el catálogo de Feria 140.';
     }
+    return;
   }
 
   const query = (document.getElementById('feria140SearchInput')?.value || '').trim().toLowerCase();
