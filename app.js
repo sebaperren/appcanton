@@ -3727,20 +3727,37 @@ async function renderFeria140() {
   let results = feria140Catalog;
 
   if (phaseFilter !== 'TODAS') {
-    results = results.filter(item => (item.phase || '').toLowerCase() === phaseFilter.toLowerCase());
+    const targetPhaseNum = phaseFilter.replace(/\D/g, ''); // "1", "2", "3"
+    results = results.filter(item => {
+      if (Array.isArray(item.phases)) {
+        return item.phases.some(p => String(p).replace(/\D/g, '') === targetPhaseNum);
+      }
+      if (item.phase) {
+        return (item.phase || '').toLowerCase().includes(phaseFilter.toLowerCase());
+      }
+      return false;
+    });
   }
 
   if (catFilter !== 'TODAS') {
-    results = results.filter(item => (item.category || '').toLowerCase() === catFilter.toLowerCase());
+    results = results.filter(item => {
+      if (Array.isArray(item.categories)) {
+        return item.categories.includes(catFilter);
+      }
+      return (item.category || '').toLowerCase() === catFilter.toLowerCase();
+    });
   }
 
   if (query) {
     results = results.filter(item => {
-      return (item.company_en || '').toLowerCase().includes(query) ||
-             (item.company_zh || '').toLowerCase().includes(query) ||
-             (item.booth || '').toLowerCase().includes(query) ||
-             (item.category || '').toLowerCase().includes(query) ||
-             (item.product_desc || '').toLowerCase().includes(query);
+      const nameStr = (item.name || item.company_en || '').toLowerCase();
+      const zhStr = (item.company_zh || '').toLowerCase();
+      const boothsStr = (Array.isArray(item.booths) ? item.booths.map(b => `${b.stand || ''} ${b.area || ''}`).join(' ') : (item.booth || '')).toLowerCase();
+      const catsStr = (Array.isArray(item.categories) ? item.categories.join(' ') : (item.category || '')).toLowerCase();
+      const descStr = (item.desc || item.product_desc || '').toLowerCase();
+      const prodsStr = (Array.isArray(item.products) ? item.products.map(p => `${p.name || ''} ${p.orig || ''}`).join(' ') : '').toLowerCase();
+
+      return nameStr.includes(query) || zhStr.includes(query) || boothsStr.includes(query) || catsStr.includes(query) || descStr.includes(query) || prodsStr.includes(query);
     });
   }
 
@@ -3756,41 +3773,58 @@ async function renderFeria140() {
   const pageLimit = 50;
   const pageResults = results.slice(0, pageLimit);
 
-  container.innerHTML = pageResults.map((item, idx) => `
-    <div class="card" style="border-left: 4px solid var(--secondary-color); margin-bottom: 8px; padding: 10px 12px;">
-      <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-        <div>
-          <strong style="font-size: 13px; color: var(--primary-color);">${item.company_en || 'Empresa sin nombre'}</strong>
-          ${item.company_zh ? `<div style="font-size: 11px; color: var(--secondary-color); font-weight: bold;">🇨🇳 ${item.company_zh}</div>` : ''}
+  container.innerHTML = pageResults.map((item, idx) => {
+    const compName = item.name || item.company_en || 'Empresa sin nombre';
+    const boothStr = Array.isArray(item.booths) && item.booths.length > 0 
+      ? item.booths.map(b => b.stand ? `${b.stand}${b.area ? ' (' + b.area + ')' : ''}` : b.area).filter(Boolean).join(' • ') 
+      : (item.booth || 's/d');
+    const catStr = Array.isArray(item.categories) && item.categories.length > 0 
+      ? item.categories.join(', ') 
+      : (item.category || 'General');
+    const phaseStr = Array.isArray(item.phases) && item.phases.length > 0 
+      ? item.phases.map(p => (String(p).startsWith('Fase') ? p : 'Fase ' + p)).join(', ') 
+      : (item.phase || 'Canton 140');
+    const descStr = item.desc || item.product_desc || (Array.isArray(item.products) && item.products.length > 0 ? item.products.map(p => p.name).filter(Boolean).join(', ') : '');
+
+    const safeItemId = String(item.id || idx).replace(/'/g, "\\'");
+
+    return `
+      <div class="card" style="border-left: 4px solid var(--secondary-color); margin-bottom: 8px; padding: 10px 12px;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+          <div>
+            <strong style="font-size: 13px; color: var(--primary-color);">${compName}</strong>
+            ${item.company_zh ? `<div style="font-size: 11px; color: var(--secondary-color); font-weight: bold;">🇨🇳 ${item.company_zh}</div>` : ''}
+          </div>
+          <span class="badge" style="background: #E3F2FD; color: #1565C0;">${phaseStr}</span>
         </div>
-        <span class="badge" style="background: #E3F2FD; color: #1565C0;">${item.phase || 'Canton 140'}</span>
+
+        <div style="font-size: 10.5px; color: var(--text-muted); margin-top: 3px;">
+          📍 <strong>Stand:</strong> ${boothStr} • 🏷️ <strong>Categoría:</strong> ${catStr}
+        </div>
+
+        ${descStr ? `<div style="font-size: 10px; color: #444; margin-top: 3px;">📦 ${descStr}</div>` : ''}
+        ${item.url ? `<div style="font-size: 9.5px; color: #0288D1; margin-top: 2px;"><a href="${item.url}" target="_blank" rel="noopener">🌐 Ver ficha oficial en Canton Fair</a></div>` : ''}
+
+        <button class="btn-primary" onclick="loadSupplierFromCatalog(${idx}, '${safeItemId}')" style="margin-top: 8px; width: 100%; font-size: 10.5px; padding: 6px;">
+          ➕ Cargar Ficha (+ Proveedor)
+        </button>
       </div>
-
-      <div style="font-size: 10.5px; color: var(--text-muted); margin-top: 3px;">
-        📍 <strong>Stand:</strong> ${item.booth || 's/d'} • 🏷️ <strong>Categoría:</strong> ${item.category || 'General'}
-      </div>
-
-      ${item.product_desc ? `<div style="font-size: 10px; color: #444; margin-top: 3px;">📦 ${item.product_desc}</div>` : ''}
-
-      <button class="btn-primary" onclick="loadSupplierFromCatalog(${idx}, '${(item.booth || '').replace(/'/g, "\\'")}')" style="margin-top: 8px; width: 100%; font-size: 10.5px; padding: 6px;">
-        ➕ Cargar Ficha (+ Proveedor)
-      </button>
-    </div>
-  `).join('') + (results.length > pageLimit ? `<div style="text-align: center; font-size: 10px; color: var(--text-muted); padding: 8px;">Afiná la búsqueda para ver más de los ${results.length.toLocaleString('es-AR')} resultados.</div>` : '');
+    `;
+  }).join('') + (results.length > pageLimit ? `<div style="text-align: center; font-size: 10px; color: var(--text-muted); padding: 8px;">Afiná la búsqueda para ver más de los ${results.length.toLocaleString('es-AR')} resultados.</div>` : '');
 }
 
 function populateFeria140CategoryFilter() {
   const catSelect = document.getElementById('feria140CategoryFilter');
   if (!catSelect || !feria140Catalog) return;
 
-  const categories = [...new Set(feria140Catalog.map(i => i.category).filter(Boolean))].sort();
+  const categories = [...new Set(feria140Catalog.flatMap(i => Array.isArray(i.categories) ? i.categories : [i.category]).filter(Boolean))].sort();
   catSelect.innerHTML = `<option value="TODAS">Todas las Categorías (${categories.length})</option>` +
     categories.map(c => `<option value="${c}">${c}</option>`).join('');
 }
 
-function loadSupplierFromCatalog(recordIdx, boothCode) {
+function loadSupplierFromCatalog(recordIdx, recordId) {
   if (!feria140Catalog) return;
-  const item = feria140Catalog.find(i => (i.booth || '') === boothCode) || feria140Catalog[recordIdx];
+  const item = (recordId ? feria140Catalog.find(i => String(i.id) === String(recordId)) : null) || feria140Catalog[recordIdx];
   if (!item) return;
 
   const setVal = (id, val) => {
@@ -3798,18 +3832,30 @@ function loadSupplierFromCatalog(recordIdx, boothCode) {
     if (el) el.value = val;
   };
 
-  setVal('pCompany', item.company_en || item.company_zh || '');
+  const compName = item.name || item.company_en || item.company_zh || '';
+  const boothStr = Array.isArray(item.booths) && item.booths.length > 0 
+    ? item.booths.map(b => b.stand ? `${b.stand}${b.area ? ' (' + b.area + ')' : ''}` : b.area).filter(Boolean).join(' • ') 
+    : (item.booth || '');
+  const catStr = Array.isArray(item.categories) && item.categories.length > 0 
+    ? item.categories.join(', ') 
+    : (item.category || 'General');
+  const phaseStr = Array.isArray(item.phases) && item.phases.length > 0 
+    ? item.phases.map(p => (String(p).startsWith('Fase') ? p : 'Fase ' + p)).join(', ') 
+    : (item.phase || '');
+  const descStr = item.desc || item.product_desc || (Array.isArray(item.products) && item.products.length > 0 ? item.products.map(p => p.name).filter(Boolean).join(', ') : '');
+
+  setVal('pCompany', compName);
   setVal('pCompanyChinese', item.company_zh || '');
-  setVal('pStand', item.booth || '');
-  setVal('pCategory', item.category || 'General');
+  setVal('pStand', boothStr);
+  setVal('pCategory', catStr);
   setVal('pContact', '');
   setVal('pWeChat', '');
   setVal('pPhone', '+86');
   setVal('pEmail', '');
 
-  const noteStr = `[Catálogo Cantón 140 - ${item.phase || ''}]\nDescripción: ${item.product_desc || ''}`;
+  const noteStr = `[Catálogo Cantón 140 - ${phaseStr}]\n${descStr ? 'Descripción: ' + descStr : ''}${item.url ? '\nLink oficial: ' + item.url : ''}`;
   setVal('pNotes', noteStr);
 
   switchMainSection('addProveedor');
-  alert(`➕ Proveedor "${item.company_en || item.company_zh}" cargado en el formulario "+ Proveedor". Completa los datos y presiona Guardar.`);
+  alert(`➕ Proveedor "${compName}" cargado en el formulario "+ Proveedor". Completa los datos y presiona Guardar.`);
 }
