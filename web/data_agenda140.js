@@ -14,7 +14,10 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "",
       "fase": "Fase 1",
       "estadoStand": "Stand indicado en documento 140",
-      "enlace": "Ver documento aportado"
+      "enlace": "Ver documento aportado",
+      "nota": "_____________\nHebei Orient ADMA Orientflex\nF1 1.1C33–35 y 1.1D10–12 entre otros / among others\nMangueras y consumibles / Hoses and consumables\nProductos y artículos\nMangueras para hormigón, materiales abrasivos, agua, aire e hidráulica; conexiones, adaptadores y acoples. Otras líneas de PVC, químicos y soldadura.\nQué ver y comparar\nVer manguera terminal de bomba, acoples y opciones para mantenimiento de la flota. Comparar con el kit suministrado por TANT o Unique.",
+      "equipos": "Ver manguera terminal de bomba, acoples y opciones para mantenimiento de la flota. Comparar con el kit suministrado por TANT o Unique.",
+      "preguntas": "¿Presión de trabajo y rotura? ¿Diámetro, refuerzo y radio de curvatura? ¿Compatibilidad de terminales, ensayos por lote y vida útil recomendada?\nComplementa las bombas; no reemplaza al proveedor de maquinaria. Elegir por especificación y compatibilidad."
     },
     {
       "id": "30",
@@ -30,7 +33,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "",
       "fase": "Fase 1",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "Verificar catálogo oficial del fabricante para Plásticos. Confirmar ubicación en stand 1.1 1.1H47."
     },
     {
       "id": "60",
@@ -46,7 +50,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "",
       "fase": "Fase 1",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "Verificar catálogo oficial del fabricante para Laminados decorativos. Confirmar ubicación en stand 1.1 1.1J25."
     },
     {
       "id": "82",
@@ -62,7 +67,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "F2: 13.0A22-23，13.0B01-02",
       "fase": "Fase 1",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "ublished participation; booth\nunverified.\n140: por confirmar / to\nconfirm.\n[S09, S10]\nP08 · Sanle\nFoshan, Guangdong\nSilicato cálcico y fibrocemento: candidato mineral"
     },
     {
       "id": "91",
@@ -78,7 +84,10 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "",
       "fase": "Fase 1",
       "estadoStand": "Stand indicado en documento 140",
-      "enlace": "Ver documento aportado"
+      "enlace": "Ver documento aportado",
+      "nota": "_____________\nTekpac Engineering\nF1 4.0B12–13\nMaquinaria liviana / Light construction equipment\nProductos y artículos\nCanguros; placas simples y reversibles hidráulicas; cortadoras; rodillos; vibradores y agujas; mezcladoras; bombas de agua; helicópteros; reglas de terminación, vibratorias MMD/MMB y reticuladas MCS.\nQué ver y comparar\nCotizar el mismo conjunto que Masalta. Revisar vibradores MVDS/MVDR, reglas MMD/MMB y helicópteros MT36/MT46. Comparar peso, motor, repuestos y costo total.",
+      "equipos": "Cotizar el mismo conjunto que Masalta. Revisar vibradores MVDS/MVDR, reglas MMD/MMB y helicópteros MT36/MT46. Comparar peso, motor, repuestos y costo total.",
+      "preguntas": "¿Quién fabrica cada modelo? ¿Los códigos compartidos con Masalta implican repuestos compatibles? ¿Cuál es la política de garantía para alquiler?\nCantón la clasifica como empresa comercial. Códigos similares no prueban equipos idénticos ni vínculo societario."
     },
     {
       "id": "90",
@@ -94,7 +103,10 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "",
       "fase": "Fase 1",
       "estadoStand": "Stand indicado en documento 140",
-      "enlace": "Ver documento aportado"
+      "enlace": "Ver documento aportado",
+      "nota": "uct is not necessarily physically exhibited. Reconfirm booths and technical meetings before travel.\nMasalta Engineering\nF1 4.0D13\nCompactación y alquiler / Compaction and rental\nProductos y artículos\nCanguros; placas simples, reversibles e hidráulicas; rodillos de uno y dos tambores; cortadoras de pisos y ladrillos; vibradores eléctricos, nafteros y de mochila; reglas vibratorias; helicópteros; escarificadoras; mezcladoras; bombas de agua; equipos hidráulicos y torres de iluminación.\nQué ver y comparar\nVer primero placa, canguro, aguja vibradora, regla y cortadora. Pedir demostración de arranque, limpieza, transporte y cambio de consumibles. Comparar con Tekpac; fratachadoras con VANSE.",
+      "equipos": "Ver primero placa, canguro, aguja vibradora, regla y cortadora. Pedir demostración de arranque, limpieza, transporte y cambio de consumibles. Comparar con Tekpac; fratachadoras con VANSE.",
+      "preguntas": "¿Qué modelos tienen garantía para alquiler? ¿Qué repuestos recomiendan para dos años? ¿Ofrecen motores y conexiones compatibles con Argentina?\nFabricante según Cantón."
     },
     {
       "id": "92",
@@ -110,7 +122,10 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "",
       "fase": "Fase 1",
       "estadoStand": "Stand indicado en documento 140",
-      "enlace": "Ver documento aportado"
+      "enlace": "Ver documento aportado",
+      "nota": "_____________\nZhengzhou Unique Industrial Equipment UNIQUEMAC\nF1 4.0H13\nProducción y bombeo / Production and pumping\nProductos y artículos\nPlantas dosificadoras fijas y móviles; mezcladoras con bomba; bombas de hormigón y con pluma; mezcladoras autocargables. Además, trituración y clasificación de áridos y plantas asfálticas.\nQué ver y comparar\nComparar bombeo con TANT y plantas con Hongfa. Ver una mezcladora autocargable para obras alejadas y equipos de clasificación de áridos para Atlas.",
+      "equipos": "Comparar bombeo con TANT y plantas con Hongfa. Ver una mezcladora autocargable para obras alejadas y equipos de clasificación de áridos para Atlas.",
+      "preguntas": "¿Qué caudal efectivo entrega con nuestra mezcla? ¿Qué productos fabrica directamente? ¿Qué soporte, puesta en marcha y repuestos ofrece en Argentina?\nWeb se presenta como fabricante; ficha de Cantón como empresa comercial. Confirmar fabricante y responsable de garantía por equipo."
     },
     {
       "id": "73",
@@ -126,7 +141,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "",
       "fase": "Fase 1",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "Verificar catálogo oficial del fabricante para Climatización. Confirmar ubicación en stand 4.1 4.1D41-42，4.1E07-08."
     },
     {
       "id": "8",
@@ -142,7 +158,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "",
       "fase": "Fase 1",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "0, fase 2: 12.1C31-32 / 12.1D11-12, publicados por el fabricante. Reconfirmar\nantes de visitar.*\n3. Guangdong Xingfa Aluminium\nReferencia Cantón 139: 12.1C29-30 / 12.1D13-14. Cantón 140: participación y stand\npendientes de confirmar.\nLos stands de la edición 139 son referencias históricas; no constituyen confirmación de ubicación en la 140. Fase 2 de la 140: 23 al 27 de\noctubre de 2026.\nNota de seguimiento: mensaje enviado a Guang Ya"
     },
     {
       "id": "76",
@@ -158,7 +175,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "F1: 9.1B46",
       "fase": "Fase 1",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "Verificar catálogo oficial del fabricante para Herrajes para aberturas. Confirmar ubicación en stand 8.0 8.0J20."
     },
     {
       "id": "71",
@@ -174,7 +192,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "F1: 20.2C22",
       "fase": "Fase 1",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "os: el anuncio del stand no garantiza esos modelos.\n4 Drones agrícolas y consultas pendientes\nAolan\nShandong Aolan Drone Science and Technology Co., Ltd. · stand agro 8.0Q01; alternativo 20.2C22.\nFicha del expositor en el catálogo de Cantón 140\nAnuncio de participación y drones agrícolas en Cantón 140\nConsultar AL4-30 de 30 litros. Su ficha declara 12–15 ha/h y cargador de 3 kW. El rendimiento real depende de dosis, recargas, baterías y condiciones del lote. La exhibición de este modelo específico está pendiente de confirmación.\nFicha del dron agrícola AL4-30"
     },
     {
       "id": "72",
@@ -190,7 +209,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "F1: 20.2C21",
       "fase": "Fase 1",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "ón de este modelo específico está pendiente de confirmación.\nFicha del dron agrícola AL4-30\nJoyance\nShandong Joyance Intelligence Technology Co., Ltd. · stand agro 8.0Q02; alternativo 20.2C21.\nFicha del expositor en el catálogo de Cantón 140\nPedir un dron agrícola de aproximadamente 30 litros para comparar con Aolan. Confirmar modelo y disponibilidad; evitar confundirlo con un dron de limpieza. El catálogo incluye equipos de pulverización agrícola.\nSitio del fabricante para equipos agrícolas\nPreguntas para ambos proveedores"
     },
     {
       "id": "76",
@@ -206,7 +226,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "F1: 8.0J20",
       "fase": "Fase 1",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "Verificar catálogo oficial del fabricante para Herrajes para aberturas. Confirmar ubicación en stand 9.1 9.1B46."
     },
     {
       "id": "27",
@@ -222,7 +243,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "",
       "fase": "Fase 1",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "ublished participation; booth\nunverified.\n140: por confirmar / to\nconfirm.\n[S09, S10]\nP08 · Sanle\nFoshan, Guangdong\nSilicato cálcico y fibrocemento: candidato mineral"
     },
     {
       "id": "1",
@@ -238,7 +260,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "F2: 12.2B31-33",
       "fase": "Fase 1",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "Verificar catálogo oficial del fabricante para Pisos y puertas. Confirmar ubicación en stand 10.2 10.2J17-18."
     },
     {
       "id": "26",
@@ -254,7 +277,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "",
       "fase": "Fase 1",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "Verificar catálogo oficial del fabricante para Mallas metálicas. Confirmar ubicación en stand 11.1 11.1C44."
     },
     {
       "id": "42",
@@ -270,7 +294,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "F2: 12.1G43-44",
       "fase": "Fase 1",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "Verificar catálogo oficial del fabricante para Herrajes para aberturas. Confirmar ubicación en stand 11.1 11.1G15-16."
     },
     {
       "id": "45",
@@ -286,7 +311,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "F2: 12.1E39",
       "fase": "Fase 1",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "panels. Specialist flooring benchmark.\n139: 12.2E42.\n140: por confirmar / to\nconfirm.\n[S03]\nP03 · Jiangsu Zhengjun\nRiver Flooring\nPisos y paredes SPC; alternativa a DECNO para cotizar el"
     },
     {
       "id": "93",
@@ -302,7 +328,10 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "",
       "fase": "Fase 1",
       "estadoStand": "Stand indicado en documento 140",
-      "enlace": "Ver documento aportado"
+      "enlace": "Ver documento aportado",
+      "nota": "_____________\nHunan TANT Tiantuo\nF1 12.0B37–38\nBombeo / Concrete pumping\nProductos y artículos\nBombas remolcables eléctricas y diésel; mezcladoras con bomba; bombas sobre camión y con pluma; camiones combinados con mezcladora y bomba; brazos distribuidores hidráulicos.\nQué ver y comparar\nVer bomba remolcable y equipo combinado. Comparar con Unique y, para camiones, Huawin. Revisar válvula S, piezas de desgaste, limpieza y acceso al mantenimiento.",
+      "equipos": "Ver bomba remolcable y equipo combinado. Comparar con Unique y, para camiones, Huawin. Revisar válvula S, piezas de desgaste, limpieza y acceso al mantenimiento.",
+      "preguntas": "¿Cuál es la curva caudal/presión? ¿Qué agregado máximo admite? ¿Qué alcance real logra con nuestra mezcla y qué kit de tuberías incluye?"
     },
     {
       "id": "94",
@@ -318,7 +347,10 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "",
       "fase": "Fase 1",
       "estadoStand": "Stand indicado en documento 140",
-      "enlace": "Ver documento aportado"
+      "enlace": "Ver documento aportado",
+      "nota": "_____________\nShandong VANSE Machinery\nF1 12.0C25–27\nPisos industriales / Industrial concrete floors\nProductos y artículos\nNiveladoras láser manuales, sobre ruedas y con brazo; fratachadoras; esparcidores de endurecedor; minidumpers; juntas para pisos; consumibles de pulido. La web también ofrece fibras de acero y sintéticas.\nQué ver y comparar\nVer DZ30-2 del catálogo de Cantón y alternativas actuales. Comparar helicópteros con Masalta/Tekpac y fibras con Zhitai. Evaluar servicio de pisos con operador.",
+      "equipos": "Ver DZ30-2 del catálogo de Cantón y alternativas actuales. Comparar helicópteros con Masalta/Tekpac y fibras con Zhitai. Evaluar servicio de pisos con operador.",
+      "preguntas": "¿Cómo calibra el láser? ¿Qué formación ofrece? ¿Quién fabrica las fibras y cuáles son sus ensayos? ¿Qué equipos funcionan en espacios pequeños?\nOferta web más amplia que la selección inicial. Confirmar tipo y especificación de fibras sintéticas antes de cotizarlas."
     },
     {
       "id": "75",
@@ -334,7 +366,10 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "F3: 9.1L37; F1: 9.2F45; F1: 13.1A08-10，13.1B13-15; F2: 8.1D37-38，8.1E11-12; F2: 11.3K30; F2: 13.1B35-36，13.1C10-11",
       "fase": "Fase 1",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "_____________\nHebei Orient ADMA Orientflex\nF1 1.1C33–35 y 1.1D10–12 entre otros / among others\nMangueras y consumibles / Hoses and consumables\nProductos y artículos\nMangueras para hormigón, materiales abrasivos, agua, aire e hidráulica; conexiones, adaptadores y acoples. Otras líneas de PVC, químicos y soldadura.\nQué ver y comparar\nVer manguera terminal de bomba, acoples y opciones para mantenimiento de la flota. Comparar con el kit suministrado por TANT o Unique.",
+      "equipos": "Ver manguera terminal de bomba, acoples y opciones para mantenimiento de la flota. Comparar con el kit suministrado por TANT o Unique.",
+      "preguntas": "¿Presión de trabajo y rotura? ¿Diámetro, refuerzo y radio de curvatura? ¿Compatibilidad de terminales, ensayos por lote y vida útil recomendada?\nComplementa las bombas; no reemplaza al proveedor de maquinaria. Elegir por especificación y compatibilidad."
     },
     {
       "id": "95",
@@ -350,7 +385,10 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "F1: 9.3H09",
       "fase": "Fase 1",
       "estadoStand": "Stand indicado en documento 140",
-      "enlace": "Ver documento aportado"
+      "enlace": "Ver documento aportado",
+      "nota": "_____________\nSINOTRUK Hubei Huawin\nF1 13.0A20–25 vehículos / vehicles; 9.3H09 repuestos / spare parts\nVehículos / Vehicles\nProductos y artículos\nCamiones mezcladores; equipo combinado mezclador y bomba sobre camión; vehículos especiales y semirremolques. Cantón muestra una bomba con pluma de 52 m.\nQué ver y comparar\nPriorizar el stand de vehículos. Comparar equipos combinados con TANT y revisar chasis, capacidad útil, hidráulica del tambor y proveedor de la bomba.",
+      "equipos": "Priorizar el stand de vehículos. Comparar equipos combinados con TANT y revisar chasis, capacidad útil, hidráulica del tambor y proveedor de la bomba.",
+      "preguntas": "¿Quién fabrica la pluma y el sistema de bombeo? ¿Qué documentación ofrece para importación y circulación? ¿Hay repuestos y servicio local?\nLa oferta comercial no prueba fabricación interna de cada conjunto. Verificar homologación y configuración para Argentina."
     },
     {
       "id": "75",
@@ -366,7 +404,10 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "F3: 9.1L37; F1: 9.2F45; F1: 12.1L08; F2: 8.1D37-38，8.1E11-12; F2: 11.3K30; F2: 13.1B35-36，13.1C10-11",
       "fase": "Fase 1",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "_____________\nHebei Orient ADMA Orientflex\nF1 1.1C33–35 y 1.1D10–12 entre otros / among others\nMangueras y consumibles / Hoses and consumables\nProductos y artículos\nMangueras para hormigón, materiales abrasivos, agua, aire e hidráulica; conexiones, adaptadores y acoples. Otras líneas de PVC, químicos y soldadura.\nQué ver y comparar\nVer manguera terminal de bomba, acoples y opciones para mantenimiento de la flota. Comparar con el kit suministrado por TANT o Unique.",
+      "equipos": "Ver manguera terminal de bomba, acoples y opciones para mantenimiento de la flota. Comparar con el kit suministrado por TANT o Unique.",
+      "preguntas": "¿Presión de trabajo y rotura? ¿Diámetro, refuerzo y radio de curvatura? ¿Compatibilidad de terminales, ensayos por lote y vida útil recomendada?\nComplementa las bombas; no reemplaza al proveedor de maquinaria. Elegir por especificación y compatibilidad."
     },
     {
       "id": "59",
@@ -382,7 +423,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "",
       "fase": "Fase 1",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "Verificar catálogo oficial del fabricante para Ferretería. Confirmar ubicación en stand 13.1 13.1A18."
     },
     {
       "id": "105",
@@ -398,7 +440,9 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "",
       "fase": "Fase 1",
       "estadoStand": "Stand indicado en documento 140",
-      "enlace": "Ver documento aportado"
+      "enlace": "Ver documento aportado",
+      "nota": "arar fabricantes de cilindros y equipos de generación, llenado y almacenamiento de gases. CAN GAS y Aceccse publican stands para la edición 140. Los demás son candidatos con distintos niveles de verificación; sus stands anteriores no deben usarse como ubicación actual.\nVisitas con stand publicado para la edición 140\nCAN GAS anuncia para esta feria su sistema integrado de generación de oxígeno y llenado. Las otras líneas pertenecen a su catálogo y deben consultarse previamente. Aceccse publica su invitación en el perfil corporativo de LinkedIn.\nCandidatos para confirmar antes de organizar el recorrido\nQué consultar a cada proveedor\nCilindros para gases comprimidos\nSolicitar catálogo de tubos de acero sin costura de 40 y 50 litros, opciones de 200 y 300 bar, y aptitud para oxígeno, argón, ni",
+      "equipos": "a cada proveedor\nCilindros para gases comprimidos\nSolicitar catálogo de tubos de acero sin costura de 40 y 50 litros, opciones de 200 y 300 bar, y aptitud para oxígeno, argón, nitrógeno y mezclas. Estas medidas son el foco de compra propuesto, no modelos verificados de los candidatos. Comparar peso, dimensiones, rosca de cuello, válvulas, protección y trazabilidad.\nProducción y llenado\nPedir capacidad en Nm³/h, pureza garantizada a ese caudal, presión de salida y de llenado, consumo eléctrico de"
     },
     {
       "id": "7",
@@ -414,7 +458,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "",
       "fase": "Fase 1",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "Verificar catálogo oficial del fabricante para Ruedas industriales. Confirmar ubicación en stand 13.1 13.1J01."
     },
     {
       "id": "75",
@@ -430,7 +475,10 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "F3: 9.1L37; F1: 13.1A08-10，13.1B13-15; F1: 12.1L08; F2: 8.1D37-38，8.1E11-12; F2: 11.3K30; F2: 13.1B35-36，13.1C10-11",
       "fase": "Fase 1",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "_____________\nHebei Orient ADMA Orientflex\nF1 1.1C33–35 y 1.1D10–12 entre otros / among others\nMangueras y consumibles / Hoses and consumables\nProductos y artículos\nMangueras para hormigón, materiales abrasivos, agua, aire e hidráulica; conexiones, adaptadores y acoples. Otras líneas de PVC, químicos y soldadura.\nQué ver y comparar\nVer manguera terminal de bomba, acoples y opciones para mantenimiento de la flota. Comparar con el kit suministrado por TANT o Unique.",
+      "equipos": "Ver manguera terminal de bomba, acoples y opciones para mantenimiento de la flota. Comparar con el kit suministrado por TANT o Unique.",
+      "preguntas": "¿Presión de trabajo y rotura? ¿Diámetro, refuerzo y radio de curvatura? ¿Compatibilidad de terminales, ensayos por lote y vida útil recomendada?\nComplementa las bombas; no reemplaza al proveedor de maquinaria. Elegir por especificación y compatibilidad."
     },
     {
       "id": "95",
@@ -446,7 +494,10 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "F1: 13.0A20-25",
       "fase": "Fase 1",
       "estadoStand": "Stand indicado en documento 140",
-      "enlace": "Ver documento aportado"
+      "enlace": "Ver documento aportado",
+      "nota": "_____________\nSINOTRUK Hubei Huawin\nF1 13.0A20–25 vehículos / vehicles; 9.3H09 repuestos / spare parts\nVehículos / Vehicles\nProductos y artículos\nCamiones mezcladores; equipo combinado mezclador y bomba sobre camión; vehículos especiales y semirremolques. Cantón muestra una bomba con pluma de 52 m.\nQué ver y comparar\nPriorizar el stand de vehículos. Comparar equipos combinados con TANT y revisar chasis, capacidad útil, hidráulica del tambor y proveedor de la bomba.",
+      "equipos": "Priorizar el stand de vehículos. Comparar equipos combinados con TANT y revisar chasis, capacidad útil, hidráulica del tambor y proveedor de la bomba.",
+      "preguntas": "¿Quién fabrica la pluma y el sistema de bombeo? ¿Qué documentación ofrece para importación y circulación? ¿Hay repuestos y servicio local?\nLa oferta comercial no prueba fabricación interna de cada conjunto. Verificar homologación y configuración para Argentina."
     },
     {
       "id": "104",
@@ -462,7 +513,9 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "",
       "fase": "Fase 1",
       "estadoStand": "Stand indicado en documento 140",
-      "enlace": "Ver documento aportado"
+      "enlace": "Ver documento aportado",
+      "nota": "vo es comparar fabricantes de cilindros y equipos de generación, llenado y almacenamiento de gases. CAN GAS y Aceccse publican stands para la edición 140. Los demás son candidatos con distintos niveles de verificación; sus stands anteriores no deben usarse como ubicación actual.\nVisitas con stand publicado para la edición 140\nCAN GAS anuncia para esta feria su sistema integrado de generación de oxígeno y llenado. Las otras líneas pertenecen a su catálogo y deben consultarse previamente. Aceccse publica su invitación en el perfil corporativo de LinkedIn.\nCandidatos para confirmar antes de organizar el recorrido\nQué consultar a cada proveedor\nCilindros para gases comprimidos\nSolicitar catálogo de tubos de acero sin costura de 40 y 50 litros, opciones de 200 y 300 bar, y aptitud para oxígeno,",
+      "equipos": "a cada proveedor\nCilindros para gases comprimidos\nSolicitar catálogo de tubos de acero sin costura de 40 y 50 litros, opciones de 200 y 300 bar, y aptitud para oxígeno, argón, nitrógeno y mezclas. Estas medidas son el foco de compra propuesto, no modelos verificados de los candidatos. Comparar peso, dimensiones, rosca de cuello, válvulas, protección y trazabilidad.\nProducción y llenado\nPedir capacidad en Nm³/h, pureza garantizada a ese caudal, presión de salida y de llenado, consumo eléctrico de"
     },
     {
       "id": "112",
@@ -478,7 +531,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "",
       "fase": "Fase 1",
       "estadoStand": "Stand indicado en documento 140",
-      "enlace": "Ver documento aportado"
+      "enlace": "Ver documento aportado",
+      "nota": "rrido agrupado por pabellón / Route grouped by hall\nProveedor / Supplier\nStand / Booth\nFoco / Focus\nSENFENG\n19.1 A09-B15\nSoldadura y automatización / Welding & automation\nHARSLE"
     },
     {
       "id": "38",
@@ -494,7 +548,10 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "F2: 11.2L34",
       "fase": "Fase 1",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "_____________\nHebei Orient ADMA Orientflex\nF1 1.1C33–35 y 1.1D10–12 entre otros / among others\nMangueras y consumibles / Hoses and consumables\nProductos y artículos\nMangueras para hormigón, materiales abrasivos, agua, aire e hidráulica; conexiones, adaptadores y acoples. Otras líneas de PVC, químicos y soldadura.\nQué ver y comparar\nVer manguera terminal de bomba, acoples y opciones para mantenimiento de la flota. Comparar con el kit suministrado por TANT o Unique.",
+      "equipos": "Ver manguera terminal de bomba, acoples y opciones para mantenimiento de la flota. Comparar con el kit suministrado por TANT o Unique.",
+      "preguntas": "¿Presión de trabajo y rotura? ¿Diámetro, refuerzo y radio de curvatura? ¿Compatibilidad de terminales, ensayos por lote y vida útil recomendada?\nComplementa las bombas; no reemplaza al proveedor de maquinaria. Elegir por especificación y compatibilidad."
     },
     {
       "id": "96",
@@ -510,7 +567,10 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "",
       "fase": "Fase 1",
       "estadoStand": "Stand indicado en documento 140",
-      "enlace": "Ver documento aportado"
+      "enlace": "Ver documento aportado",
+      "nota": "_____________\nCUS GROUP Zhengzhou City Unites Steel Industrial\nF1 19.1D32–33\nAlternativa comercial / Commercial alternative\nProductos y artículos\nWeb propia: bobinas y chapas revestidas/galvanizadas, estructuras metálicas y construcción de viviendas. Catálogo de Cantón: bombas remolcables y mezcladoras con bomba.\nQué ver y comparar\nPedir ficha, fabricante y placa del equipo de bombeo antes de dedicar tiempo técnico. También revisar viviendas y estructuras si interesan para Perren.",
+      "equipos": "Pedir ficha, fabricante y placa del equipo de bombeo antes de dedicar tiempo técnico. También revisar viviendas y estructuras si interesan para Perren.",
+      "preguntas": "¿Las bombas son propias o de terceros? ¿Quién garantiza y provee repuestos? ¿Pueden mostrar una instalación o máquina funcionando?\nBombas confirmadas en Cantón; no corroboradas en la web propia revisada."
     },
     {
       "id": "61",
@@ -526,7 +586,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "",
       "fase": "Fase 1",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "Verificar catálogo oficial del fabricante para Maquinaria metalúrgica. Confirmar ubicación en stand 19.1 19.1G36-37，19.1H10-11."
     },
     {
       "id": "113",
@@ -542,7 +603,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "",
       "fase": "Fase 1",
       "estadoStand": "Stand indicado en documento 140",
-      "enlace": "Ver documento aportado"
+      "enlace": "Ver documento aportado",
+      "nota": "r\nStand / Booth\nFoco / Focus\nSENFENG\n19.1 A09-B15\nSoldadura y automatización / Welding & automation\nHARSLE\n19.1K16-18"
     },
     {
       "id": "114",
@@ -558,7 +620,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "",
       "fase": "Fase 1",
       "estadoStand": "Stand indicado en documento 140",
-      "enlace": "Ver documento aportado"
+      "enlace": "Ver documento aportado",
+      "nota": "automatización / Welding & automation\nHARSLE\n19.1K16-18\nAsistencia al plegado / Bending assistance\nRAYVANBO\n19.1K30-31\nMovimiento de chapas / Sheet handling\nGWEIKE"
     },
     {
       "id": "115",
@@ -574,7 +637,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "",
       "fase": "Fase 1",
       "estadoStand": "Stand indicado en documento 140",
-      "enlace": "Ver documento aportado"
+      "enlace": "Ver documento aportado",
+      "nota": "sistencia al plegado / Bending assistance\nRAYVANBO\n19.1K30-31\nMovimiento de chapas / Sheet handling\nGWEIKE\n20.1A07-12 / 20.1B12-17\nComparación de soldadura / Welding comparison\nDURMAPRESS"
     },
     {
       "id": "116",
@@ -590,7 +654,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "",
       "fase": "Fase 1",
       "estadoStand": "Stand indicado en documento 140",
-      "enlace": "Ver documento aportado"
+      "enlace": "Ver documento aportado",
+      "nota": "hapas / Sheet handling\nGWEIKE\n20.1A07-12 / 20.1B12-17\nComparación de soldadura / Welding comparison\nDURMAPRESS\n20.1F23\nNuevas operaciones / Additional processes\nOrden orientativo: pabellón 19.1 y luego 20.1. No es"
     },
     {
       "id": "99",
@@ -606,7 +671,10 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "",
       "fase": "Fase 1",
       "estadoStand": "Stand indicado en documento 140",
-      "enlace": "Ver documento aportado"
+      "enlace": "Ver documento aportado",
+      "nota": "_____________\nGuangxi Hongfa Heavy Machinery\nF1 20.1H40–41\nPaneles bloques y plantas / Panels blocks and plants\nProductos y artículos\nPaneles livianos cemento/EPS y espumados; líneas AAC; bloqueras; plantas dosificadoras; máquinas para tubos de hormigón, baldosas de terrazo y apilado de bloques.\nQué ver y comparar\nComparar línea de paneles con Tianyi/Vanjoin y dosificación con Unique. Explorar bloques, tubos y terrazo como posibles productos locales.",
+      "equipos": "Comparar línea de paneles con Tianyi/Vanjoin y dosificación con Unique. Explorar bloques, tubos y terrazo como posibles productos locales.",
+      "preguntas": "¿Qué moldes incluye y cuánto cuesta cada formato? ¿Qué automatización conviene al volumen inicial? ¿Instalación, capacitación y ensayos del producto?"
     },
     {
       "id": "98",
@@ -622,7 +690,10 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "F2: 13.2L21",
       "fase": "Fase 1",
       "estadoStand": "Stand indicado en documento 140",
-      "enlace": "Ver documento aportado"
+      "enlace": "Ver documento aportado",
+      "nota": "_____________\nShandong Tianyi Machinery TANY\nF1 20.1J42; F2 13.2L21\nFabricación de prefabricados / Precast manufacturing\nProductos y artículos\nLíneas para paneles cemento/EPS; paneles de hormigón celular autoclavado; paneles livianos GRC, yeso y compuestos; producción PC de elementos prefabricados.\nQué ver y comparar\nComparar paneles con Hongfa y Vanjoin; moldes PC con GETO. Pedir propuesta de planta inicial para componentes de viviendas, sin asumir que todos los paneles son portantes.",
+      "equipos": "Comparar paneles con Hongfa y Vanjoin; moldes PC con GETO. Pedir propuesta de planta inicial para componentes de viviendas, sin asumir que todos los paneles son portantes.",
+      "preguntas": "¿Qué piezas fabrica la línea? ¿Capacidad por turno, superficie y energía? ¿Costo por m², personal, curado y materias primas requeridas?\nIdentidad: Shandong Tianyi; no confundir con Hubei Tianyi ni otras empresas homónimas."
     },
     {
       "id": "64",
@@ -638,7 +709,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "",
       "fase": "Fase 1",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "Verificar catálogo oficial del fabricante para Motores y automatización. Confirmar ubicación en stand 20.1 20.1J43."
     },
     {
       "id": "72",
@@ -654,7 +726,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "F1: 8.0Q02",
       "fase": "Fase 1",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "ón de este modelo específico está pendiente de confirmación.\nFicha del dron agrícola AL4-30\nJoyance\nShandong Joyance Intelligence Technology Co., Ltd. · stand agro 8.0Q02; alternativo 20.2C21.\nFicha del expositor en el catálogo de Cantón 140\nPedir un dron agrícola de aproximadamente 30 litros para comparar con Aolan. Confirmar modelo y disponibilidad; evitar confundirlo con un dron de limpieza. El catálogo incluye equipos de pulverización agrícola.\nSitio del fabricante para equipos agrícolas\nPreguntas para ambos proveedores"
     },
     {
       "id": "71",
@@ -670,7 +743,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "F1: 8.0Q01",
       "fase": "Fase 1",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "os: el anuncio del stand no garantiza esos modelos.\n4 Drones agrícolas y consultas pendientes\nAolan\nShandong Aolan Drone Science and Technology Co., Ltd. · stand agro 8.0Q01; alternativo 20.2C22.\nFicha del expositor en el catálogo de Cantón 140\nAnuncio de participación y drones agrícolas en Cantón 140\nConsultar AL4-30 de 30 litros. Su ficha declara 12–15 ha/h y cargador de 3 kW. El rendimiento real depende de dosis, recargas, baterías y condiciones del lote. La exhibición de este modelo específico está pendiente de confirmación.\nFicha del dron agrícola AL4-30"
     },
     {
       "id": "69",
@@ -686,7 +760,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "F2: 11.3B35-36，11.3C12-13",
       "fase": "Fase 1",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "PERREN | Plan de visitas - Aluminio\n1\nALUMINIO | CANTÓN 140\nResumen para visitas - Perren y Cía. | 09/10/2026\nObjetivo: encontrar perfiles compatibles con el sistema Módena utilizado en Argentina, o fabricantes que puedan\ndesarrollar las matrices a partir de planos y muestras.\nProveedores y stands\nProveedor / prioridad"
     }
   ],
   "Fase 2": [
@@ -704,7 +779,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "",
       "fase": "Fase 2",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "Verificar catálogo oficial del fabricante para Spa e hidromasaje. Confirmar ubicación en stand 9.0 9.0B09-11."
     },
     {
       "id": "88",
@@ -720,7 +796,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "F3: 9.2B23-24，9.2A01-02; F2: 10.1E32-38，10.1F13-19",
       "fase": "Fase 2",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "Verificar catálogo oficial del fabricante para Baño e hidromasaje. Confirmar ubicación en stand 9.0 9.0C01-02."
     },
     {
       "id": "55",
@@ -736,7 +813,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "",
       "fase": "Fase 2",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "0, fase 2: 12.1C31-32 / 12.1D11-12, publicados por el fabricante. Reconfirmar\nantes de visitar.*\n3. Guangdong Xingfa Aluminium\nReferencia Cantón 139: 12.1C29-30 / 12.1D13-14. Cantón 140: participación y stand\npendientes de confirmar.\nLos stands de la edición 139 son referencias históricas; no constituyen confirmación de ubicación en la 140. Fase 2 de la 140: 23 al 27 de\noctubre de 2026.\nNota de seguimiento: mensaje enviado a Guang Ya"
     },
     {
       "id": "32",
@@ -752,7 +830,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "",
       "fase": "Fase 2",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "Verificar catálogo oficial del fabricante para Sanitarios. Confirmar ubicación en stand 9.1 9.1D33-35，9.1E11-13."
     },
     {
       "id": "36",
@@ -768,7 +847,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "",
       "fase": "Fase 2",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "Verificar catálogo oficial del fabricante para Grifería. Confirmar ubicación en stand 9.1 9.1F26-27，9.1G18-19."
     },
     {
       "id": "12",
@@ -784,7 +864,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "",
       "fase": "Fase 2",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": ", mantenimiento, soporte en Argentina y documentación necesaria para operar.\nMeibao visita opcional\nZhejiang Meibao Industrial Technology Co., Ltd. · stand 18.1I17. La recogedora ST-CL-3 pesa 3.010 kg y exige al menos 92 kW, aproximadamente 125 CV. No es apta para el tractor actual; además requiere un vehículo acompañante para recibir las piedras. Visitar solo para preguntar por una alternativa menor con tolva propia.\nFicha del expositor en el catálogo de Cantón 140\nFicha de la recogedora ST-CL-3\nOtros intereses aún sin proveedor confirmado\nTanques australianos, balanza de ganado, corrales y vacunación, forestación y control con Raspberry Pi 4 o 5: quedan pendientes de identificar un expositor y stand de Cantón 140. No se asignan visitas sin esa confirmación.\nEn cada reunión pedir: contact"
     },
     {
       "id": "63",
@@ -800,7 +881,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "",
       "fase": "Fase 2",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "Verificar catálogo oficial del fabricante para Agua caliente. Confirmar ubicación en stand 9.1 9.1H37-38."
     },
     {
       "id": "24",
@@ -816,7 +898,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "",
       "fase": "Fase 2",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "0, fase 2: 12.1C31-32 / 12.1D11-12, publicados por el fabricante. Reconfirmar\nantes de visitar.*\n3. Guangdong Xingfa Aluminium\nReferencia Cantón 139: 12.1C29-30 / 12.1D13-14. Cantón 140: participación y stand\npendientes de confirmar.\nLos stands de la edición 139 son referencias históricas; no constituyen confirmación de ubicación en la 140. Fase 2 de la 140: 23 al 27 de\noctubre de 2026.\nNota de seguimiento: mensaje enviado a Guang Ya"
     },
     {
       "id": "40",
@@ -832,7 +915,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "",
       "fase": "Fase 2",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "Verificar catálogo oficial del fabricante para Sanitarios. Confirmar ubicación en stand 9.1 9.1N01."
     },
     {
       "id": "5",
@@ -848,7 +932,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "F2: 13.2C08-13",
       "fase": "Fase 2",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "Verificar catálogo oficial del fabricante para Sanitarios. Confirmar ubicación en stand 10.1 10.1A08-17."
     },
     {
       "id": "10",
@@ -864,7 +949,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "F2: 11.3B27-28",
       "fase": "Fase 2",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "Verificar catálogo oficial del fabricante para Espejos y muebles de baño. Confirmar ubicación en stand 10.1 10.1D01-03."
     },
     {
       "id": "88",
@@ -880,7 +966,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "F3: 9.2B23-24，9.2A01-02; F2: 9.0C01-02",
       "fase": "Fase 2",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "Verificar catálogo oficial del fabricante para Baño e hidromasaje. Confirmar ubicación en stand 10.1 10.1E32-38，10.1F13-19."
     },
     {
       "id": "67",
@@ -896,7 +983,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "",
       "fase": "Fase 2",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "Verificar catálogo oficial del fabricante para Sanitarios cerámicos. Confirmar ubicación en stand 10.1 10.1L16."
     },
     {
       "id": "23",
@@ -912,7 +1000,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "",
       "fase": "Fase 2",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "0, fase 2: 12.1C31-32 / 12.1D11-12, publicados por el fabricante. Reconfirmar\nantes de visitar.*\n3. Guangdong Xingfa Aluminium\nReferencia Cantón 139: 12.1C29-30 / 12.1D13-14. Cantón 140: participación y stand\npendientes de confirmar.\nLos stands de la edición 139 son referencias históricas; no constituyen confirmación de ubicación en la 140. Fase 2 de la 140: 23 al 27 de\noctubre de 2026.\nNota de seguimiento: mensaje enviado a Guang Ya"
     },
     {
       "id": "83",
@@ -928,7 +1017,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "F2: 13.2H31-32，13.2I17-18",
       "fase": "Fase 2",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "Verificar catálogo oficial del fabricante para Baño y terminaciones. Confirmar ubicación en stand 11.1 11.1C37-38."
     },
     {
       "id": "39",
@@ -944,7 +1034,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "",
       "fase": "Fase 2",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "0, fase 2: 12.1C31-32 / 12.1D11-12, publicados por el fabricante. Reconfirmar\nantes de visitar.*\n3. Guangdong Xingfa Aluminium\nReferencia Cantón 139: 12.1C29-30 / 12.1D13-14. Cantón 140: participación y stand\npendientes de confirmar.\nLos stands de la edición 139 son referencias históricas; no constituyen confirmación de ubicación en la 140. Fase 2 de la 140: 23 al 27 de\noctubre de 2026.\nNota de seguimiento: mensaje enviado a Guang Ya"
     },
     {
       "id": "2",
@@ -960,7 +1051,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "F3: 10.2F48",
       "fase": "Fase 2",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "Verificar catálogo oficial del fabricante para Sanitarios. Confirmar ubicación en stand 11.1 11.1H13-16，11.1G31-34."
     },
     {
       "id": "19",
@@ -976,7 +1068,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "",
       "fase": "Fase 2",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "Verificar catálogo oficial del fabricante para Cerámicos. Confirmar ubicación en stand 11.1 11.1I23-24."
     },
     {
       "id": "70",
@@ -992,7 +1085,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "",
       "fase": "Fase 2",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "Verificar catálogo oficial del fabricante para Espejos. Confirmar ubicación en stand 11.1 11.1J17-18，11.1I31-32."
     },
     {
       "id": "46",
@@ -1008,7 +1102,9 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "",
       "fase": "Fase 2",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "tps://www.cangas-systemss.com/\nAceccse perfil corporativo — https://cn.linkedin.com/company/aceccse-hangzhou-composite-co-ltd\nLiaoning perfil corporativo — https://www.linkedin.com/company/liaoning-metal-technology-co-ltd\nLiaoning directorio independiente de Cantón 139 — https://cantonfair.co/139/exhibitors/liaoning-metal-technology-co-ltd-49921\nSnowrain participación anterior — https://www.sysnowrain.com/news/great-gains-from-the-canton-fair\nDALY catálogo y noticias — https://www.dalycylinder.com/\nWonder Gas — https://www.wondergas.com/\nSmart Pioneer — https://www.smartpioneertech.com/",
+      "equipos": "en cada proveedor\nGuía de inspección y comparación. Los productos a consultar pueden pertenecer al catálogo; confirmar previamente qué equipos estarán exhibidos en el stand.\nCAN GAS | 18.1 F10–11\nQué ver: Generación y llenado de oxígeno; generadores de nitrógeno PSA. Pedir una demostración del sistema completo, incluyendo compresor, secador, filtros, booster y rampa de llenado.\nQué comparar y pedir: Comparar caudal y pureza simultáneos, presión final, cilindros por jornada, potencia total y mant"
     },
     {
       "id": "35",
@@ -1024,7 +1120,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "",
       "fase": "Fase 2",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "Verificar catálogo oficial del fabricante para Sanitarios. Confirmar ubicación en stand 11.1 11.1K47."
     },
     {
       "id": "25",
@@ -1040,7 +1137,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "",
       "fase": "Fase 2",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "de planos y muestras.\nProveedores y stands\nProveedor / prioridad\nStand y estado de verificación\n1. Guang Ya Aluminium\nReferencia Cantón 139: 12.1A09-10 / 12.1B11-12, fase 2. Cantón 140: participación y\nstand pendientes de respuesta.\n2. Shandong Huajian Aluminium"
     },
     {
       "id": "6",
@@ -1056,7 +1154,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "",
       "fase": "Fase 2",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "Verificar catálogo oficial del fabricante para Tuberías. Confirmar ubicación en stand 11.2 11.2J43."
     },
     {
       "id": "34",
@@ -1072,7 +1171,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "",
       "fase": "Fase 2",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "Verificar catálogo oficial del fabricante para Estructuras y módulos. Confirmar ubicación en stand 11.2 11.2K01."
     },
     {
       "id": "54",
@@ -1088,7 +1188,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "F2: 12.0C11-12，12.0D11",
       "fase": "Fase 2",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "Verificar catálogo oficial del fabricante para Paneles y chapas. Confirmar ubicación en stand 11.2 11.2L16."
     },
     {
       "id": "102",
@@ -1104,7 +1205,10 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "",
       "fase": "Fase 2",
       "estadoStand": "Stand indicado en documento 140",
-      "enlace": "Ver documento aportado"
+      "enlace": "Ver documento aportado",
+      "nota": "_____________\nYutian Zhitai Steel Fiber\nF2 11.2L27\nFibras de acero / Steel fibers\nProductos y artículos\nFibras de acero con gancho, agrupadas/encoladas, rectas, recubiertas de cobre y otras geometrías para aplicaciones de hormigón.\nQué ver y comparar\nComparar fibras de acero con VANSE. Pedir muestras y verificar dosificación, facilidad de mezclado/bombeo y desempeño residual para pisos o prefabricados.",
+      "equipos": "Comparar fibras de acero con VANSE. Pedir muestras y verificar dosificación, facilidad de mezclado/bombeo y desempeño residual para pisos o prefabricados.",
+      "preguntas": "¿Qué ensayos corresponden al modelo? ¿Resistencia, longitud y relación de aspecto? ¿Cómo se define la dosificación y qué apoyo de cálculo ofrecen?\nProveedor especializado. Las fibras siguen siendo acero; no son una alternativa no metálica ni reemplazo universal de armaduras."
     },
     {
       "id": "38",
@@ -1120,7 +1224,10 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "F1: 19.1D19",
       "fase": "Fase 2",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "_____________\nHebei Orient ADMA Orientflex\nF1 1.1C33–35 y 1.1D10–12 entre otros / among others\nMangueras y consumibles / Hoses and consumables\nProductos y artículos\nMangueras para hormigón, materiales abrasivos, agua, aire e hidráulica; conexiones, adaptadores y acoples. Otras líneas de PVC, químicos y soldadura.\nQué ver y comparar\nVer manguera terminal de bomba, acoples y opciones para mantenimiento de la flota. Comparar con el kit suministrado por TANT o Unique.",
+      "equipos": "Ver manguera terminal de bomba, acoples y opciones para mantenimiento de la flota. Comparar con el kit suministrado por TANT o Unique.",
+      "preguntas": "¿Presión de trabajo y rotura? ¿Diámetro, refuerzo y radio de curvatura? ¿Compatibilidad de terminales, ensayos por lote y vida útil recomendada?\nComplementa las bombas; no reemplaza al proveedor de maquinaria. Elegir por especificación y compatibilidad."
     },
     {
       "id": "9",
@@ -1136,7 +1243,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "",
       "fase": "Fase 2",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "Verificar catálogo oficial del fabricante para Mallas metálicas. Confirmar ubicación en stand 11.2 11.2M03."
     },
     {
       "id": "84",
@@ -1152,7 +1260,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "",
       "fase": "Fase 2",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "e soldadura / Welding comparison\nDURMAPRESS\n20.1F23\nNuevas operaciones / Additional processes\nOrden orientativo: pabellón 19.1 y luego 20.1. No es\nuna ruta calculada por distancia. Prioridad técnica:\nmovimiento de chapa, asistencia al plegado,\nsoldadura y desbarbado."
     },
     {
       "id": "45",
@@ -1168,7 +1277,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "F1: 11.1I21",
       "fase": "Fase 2",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "panels. Specialist flooring benchmark.\n139: 12.2E42.\n140: por confirmar / to\nconfirm.\n[S03]\nP03 · Jiangsu Zhengjun\nRiver Flooring\nPisos y paredes SPC; alternativa a DECNO para cotizar el"
     },
     {
       "id": "14",
@@ -1184,7 +1294,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "",
       "fase": "Fase 2",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "Verificar catálogo oficial del fabricante para WPC. Confirmar ubicación en stand 12.1 12.1F11-12，12.1E31-32."
     },
     {
       "id": "47",
@@ -1200,7 +1311,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "",
       "fase": "Fase 2",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "Verificar catálogo oficial del fabricante para Aberturas. Confirmar ubicación en stand 12.1 12.1G04-05，12.1F39-40."
     },
     {
       "id": "42",
@@ -1216,7 +1328,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "F1: 11.1G15-16",
       "fase": "Fase 2",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "Verificar catálogo oficial del fabricante para Herrajes para aberturas. Confirmar ubicación en stand 12.1 12.1G43-44."
     },
     {
       "id": "49",
@@ -1232,7 +1345,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "",
       "fase": "Fase 2",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "Verificar catálogo oficial del fabricante para Aberturas y fachadas. Confirmar ubicación en stand 12.1 12.1H05-06."
     },
     {
       "id": "86",
@@ -1248,7 +1362,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "",
       "fase": "Fase 2",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "ublished participation; booth\nunverified.\n140: por confirmar / to\nconfirm.\n[S09, S10]\nP08 · Sanle\nFoshan, Guangdong\nSilicato cálcico y fibrocemento: candidato mineral"
     },
     {
       "id": "52",
@@ -1264,7 +1379,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "",
       "fase": "Fase 2",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "0, fase 2: 12.1C31-32 / 12.1D11-12, publicados por el fabricante. Reconfirmar\nantes de visitar.*\n3. Guangdong Xingfa Aluminium\nReferencia Cantón 139: 12.1C29-30 / 12.1D13-14. Cantón 140: participación y stand\npendientes de confirmar.\nLos stands de la edición 139 son referencias históricas; no constituyen confirmación de ubicación en la 140. Fase 2 de la 140: 23 al 27 de\noctubre de 2026.\nNota de seguimiento: mensaje enviado a Guang Ya"
     },
     {
       "id": "85",
@@ -1280,7 +1396,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "",
       "fase": "Fase 2",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "e soldadura / Welding comparison\nDURMAPRESS\n20.1F23\nNuevas operaciones / Additional processes\nOrden orientativo: pabellón 19.1 y luego 20.1. No es\nuna ruta calculada por distancia. Prioridad técnica:\nmovimiento de chapa, asistencia al plegado,\nsoldadura y desbarbado."
     },
     {
       "id": "75",
@@ -1296,7 +1413,10 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "F3: 9.1L37; F1: 9.2F45; F1: 13.1A08-10，13.1B13-15; F1: 12.1L08; F2: 8.1D37-38，8.1E11-12; F2: 11.3K30",
       "fase": "Fase 2",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "_____________\nHebei Orient ADMA Orientflex\nF1 1.1C33–35 y 1.1D10–12 entre otros / among others\nMangueras y consumibles / Hoses and consumables\nProductos y artículos\nMangueras para hormigón, materiales abrasivos, agua, aire e hidráulica; conexiones, adaptadores y acoples. Otras líneas de PVC, químicos y soldadura.\nQué ver y comparar\nVer manguera terminal de bomba, acoples y opciones para mantenimiento de la flota. Comparar con el kit suministrado por TANT o Unique.",
+      "equipos": "Ver manguera terminal de bomba, acoples y opciones para mantenimiento de la flota. Comparar con el kit suministrado por TANT o Unique.",
+      "preguntas": "¿Presión de trabajo y rotura? ¿Diámetro, refuerzo y radio de curvatura? ¿Compatibilidad de terminales, ensayos por lote y vida útil recomendada?\nComplementa las bombas; no reemplaza al proveedor de maquinaria. Elegir por especificación y compatibilidad."
     },
     {
       "id": "74",
@@ -1312,7 +1432,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "",
       "fase": "Fase 2",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "edor / Supplier Encaje en la unidad / Business fit Evidencia de feria / Fair\nevidence\nP01 · XHWOOD\nLinyi XHWOOD\nInternational Trade\nBambú compuesto, WPC, acústicos, PVC, SPC; catálogo\ncon piedra 3D y WPC exterior. / Bamboo composite, WPC,\nacoustic, PVC and SPC; catalog includes 3D stone and"
     },
     {
       "id": "101",
@@ -1328,7 +1449,10 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "",
       "fase": "Fase 2",
       "estadoStand": "Stand indicado en documento 140",
-      "enlace": "Ver documento aportado"
+      "enlace": "Ver documento aportado",
+      "nota": "_____________\nGETO New Materials Group\nF2 13.1E41–42\nMoldes encofrados y soportes / Molds formwork and shoring\nProductos y artículos\nEncofrados de aluminio, acero, plástico y madera con marco; moldes PC y PPVC/MIC; andamios Ringlock, puntales y soportes; sistemas trepantes; edificios modulares y categorías de terminaciones.\nQué ver y comparar\nVer moldes de habitación completa y componentes, encofrado para obra y equipos de soporte para alquiler. Comparar alcance de moldes con Tianyi.",
+      "equipos": "Ver moldes de habitación completa y componentes, encofrado para obra y equipos de soporte para alquiler. Comparar alcance de moldes con Tianyi.",
+      "preguntas": "¿Dimensiones y peso de módulos? ¿Desmoldeo, ciclos, tolerancias y grúas? ¿Qué diseño estructural, instalación y formación incluyen?\nPPVC/MIC documentado en web propia; confirmar presencia del técnico y del sistema en el stand. No equivale a una línea de paneles EPS."
     },
     {
       "id": "11",
@@ -1344,7 +1468,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "",
       "fase": "Fase 2",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": ", mantenimiento, soporte en Argentina y documentación necesaria para operar.\nMeibao visita opcional\nZhejiang Meibao Industrial Technology Co., Ltd. · stand 18.1I17. La recogedora ST-CL-3 pesa 3.010 kg y exige al menos 92 kW, aproximadamente 125 CV. No es apta para el tractor actual; además requiere un vehículo acompañante para recibir las piedras. Visitar solo para preguntar por una alternativa menor con tolva propia.\nFicha del expositor en el catálogo de Cantón 140\nFicha de la recogedora ST-CL-3\nOtros intereses aún sin proveedor confirmado\nTanques australianos, balanza de ganado, corrales y vacunación, forestación y control con Raspberry Pi 4 o 5: quedan pendientes de identificar un expositor y stand de Cantón 140. No se asignan visitas sin esa confirmación.\nEn cada reunión pedir: contact"
     },
     {
       "id": "31",
@@ -1360,7 +1485,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "",
       "fase": "Fase 2",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "Verificar catálogo oficial del fabricante para Placas plásticas. Confirmar ubicación en stand 13.1 13.1I28."
     },
     {
       "id": "4",
@@ -1376,7 +1502,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "",
       "fase": "Fase 2",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "Verificar catálogo oficial del fabricante para Cocina. Confirmar ubicación en stand 13.1 13.1J09-10，13.1I39-40."
     },
     {
       "id": "28",
@@ -1392,7 +1519,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "F2: 13.0B03-04",
       "fase": "Fase 2",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "Verificar catálogo oficial del fabricante para Construcción modular. Confirmar ubicación en stand 13.1 13.1K07-08."
     },
     {
       "id": "22",
@@ -1408,7 +1536,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "",
       "fase": "Fase 2",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "Verificar catálogo oficial del fabricante para Chapas de acero. Confirmar ubicación en stand 13.1 13.1L11-12，13.1K35-36."
     },
     {
       "id": "53",
@@ -1424,7 +1553,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "",
       "fase": "Fase 2",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "Verificar catálogo oficial del fabricante para Paneles constructivos. Confirmar ubicación en stand 13.2 13.2B03."
     },
     {
       "id": "100",
@@ -1440,7 +1570,10 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "",
       "fase": "Fase 2",
       "estadoStand": "Stand indicado en documento 140",
-      "enlace": "Ver documento aportado"
+      "enlace": "Ver documento aportado",
+      "nota": "_____________\nVanjoin Hubei High Tech Industrial\nF2 13.2B14–15\nPaneles y terminaciones / Panels and finishes\nProductos y artículos\nPaneles sándwich cemento/EPS terminados; líneas para fabricarlos; revestimientos flexibles y equipos asociados. La web también publica revestimientos WPC/ASA y otras líneas.\nQué ver y comparar\nComparar panel comprado con producción local Tianyi/Hongfa. Revisar unión, corte, instalaciones, anclajes y terminaciones; ver revestimientos para Perren.",
+      "equipos": "Comparar panel comprado con producción local Tianyi/Hongfa. Revisar unión, corte, instalaciones, anclajes y terminaciones; ver revestimientos para Perren.",
+      "preguntas": "¿Panel portante o cerramiento? ¿Ensayos de fuego, acústica y humedad? ¿Cómo se calculan fijaciones para viento y cuánto cuesta el panel puesto en Argentina?\nNo asumir aptitud estructural o para Patagonia por material o descripción comercial. Solicitar ensayos del sistema completo."
     },
     {
       "id": "5",
@@ -1456,7 +1589,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "F2: 10.1A08-17",
       "fase": "Fase 2",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "Verificar catálogo oficial del fabricante para Sanitarios. Confirmar ubicación en stand 13.2 13.2C08-13."
     },
     {
       "id": "77",
@@ -1472,7 +1606,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "",
       "fase": "Fase 2",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "Verificar catálogo oficial del fabricante para Muebles de cocina. Confirmar ubicación en stand 13.2 13.2D31-36，13.2E12-16."
     },
     {
       "id": "62",
@@ -1488,7 +1623,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "",
       "fase": "Fase 2",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "0, fase 2: 12.1C31-32 / 12.1D11-12, publicados por el fabricante. Reconfirmar\nantes de visitar.*\n3. Guangdong Xingfa Aluminium\nReferencia Cantón 139: 12.1C29-30 / 12.1D13-14. Cantón 140: participación y stand\npendientes de confirmar.\nLos stands de la edición 139 son referencias históricas; no constituyen confirmación de ubicación en la 140. Fase 2 de la 140: 23 al 27 de\noctubre de 2026.\nNota de seguimiento: mensaje enviado a Guang Ya"
     },
     {
       "id": "17",
@@ -1504,7 +1640,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "",
       "fase": "Fase 2",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "Verificar catálogo oficial del fabricante para Pisos vinílicos. Confirmar ubicación en stand 13.2 13.2E39-40，13.2F07-08."
     },
     {
       "id": "57",
@@ -1520,7 +1657,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "",
       "fase": "Fase 2",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "ublished participation; booth\nunverified.\n140: por confirmar / to\nconfirm.\n[S09, S10]\nP08 · Sanle\nFoshan, Guangdong\nSilicato cálcico y fibrocemento: candidato mineral"
     },
     {
       "id": "56",
@@ -1536,7 +1674,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "",
       "fase": "Fase 2",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "0, fase 2: 12.1C31-32 / 12.1D11-12, publicados por el fabricante. Reconfirmar\nantes de visitar.*\n3. Guangdong Xingfa Aluminium\nReferencia Cantón 139: 12.1C29-30 / 12.1D13-14. Cantón 140: participación y stand\npendientes de confirmar.\nLos stands de la edición 139 son referencias históricas; no constituyen confirmación de ubicación en la 140. Fase 2 de la 140: 23 al 27 de\noctubre de 2026.\nNota de seguimiento: mensaje enviado a Guang Ya"
     },
     {
       "id": "18",
@@ -1552,7 +1691,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "",
       "fase": "Fase 2",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "Verificar catálogo oficial del fabricante para Cerámicos. Confirmar ubicación en stand 13.2 13.2F43."
     },
     {
       "id": "16",
@@ -1568,7 +1708,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "",
       "fase": "Fase 2",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "panels. Specialist flooring benchmark.\n139: 12.2E42.\n140: por confirmar / to\nconfirm.\n[S03]\nP03 · Jiangsu Zhengjun\nRiver Flooring\nPisos y paredes SPC; alternativa a DECNO para cotizar el"
     },
     {
       "id": "83",
@@ -1584,7 +1725,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "F2: 11.1C37-38",
       "fase": "Fase 2",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "Verificar catálogo oficial del fabricante para Baño y terminaciones. Confirmar ubicación en stand 13.2 13.2H31-32，13.2I17-18."
     },
     {
       "id": "65",
@@ -1600,7 +1742,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "",
       "fase": "Fase 2",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "ublished participation; booth\nunverified.\n140: por confirmar / to\nconfirm.\n[S09, S10]\nP08 · Sanle\nFoshan, Guangdong\nSilicato cálcico y fibrocemento: candidato mineral"
     },
     {
       "id": "43",
@@ -1616,7 +1759,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "F3: 4.1Y11-12",
       "fase": "Fase 2",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "Verificar catálogo oficial del fabricante para Caucho y plásticos. Confirmar ubicación en stand 13.2 13.2K19."
     },
     {
       "id": "58",
@@ -1632,7 +1776,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "",
       "fase": "Fase 2",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "edor / Supplier Encaje en la unidad / Business fit Evidencia de feria / Fair\nevidence\nP01 · XHWOOD\nLinyi XHWOOD\nInternational Trade\nBambú compuesto, WPC, acústicos, PVC, SPC; catálogo\ncon piedra 3D y WPC exterior. / Bamboo composite, WPC,\nacoustic, PVC and SPC; catalog includes 3D stone and"
     },
     {
       "id": "21",
@@ -1648,7 +1793,9 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "",
       "fase": "Fase 2",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "tps://www.cangas-systemss.com/\nAceccse perfil corporativo — https://cn.linkedin.com/company/aceccse-hangzhou-composite-co-ltd\nLiaoning perfil corporativo — https://www.linkedin.com/company/liaoning-metal-technology-co-ltd\nLiaoning directorio independiente de Cantón 139 — https://cantonfair.co/139/exhibitors/liaoning-metal-technology-co-ltd-49921\nSnowrain participación anterior — https://www.sysnowrain.com/news/great-gains-from-the-canton-fair\nDALY catálogo y noticias — https://www.dalycylinder.com/\nWonder Gas — https://www.wondergas.com/\nSmart Pioneer — https://www.smartpioneertech.com/",
+      "equipos": "en cada proveedor\nGuía de inspección y comparación. Los productos a consultar pueden pertenecer al catálogo; confirmar previamente qué equipos estarán exhibidos en el stand.\nCAN GAS | 18.1 F10–11\nQué ver: Generación y llenado de oxígeno; generadores de nitrógeno PSA. Pedir una demostración del sistema completo, incluyendo compresor, secador, filtros, booster y rampa de llenado.\nQué comparar y pedir: Comparar caudal y pureza simultáneos, presión final, cilindros por jornada, potencia total y mant"
     },
     {
       "id": "98",
@@ -1664,7 +1811,10 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "F1: 20.1J42",
       "fase": "Fase 2",
       "estadoStand": "Stand indicado en documento 140",
-      "enlace": "Ver documento aportado"
+      "enlace": "Ver documento aportado",
+      "nota": "_____________\nShandong Tianyi Machinery TANY\nF1 20.1J42; F2 13.2L21\nFabricación de prefabricados / Precast manufacturing\nProductos y artículos\nLíneas para paneles cemento/EPS; paneles de hormigón celular autoclavado; paneles livianos GRC, yeso y compuestos; producción PC de elementos prefabricados.\nQué ver y comparar\nComparar paneles con Hongfa y Vanjoin; moldes PC con GETO. Pedir propuesta de planta inicial para componentes de viviendas, sin asumir que todos los paneles son portantes.",
+      "equipos": "Comparar paneles con Hongfa y Vanjoin; moldes PC con GETO. Pedir propuesta de planta inicial para componentes de viviendas, sin asumir que todos los paneles son portantes.",
+      "preguntas": "¿Qué piezas fabrica la línea? ¿Capacidad por turno, superficie y energía? ¿Costo por m², personal, curado y materias primas requeridas?\nIdentidad: Shandong Tianyi; no confundir con Hubei Tianyi ni otras empresas homónimas."
     },
     {
       "id": "81",
@@ -1680,7 +1830,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "",
       "fase": "Fase 2",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "edor / Supplier Encaje en la unidad / Business fit Evidencia de feria / Fair\nevidence\nP01 · XHWOOD\nLinyi XHWOOD\nInternational Trade\nBambú compuesto, WPC, acústicos, PVC, SPC; catálogo\ncon piedra 3D y WPC exterior. / Bamboo composite, WPC,\nacoustic, PVC and SPC; catalog includes 3D stone and"
     },
     {
       "id": "1",
@@ -1696,7 +1847,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "F1: 10.2J17-18",
       "fase": "Fase 2",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "Verificar catálogo oficial del fabricante para Pisos y puertas. Confirmar ubicación en stand 12.2 12.2B31-33."
     },
     {
       "id": "3",
@@ -1712,7 +1864,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "",
       "fase": "Fase 2",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "Verificar catálogo oficial del fabricante para WPC. Confirmar ubicación en stand 12.2 12.2C08-09，12.2B37-38."
     },
     {
       "id": "20",
@@ -1728,7 +1881,10 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "",
       "fase": "Fase 2",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "_____________\nHebei Orient ADMA Orientflex\nF1 1.1C33–35 y 1.1D10–12 entre otros / among others\nMangueras y consumibles / Hoses and consumables\nProductos y artículos\nMangueras para hormigón, materiales abrasivos, agua, aire e hidráulica; conexiones, adaptadores y acoples. Otras líneas de PVC, químicos y soldadura.\nQué ver y comparar\nVer manguera terminal de bomba, acoples y opciones para mantenimiento de la flota. Comparar con el kit suministrado por TANT o Unique.",
+      "equipos": "Ver manguera terminal de bomba, acoples y opciones para mantenimiento de la flota. Comparar con el kit suministrado por TANT o Unique.",
+      "preguntas": "¿Presión de trabajo y rotura? ¿Diámetro, refuerzo y radio de curvatura? ¿Compatibilidad de terminales, ensayos por lote y vida útil recomendada?\nComplementa las bombas; no reemplaza al proveedor de maquinaria. Elegir por especificación y compatibilidad."
     },
     {
       "id": "120",
@@ -1744,7 +1900,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "",
       "fase": "Fase 2",
       "estadoStand": "Stand indicado en documento 140",
-      "enlace": "Ver documento aportado"
+      "enlace": "Ver documento aportado",
+      "nota": "e.\nAntecedente: abril 23–27,\n2024.\n140: sin confirmar /\nunconfirmed.\n[S06, S07]\nP06 · Leader Wood\nLinyi Luju Leader Wood"
     },
     {
       "id": "37",
@@ -1760,7 +1917,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "",
       "fase": "Fase 2",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "Verificar catálogo oficial del fabricante para Perfiles PVC. Confirmar ubicación en stand 12.2 12.2E15-17."
     },
     {
       "id": "44",
@@ -1776,7 +1934,9 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "",
       "fase": "Fase 2",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "modelos recargables y repuestos. Prioridad complementaria si Syncor incorpora GLP o refrigerantes.\nShanghai Wonder Gas | stand 140 pendiente\nQué ver: Oferta de gases industriales, mezclas y cilindros. Pedir fichas de gases, certificados de composición y muestras de recipientes y válvulas.\nQué comparar y pedir: Identificar quién fabrica cada cilindro y quién respalda la garantía. Comparar suministro de recipientes vacíos o cargados, pureza, mezclas disponibles, logística, compra mínima y costo FOB.\nSmart Pioneer | stand 140 pendiente\nQué ver: Tanques criogénicos, almacenamiento y transporte de gases líquidos. Revisar planos, instrumentación, válvulas, aislamiento y vaporizadores.\nQué comparar y pedir: Pedir una propuesta para el gas y volumen de Syncor: capacidad útil, presión, evaporación,",
+      "equipos": ": Oferta de gases industriales, mezclas y cilindros. Pedir fichas de gases, certificados de composición y muestras de recipientes y válvulas.\nQué comparar y pedir: Identificar quién fabrica cada cilindro y quién respalda la garantía. Comparar suministro de recipientes vacíos o cargados, pureza, mezclas disponibles, logística, compra mínima y costo FOB.\nSmart Pioneer | stand 140 pendiente\nQué ver: Tanques criogénicos, almacenamiento y transporte de gases líquidos. Revisar planos, instrumentación,"
     },
     {
       "id": "66",
@@ -1792,7 +1952,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "",
       "fase": "Fase 2",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "ative\ncomparable quotation.\n139: 13.2J34.\n140: por confirmar / to\nconfirm.\n[S04]\nP04 · Boardway\nZhanjiang Boardway"
     },
     {
       "id": "15",
@@ -1808,7 +1969,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "",
       "fase": "Fase 2",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "panels. Specialist flooring benchmark.\n139: 12.2E42.\n140: por confirmar / to\nconfirm.\n[S03]\nP03 · Jiangsu Zhengjun\nRiver Flooring\nPisos y paredes SPC; alternativa a DECNO para cotizar el"
     },
     {
       "id": "29",
@@ -1824,7 +1986,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "",
       "fase": "Fase 2",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "Verificar catálogo oficial del fabricante para Pisos y decoración. Confirmar ubicación en stand 12.2 12.2H36-37."
     },
     {
       "id": "13",
@@ -1840,7 +2003,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "",
       "fase": "Fase 2",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "Verificar catálogo oficial del fabricante para Pisos. Confirmar ubicación en stand 12.2 12.2J42."
     },
     {
       "id": "80",
@@ -1856,7 +2020,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "",
       "fase": "Fase 2",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "Verificar catálogo oficial del fabricante para Pisos. Confirmar ubicación en stand 12.2 12.2K06."
     },
     {
       "id": "103",
@@ -1872,7 +2037,10 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "",
       "fase": "Fase 2",
       "estadoStand": "Stand indicado en documento 140",
-      "enlace": "Ver documento aportado"
+      "enlace": "Ver documento aportado",
+      "nota": "_____________\nHebei YuNiu Fiberglass\nF2 12.2K09\nFibra de vidrio y GRC / Glass fibers and GRC\nProductos y artículos\nFibras de vidrio cortadas, incluidas AR de 24 mm; roving, mantas, tejidos y mallas; líneas resistentes a álcalis para aplicaciones cementicias.\nQué ver y comparar\nVer línea AR para paneles GRC y piezas delgadas; revisar mallas para placas/revoques. Complementa las líneas de paneles, pero no equivale a Zhitai.",
+      "equipos": "Ver línea AR para paneles GRC y piezas delgadas; revisar mallas para placas/revoques. Complementa las líneas de paneles, pero no equivale a Zhitai.",
+      "preguntas": "¿Contenido de zirconia y resistencia alcalina? ¿Uso recomendado y dosificación? ¿Ensayos de envejecimiento y compatibilidad con proceso premix o proyección?\nNo se confirmaron barras GFRP ni mallas estructurales para sustituir acero. No confundir vidrio E con AR para cemento."
     },
     {
       "id": "41",
@@ -1888,7 +2056,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "",
       "fase": "Fase 2",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "Verificar catálogo oficial del fabricante para Pisos SPC. Confirmar ubicación en stand 12.2 12.2K47."
     },
     {
       "id": "68",
@@ -1904,7 +2073,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "F2: 20.1H38-40",
       "fase": "Fase 2",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "ublished participation; booth\nunverified.\n140: por confirmar / to\nconfirm.\n[S09, S10]\nP08 · Sanle\nFoshan, Guangdong\nSilicato cálcico y fibrocemento: candidato mineral"
     },
     {
       "id": "10",
@@ -1920,7 +2090,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "F2: 10.1D01-03",
       "fase": "Fase 2",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "Verificar catálogo oficial del fabricante para Espejos y muebles de baño. Confirmar ubicación en stand 11.3 11.3B27-28."
     },
     {
       "id": "69",
@@ -1936,7 +2107,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "F1: 20.2H37-39，20.2I10-12",
       "fase": "Fase 2",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "PERREN | Plan de visitas - Aluminio\n1\nALUMINIO | CANTÓN 140\nResumen para visitas - Perren y Cía. | 09/10/2026\nObjetivo: encontrar perfiles compatibles con el sistema Módena utilizado en Argentina, o fabricantes que puedan\ndesarrollar las matrices a partir de planos y muestras.\nProveedores y stands\nProveedor / prioridad"
     },
     {
       "id": "75",
@@ -1952,7 +2124,10 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "F3: 9.1L37; F1: 9.2F45; F1: 13.1A08-10，13.1B13-15; F1: 12.1L08; F2: 8.1D37-38，8.1E11-12; F2: 13.1B35-36，13.1C10-11",
       "fase": "Fase 2",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "_____________\nHebei Orient ADMA Orientflex\nF1 1.1C33–35 y 1.1D10–12 entre otros / among others\nMangueras y consumibles / Hoses and consumables\nProductos y artículos\nMangueras para hormigón, materiales abrasivos, agua, aire e hidráulica; conexiones, adaptadores y acoples. Otras líneas de PVC, químicos y soldadura.\nQué ver y comparar\nVer manguera terminal de bomba, acoples y opciones para mantenimiento de la flota. Comparar con el kit suministrado por TANT o Unique.",
+      "equipos": "Ver manguera terminal de bomba, acoples y opciones para mantenimiento de la flota. Comparar con el kit suministrado por TANT o Unique.",
+      "preguntas": "¿Presión de trabajo y rotura? ¿Diámetro, refuerzo y radio de curvatura? ¿Compatibilidad de terminales, ensayos por lote y vida útil recomendada?\nComplementa las bombas; no reemplaza al proveedor de maquinaria. Elegir por especificación y compatibilidad."
     },
     {
       "id": "89",
@@ -1968,7 +2143,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "",
       "fase": "Fase 2",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "139: 12.1A09-10 / 12.1B11-12, fase 2. Cantón 140: participación y\nstand pendientes de respuesta.\n2. Shandong Huajian Aluminium\nCantón 140, fase 2: 12.1C31-32 / 12.1D11-12, publicados por el fabricante. Reconfirmar\nantes de visitar.*\n3. Guangdong Xingfa Aluminium\nReferencia Cantón 139: 12.1C29-30 / 12.1D13-14. Cantón 140: participación y stand\npendientes de confirmar."
     },
     {
       "id": "54",
@@ -1984,7 +2160,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "F2: 11.2L16",
       "fase": "Fase 2",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "Verificar catálogo oficial del fabricante para Paneles y chapas. Confirmar ubicación en stand 12.0 12.0C11-12，12.0D11."
     },
     {
       "id": "82",
@@ -2000,7 +2177,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "F1: 1.1M04",
       "fase": "Fase 2",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "ublished participation; booth\nunverified.\n140: por confirmar / to\nconfirm.\n[S09, S10]\nP08 · Sanle\nFoshan, Guangdong\nSilicato cálcico y fibrocemento: candidato mineral"
     },
     {
       "id": "28",
@@ -2016,7 +2194,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "F2: 13.1K07-08",
       "fase": "Fase 2",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "Verificar catálogo oficial del fabricante para Construcción modular. Confirmar ubicación en stand 13.0 13.0B03-04."
     },
     {
       "id": "33",
@@ -2032,7 +2211,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "",
       "fase": "Fase 2",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "Verificar catálogo oficial del fabricante para Materiales de construcción. Confirmar ubicación en stand 13.0 13.0C01."
     },
     {
       "id": "50",
@@ -2048,7 +2228,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "",
       "fase": "Fase 2",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "139: 12.1A09-10 / 12.1B11-12, fase 2. Cantón 140: participación y\nstand pendientes de respuesta.\n2. Shandong Huajian Aluminium\nCantón 140, fase 2: 12.1C31-32 / 12.1D11-12, publicados por el fabricante. Reconfirmar\nantes de visitar.*\n3. Guangdong Xingfa Aluminium\nReferencia Cantón 139: 12.1C29-30 / 12.1D13-14. Cantón 140: participación y stand\npendientes de confirmar."
     },
     {
       "id": "75",
@@ -2064,7 +2245,10 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "F3: 9.1L37; F1: 9.2F45; F1: 13.1A08-10，13.1B13-15; F1: 12.1L08; F2: 11.3K30; F2: 13.1B35-36，13.1C10-11",
       "fase": "Fase 2",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "_____________\nHebei Orient ADMA Orientflex\nF1 1.1C33–35 y 1.1D10–12 entre otros / among others\nMangueras y consumibles / Hoses and consumables\nProductos y artículos\nMangueras para hormigón, materiales abrasivos, agua, aire e hidráulica; conexiones, adaptadores y acoples. Otras líneas de PVC, químicos y soldadura.\nQué ver y comparar\nVer manguera terminal de bomba, acoples y opciones para mantenimiento de la flota. Comparar con el kit suministrado por TANT o Unique.",
+      "equipos": "Ver manguera terminal de bomba, acoples y opciones para mantenimiento de la flota. Comparar con el kit suministrado por TANT o Unique.",
+      "preguntas": "¿Presión de trabajo y rotura? ¿Diámetro, refuerzo y radio de curvatura? ¿Compatibilidad de terminales, ensayos por lote y vida útil recomendada?\nComplementa las bombas; no reemplaza al proveedor de maquinaria. Elegir por especificación y compatibilidad."
     },
     {
       "id": "79",
@@ -2080,7 +2264,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "",
       "fase": "Fase 2",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": ", mantenimiento, soporte en Argentina y documentación necesaria para operar.\nMeibao visita opcional\nZhejiang Meibao Industrial Technology Co., Ltd. · stand 18.1I17. La recogedora ST-CL-3 pesa 3.010 kg y exige al menos 92 kW, aproximadamente 125 CV. No es apta para el tractor actual; además requiere un vehículo acompañante para recibir las piedras. Visitar solo para preguntar por una alternativa menor con tolva propia.\nFicha del expositor en el catálogo de Cantón 140\nFicha de la recogedora ST-CL-3\nOtros intereses aún sin proveedor confirmado\nTanques australianos, balanza de ganado, corrales y vacunación, forestación y control con Raspberry Pi 4 o 5: quedan pendientes de identificar un expositor y stand de Cantón 140. No se asignan visitas sin esa confirmación.\nEn cada reunión pedir: contact"
     },
     {
       "id": "68",
@@ -2096,7 +2281,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "F2: 10.2I39-41",
       "fase": "Fase 2",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "ublished participation; booth\nunverified.\n140: por confirmar / to\nconfirm.\n[S09, S10]\nP08 · Sanle\nFoshan, Guangdong\nSilicato cálcico y fibrocemento: candidato mineral"
     }
   ],
   "Fase 3": [
@@ -2114,7 +2300,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "F2: 13.2K19",
       "fase": "Fase 3",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "Verificar catálogo oficial del fabricante para Caucho y plásticos. Confirmar ubicación en stand 4.1 4.1Y11-12."
     },
     {
       "id": "75",
@@ -2130,7 +2317,10 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "F1: 9.2F45; F1: 13.1A08-10，13.1B13-15; F1: 12.1L08; F2: 8.1D37-38，8.1E11-12; F2: 11.3K30; F2: 13.1B35-36，13.1C10-11",
       "fase": "Fase 3",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "_____________\nHebei Orient ADMA Orientflex\nF1 1.1C33–35 y 1.1D10–12 entre otros / among others\nMangueras y consumibles / Hoses and consumables\nProductos y artículos\nMangueras para hormigón, materiales abrasivos, agua, aire e hidráulica; conexiones, adaptadores y acoples. Otras líneas de PVC, químicos y soldadura.\nQué ver y comparar\nVer manguera terminal de bomba, acoples y opciones para mantenimiento de la flota. Comparar con el kit suministrado por TANT o Unique.",
+      "equipos": "Ver manguera terminal de bomba, acoples y opciones para mantenimiento de la flota. Comparar con el kit suministrado por TANT o Unique.",
+      "preguntas": "¿Presión de trabajo y rotura? ¿Diámetro, refuerzo y radio de curvatura? ¿Compatibilidad de terminales, ensayos por lote y vida útil recomendada?\nComplementa las bombas; no reemplaza al proveedor de maquinaria. Elegir por especificación y compatibilidad."
     },
     {
       "id": "88",
@@ -2146,7 +2336,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "F2: 10.1E32-38，10.1F13-19; F2: 9.0C01-02",
       "fase": "Fase 3",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "Verificar catálogo oficial del fabricante para Baño e hidromasaje. Confirmar ubicación en stand 9.2 9.2B23-24，9.2A01-02."
     },
     {
       "id": "2",
@@ -2162,7 +2353,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "F2: 11.1H13-16，11.1G31-34",
       "fase": "Fase 3",
       "estadoStand": "Publicado en Canton Fair 365",
-      "enlace": "Ver proveedor y stands"
+      "enlace": "Ver proveedor y stands",
+      "nota": "Verificar catálogo oficial del fabricante para Sanitarios. Confirmar ubicación en stand 10.2 10.2F48."
     }
   ],
   "Por confirmar": [
@@ -2180,7 +2372,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "",
       "fase": "Por confirmar",
       "estadoStand": "Online only",
-      "enlace": "Ver proveedor"
+      "enlace": "Ver proveedor",
+      "nota": "Verificar catálogo oficial del fabricante para Maquinaria. Confirmar ubicación en stand  ."
     },
     {
       "id": "51",
@@ -2196,7 +2389,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "",
       "fase": "Por confirmar",
       "estadoStand": "Online only",
-      "enlace": "Ver proveedor"
+      "enlace": "Ver proveedor",
+      "nota": "Verificar catálogo oficial del fabricante para Materiales de construcción. Confirmar ubicación en stand  ."
     },
     {
       "id": "78",
@@ -2212,7 +2406,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "",
       "fase": "Por confirmar",
       "estadoStand": "Online only",
-      "enlace": "Ver proveedor"
+      "enlace": "Ver proveedor",
+      "nota": "0, fase 2: 12.1C31-32 / 12.1D11-12, publicados por el fabricante. Reconfirmar\nantes de visitar.*\n3. Guangdong Xingfa Aluminium\nReferencia Cantón 139: 12.1C29-30 / 12.1D13-14. Cantón 140: participación y stand\npendientes de confirmar.\nLos stands de la edición 139 son referencias históricas; no constituyen confirmación de ubicación en la 140. Fase 2 de la 140: 23 al 27 de\noctubre de 2026.\nNota de seguimiento: mensaje enviado a Guang Ya"
     },
     {
       "id": "106",
@@ -2228,7 +2423,9 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "",
       "fase": "Por confirmar",
       "estadoStand": "Presencia / stand 140 pendiente",
-      "enlace": "Ver documento aportado"
+      "enlace": "Ver documento aportado",
+      "nota": "y recambios. Evaluar como línea de garrafas GLP; no elegirlos para gases industriales comprimidos.\nLiaoning Metal Technology | stand 140 pendiente\nQué ver: Cilindros de aluminio sin costura y de fibra de carbono. Revisar muestras, marcado permanente, válvulas y protección del cuello.\nQué comparar y pedir: Pedir modelos para oxígeno, argón, nitrógeno y CO₂; comparar volumen, presión, peso, rosca y trazabilidad. Consultar si también ofrece acero sin costura de 40/50 L y 200/300 bar, sin dar por confirmada esa gama.\nSnowrain | stand 140 pendiente\nQué ver: Cilindros de alta presión para gases industriales, oxígeno y CO₂. Ver catálogo, muestras y documentación del modelo ofrecido.\nQué comparar y pedir: Priorizar la consulta por tubos de acero sin costura de 40/50 L y 200/300 bar. Revisar gas ad",
+      "equipos": ": Cilindros de aluminio sin costura y de fibra de carbono. Revisar muestras, marcado permanente, válvulas y protección del cuello.\nQué comparar y pedir: Pedir modelos para oxígeno, argón, nitrógeno y CO₂; comparar volumen, presión, peso, rosca y trazabilidad. Consultar si también ofrece acero sin costura de 40/50 L y 200/300 bar, sin dar por confirmada esa gama.\nSnowrain | stand 140 pendiente\nQué ver: Cilindros de alta presión para gases industriales, oxígeno y CO₂. Ver catálogo, muestras y docu"
     },
     {
       "id": "107",
@@ -2244,7 +2441,9 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "",
       "fase": "Por confirmar",
       "estadoStand": "Presencia / stand 140 pendiente",
-      "enlace": "Ver documento aportado"
+      "enlace": "Ver documento aportado",
+      "nota": "Argentina antes de comprar.\nPrioridad sugerida\n1. CAN GAS para generación y llenado. 2. Liaoning y Snowrain para comparar cilindros, una vez confirmada su presencia y gama. 3. Smart Pioneer para almacenamiento criogénico. 4. Aceccse y DALY si se incorpora GLP. Olymtech y Wonder Gas complementan la comparación.\nFuentes para verificar y contactar\nCAN GAS y anuncio de Cantón 140 — https://www.can-gas.net/article/354.html\nCAN GAS catálogo — https://www.cangas-systemss.com/\nAceccse perfil corporativo — https://cn.linkedin.com/company/aceccse-hangzhou-composite-co-ltd\nLiaoning perfil corporativo — https://www.linkedin.com/company/liaoning-metal-technology-co-ltd",
+      "equipos": "en cada proveedor\nGuía de inspección y comparación. Los productos a consultar pueden pertenecer al catálogo; confirmar previamente qué equipos estarán exhibidos en el stand.\nCAN GAS | 18.1 F10–11\nQué ver: Generación y llenado de oxígeno; generadores de nitrógeno PSA. Pedir una demostración del sistema completo, incluyendo compresor, secador, filtros, booster y rampa de llenado.\nQué comparar y pedir: Comparar caudal y pureza simultáneos, presión final, cilindros por jornada, potencia total y mant"
     },
     {
       "id": "108",
@@ -2260,7 +2459,9 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "",
       "fase": "Por confirmar",
       "estadoStand": "Presencia / stand 140 pendiente",
-      "enlace": "Ver documento aportado"
+      "enlace": "Ver documento aportado",
+      "nota": "fabricante real; confirmar disponibilidad de esos modelos.\nQué ver en cada proveedor · continuación\nHubei DALY Cylinder | stand 140 pendiente\nQué ver: Cilindros de acero para GLP, recipientes para refrigerantes y tanques de autogás. Observar soldaduras, pintura, válvulas y accesorios.\nQué comparar y pedir: Separar las especificaciones por gas y aplicación. Preguntar por capacidades, presiones, ensayos, modelos recargables y repuestos. Prioridad complementaria si Syncor incorpora GLP o refrigerantes.\nShanghai Wonder Gas | stand 140 pendiente\nQué ver: Oferta de gases industriales, mezclas y cilindros. Pedir fichas de gases, certificados de composición y muestras de recipientes y válvulas.\nQué comparar y pedir: Identificar quién fabrica cada cilindro y quién respalda la garantía. Comparar sum",
+      "equipos": "en cada proveedor · continuación\nHubei DALY Cylinder | stand 140 pendiente\nQué ver: Cilindros de acero para GLP, recipientes para refrigerantes y tanques de autogás. Observar soldaduras, pintura, válvulas y accesorios.\nQué comparar y pedir: Separar las especificaciones por gas y aplicación. Preguntar por capacidades, presiones, ensayos, modelos recargables y repuestos."
     },
     {
       "id": "109",
@@ -2276,7 +2477,9 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "",
       "fase": "Por confirmar",
       "estadoStand": "Presencia / stand 140 pendiente",
-      "enlace": "Ver documento aportado"
+      "enlace": "Ver documento aportado",
+      "nota": "modelos recargables y repuestos. Prioridad complementaria si Syncor incorpora GLP o refrigerantes.\nShanghai Wonder Gas | stand 140 pendiente\nQué ver: Oferta de gases industriales, mezclas y cilindros. Pedir fichas de gases, certificados de composición y muestras de recipientes y válvulas.\nQué comparar y pedir: Identificar quién fabrica cada cilindro y quién respalda la garantía. Comparar suministro de recipientes vacíos o cargados, pureza, mezclas disponibles, logística, compra mínima y costo FOB.\nSmart Pioneer | stand 140 pendiente\nQué ver: Tanques criogénicos, almacenamiento y transporte de gases líquidos. Revisar planos, instrumentación, válvulas, aislamiento y vaporizadores.\nQué comparar y pedir: Pedir una propuesta para el gas y volumen de Syncor: capacidad útil, presión, evaporación,",
+      "equipos": ": Oferta de gases industriales, mezclas y cilindros. Pedir fichas de gases, certificados de composición y muestras de recipientes y válvulas.\nQué comparar y pedir: Identificar quién fabrica cada cilindro y quién respalda la garantía. Comparar suministro de recipientes vacíos o cargados, pureza, mezclas disponibles, logística, compra mínima y costo FOB.\nSmart Pioneer | stand 140 pendiente\nQué ver: Tanques criogénicos, almacenamiento y transporte de gases líquidos. Revisar planos, instrumentación,"
     },
     {
       "id": "110",
@@ -2292,7 +2495,9 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "",
       "fase": "Por confirmar",
       "estadoStand": "Presencia / stand 140 pendiente",
-      "enlace": "Ver documento aportado"
+      "enlace": "Ver documento aportado",
+      "nota": "llenado. 2. Liaoning y Snowrain para comparar cilindros, una vez confirmada su presencia y gama. 3. Smart Pioneer para almacenamiento criogénico. 4. Aceccse y DALY si se incorpora GLP. Olymtech y Wonder Gas complementan la comparación.\nFuentes para verificar y contactar\nCAN GAS y anuncio de Cantón 140 — https://www.can-gas.net/article/354.html\nCAN GAS catálogo — https://www.cangas-systemss.com/\nAceccse perfil corporativo — https://cn.linkedin.com/company/aceccse-hangzhou-composite-co-ltd\nLiaoning perfil corporativo — https://www.linkedin.com/company/liaoning-metal-technology-co-ltd\nLiaoning directorio independiente de Cantón 139 — https://cantonfair.co/139/exhibitors/liaoning-metal-technology-co-ltd-49921\nSnowrain participación anterior — https://www.sysnowrain.com/news/great-gains-from-th",
+      "equipos": "en cada proveedor\nGuía de inspección y comparación. Los productos a consultar pueden pertenecer al catálogo; confirmar previamente qué equipos estarán exhibidos en el stand.\nCAN GAS | 18.1 F10–11\nQué ver: Generación y llenado de oxígeno; generadores de nitrógeno PSA. Pedir una demostración del sistema completo, incluyendo compresor, secador, filtros, booster y rampa de llenado.\nQué comparar y pedir: Comparar caudal y pureza simultáneos, presión final, cilindros por jornada, potencia total y mant"
     },
     {
       "id": "111",
@@ -2308,7 +2513,9 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "",
       "fase": "Por confirmar",
       "estadoStand": "Presencia / stand 140 pendiente",
-      "enlace": "Ver documento aportado"
+      "enlace": "Ver documento aportado",
+      "nota": "cia y gama. 3. Smart Pioneer para almacenamiento criogénico. 4. Aceccse y DALY si se incorpora GLP. Olymtech y Wonder Gas complementan la comparación.\nFuentes para verificar y contactar\nCAN GAS y anuncio de Cantón 140 — https://www.can-gas.net/article/354.html\nCAN GAS catálogo — https://www.cangas-systemss.com/\nAceccse perfil corporativo — https://cn.linkedin.com/company/aceccse-hangzhou-composite-co-ltd\nLiaoning perfil corporativo — https://www.linkedin.com/company/liaoning-metal-technology-co-ltd\nLiaoning directorio independiente de Cantón 139 — https://cantonfair.co/139/exhibitors/liaoning-metal-technology-co-ltd-49921\nSnowrain participación anterior — https://www.sysnowrain.com/news/great-gains-from-the-canton-fair",
+      "equipos": "en cada proveedor\nGuía de inspección y comparación. Los productos a consultar pueden pertenecer al catálogo; confirmar previamente qué equipos estarán exhibidos en el stand.\nCAN GAS | 18.1 F10–11\nQué ver: Generación y llenado de oxígeno; generadores de nitrógeno PSA. Pedir una demostración del sistema completo, incluyendo compresor, secador, filtros, booster y rampa de llenado.\nQué comparar y pedir: Comparar caudal y pureza simultáneos, presión final, cilindros por jornada, potencia total y mant"
     },
     {
       "id": "117",
@@ -2324,7 +2531,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "",
       "fase": "Por confirmar",
       "estadoStand": "Presencia / stand 140 pendiente",
-      "enlace": "Ver documento aportado"
+      "enlace": "Ver documento aportado",
+      "nota": "panels. Specialist flooring benchmark.\n139: 12.2E42.\n140: por confirmar / to\nconfirm.\n[S03]\nP03 · Jiangsu Zhengjun\nRiver Flooring\nPisos y paredes SPC; alternativa a DECNO para cotizar el"
     },
     {
       "id": "118",
@@ -2340,7 +2548,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "",
       "fase": "Por confirmar",
       "estadoStand": "Presencia / stand 140 pendiente",
-      "enlace": "Ver documento aportado"
+      "enlace": "Ver documento aportado",
+      "nota": "rnative\ncomparable quotation.\n139: 13.2J34.\n140: por confirmar / to\nconfirm.\n[S04]\nP04 · Boardway\nZhanjiang Boardway"
     },
     {
       "id": "119",
@@ -2356,7 +2565,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "",
       "fase": "Por confirmar",
       "estadoStand": "Presencia / stand 140 pendiente",
-      "enlace": "Ver documento aportado"
+      "enlace": "Ver documento aportado",
+      "nota": "0, fase 2: 12.1C31-32 / 12.1D11-12, publicados por el fabricante. Reconfirmar\nantes de visitar.*\n3. Guangdong Xingfa Aluminium\nReferencia Cantón 139: 12.1C29-30 / 12.1D13-14. Cantón 140: participación y stand\npendientes de confirmar.\nLos stands de la edición 139 son referencias históricas; no constituyen confirmación de ubicación en la 140. Fase 2 de la 140: 23 al 27 de\noctubre de 2026.\nNota de seguimiento: mensaje enviado a Guang Ya"
     },
     {
       "id": "121",
@@ -2372,7 +2582,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "",
       "fase": "Por confirmar",
       "estadoStand": "Presencia / stand 140 pendiente",
-      "enlace": "Ver documento aportado"
+      "enlace": "Ver documento aportado",
+      "nota": "0, fase 2: 12.1C31-32 / 12.1D11-12, publicados por el fabricante. Reconfirmar\nantes de visitar.*\n3. Guangdong Xingfa Aluminium\nReferencia Cantón 139: 12.1C29-30 / 12.1D13-14. Cantón 140: participación y stand\npendientes de confirmar.\nLos stands de la edición 139 son referencias históricas; no constituyen confirmación de ubicación en la 140. Fase 2 de la 140: 23 al 27 de\noctubre de 2026.\nNota de seguimiento: mensaje enviado a Guang Ya"
     },
     {
       "id": "122",
@@ -2388,7 +2599,8 @@ window.CANTON_AGENDA_DATA = {
       "otrosStands": "",
       "fase": "Por confirmar",
       "estadoStand": "Presencia / stand 140 pendiente",
-      "enlace": "Ver documento aportado"
+      "enlace": "Ver documento aportado",
+      "nota": ". /\nPublished participation; booth\nunverified.\n140: por confirmar / to\nconfirm.\n[S09, S10]\nP08 · Sanle\nFoshan, Guangdong"
     }
   ]
 };

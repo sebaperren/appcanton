@@ -3682,6 +3682,15 @@ function renderAgenda() {
         ${item.otrosStands ? `<div style="font-size: 9.5px; color: #777; margin-top: 2px;">🎪 Otros stands: ${item.otrosStands}</div>` : ''}
         ${item.visita ? `<div style="font-size: 9.5px; color: var(--secondary-color); font-weight: bold; margin-top: 2px;">🎯 Visita: ${item.visita}</div>` : ''}
 
+        ${item.nota ? `
+          <div style="margin-top: 8px; padding: 8px 10px; background: #FFFDE7; border-left: 3px solid #FBC02D; border-radius: 6px; font-size: 10.5px; color: #333; line-height: 1.4;">
+            <div style="font-weight: bold; color: #E65100; margin-bottom: 3px;">📝 NOTAS Y DETALLES DE VISITA:</div>
+            <div style="white-space: pre-line;">${item.nota}</div>
+            ${item.equipos ? `<div style="margin-top: 6px; font-weight: bold; color: #1565C0;">🔎 Equipos para ver o consultar:</div><div style="white-space: pre-line; color: #444;">${item.equipos}</div>` : ''}
+            ${item.preguntas ? `<div style="margin-top: 6px; font-weight: bold; color: #2E7D32;">❓ Preguntas al proveedor:</div><div style="white-space: pre-line; color: #444;">${item.preguntas}</div>` : ''}
+          </div>
+        ` : ''}
+
         <div style="margin-top: 10px; display: flex; gap: 6px;">
           <button class="btn-primary" onclick="loadSupplierFromAgenda('${item.id}')" style="flex: 1; padding: 7px 10px; font-size: 11px;">
             📍 Visitar / Cargar Ficha (+ Proveedor)
@@ -3723,8 +3732,16 @@ function loadSupplierFromAgenda(agendaId) {
   setVal('pPhone', '+86');
   setVal('pEmail', '');
 
-  const noteStr = `[Agenda Canton Fair 140 - ${foundItem.fase || ''}]\nVisita: ${foundItem.visita || ''}\nDescripción: ${foundItem.descripcion || ''}${foundItem.otrosStands ? '\nOtros stands: ' + foundItem.otrosStands : ''}`;
-  setVal('pNotes', noteStr);
+  let noteParts = [
+    `[Agenda Canton Fair 140 - ${foundItem.fase || ''}]`,
+    `Visita: ${foundItem.visita || ''}`,
+    `Descripción: ${foundItem.descripcion || ''}`
+  ];
+  if (foundItem.otrosStands) noteParts.push(`Otros stands: ${foundItem.otrosStands}`);
+  if (foundItem.nota) noteParts.push(`\n--- NOTA Y DETALLES DE VISITA ---\n${foundItem.nota}`);
+  if (foundItem.equipos) noteParts.push(`\n--- EQUIPOS PARA VER/CONSULTAR ---\n${foundItem.equipos}`);
+  if (foundItem.preguntas) noteParts.push(`\n--- PREGUNTAS AL PROVEEDOR ---\n${foundItem.preguntas}`);
+  setVal('pNotes', noteParts.join('\n'));
 
   switchMainSection('addProveedor');
   alert(`📍 Datos de "${foundItem.proveedor}" cargados en la ficha. Al guardar el proveedor, se marcará automáticamente como VISITADO en la Agenda.`);
