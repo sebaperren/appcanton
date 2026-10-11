@@ -3510,6 +3510,9 @@ if (typeof window !== 'undefined') {
   window.onFeria140SearchInput = onFeria140SearchInput;
   window.renderFeria140 = renderFeria140;
   window.loadSupplierFromCatalog = loadSupplierFromCatalog;
+  window.openFairMapModal = openFairMapModal;
+  window.closeFairMapModal = closeFairMapModal;
+  window.getCantonFairMapUrl = getCantonFairMapUrl;
 }
 
 // =========================================================================
@@ -3547,6 +3550,35 @@ function markAgendaItemVisited(agendaId, visitedStatus = true) {
   }
 }
 
+function openFairMapModal(targetPhase) {
+  const modal = document.getElementById('fairMapModal');
+  if (!modal) return;
+
+  const phase = targetPhase || activeAgendaPhase || 'Fase 1';
+
+  const p1 = document.getElementById('linkMapPhase1');
+  const p2 = document.getElementById('linkMapPhase2');
+  const p3 = document.getElementById('linkMapPhase3');
+
+  if (p1) p1.style.outline = (phase === 'Fase 1') ? '3px solid #FFD54F' : 'none';
+  if (p2) p2.style.outline = (phase === 'Fase 2') ? '3px solid #FFD54F' : 'none';
+  if (p3) p3.style.outline = (phase === 'Fase 3') ? '3px solid #FFD54F' : 'none';
+
+  modal.style.display = 'flex';
+}
+
+function closeFairMapModal() {
+  const modal = document.getElementById('fairMapModal');
+  if (modal) modal.style.display = 'none';
+}
+
+function getCantonFairMapUrl(phaseStr) {
+  const p = (phaseStr || '').toLowerCase();
+  if (p.includes('2') || p.includes('second')) return 'https://365.cantonfair.org.cn/en-US/exhibition-hall-map?phase=second';
+  if (p.includes('3') || p.includes('third')) return 'https://365.cantonfair.org.cn/en-US/exhibition-hall-map?phase=third';
+  return 'https://365.cantonfair.org.cn/en-US/exhibition-hall-map?phase=first';
+}
+
 function switchAgendaPhase(phaseName) {
   activeAgendaPhase = phaseName;
   ['Fase1', 'Fase2', 'Fase3', 'PorConfirmar'].forEach(pKey => {
@@ -3560,6 +3592,9 @@ function switchAgendaPhase(phaseName) {
       }
     }
   });
+
+  const mapLbl = document.getElementById('agendaMapPhaseLbl');
+  if (mapLbl) mapLbl.textContent = phaseName;
 
   const daySelect = document.getElementById('agendaDayFilter');
   if (daySelect) {
@@ -3611,6 +3646,8 @@ function renderAgenda() {
 
   container.innerHTML = filtered.map(item => {
     const isVisited = visitedIds.includes(String(item.id));
+    const mapUrl = getCantonFairMapUrl(item.fase || activeAgendaPhase);
+
     return `
       <div class="card" style="border-left: 4px solid ${isVisited ? '#2E7D32' : '#E65100'}; margin-bottom: 10px; background: ${isVisited ? '#F1F8E9' : 'white'};">
         <div style="display: flex; justify-content: space-between; align-items: flex-start;">
@@ -3629,8 +3666,13 @@ function renderAgenda() {
 
         <strong style="font-size: 13.5px; color: var(--primary-color); display: block; margin-top: 6px;">${item.proveedor}</strong>
         
-        <div style="font-size: 10.5px; color: var(--text-muted); margin-top: 2px;">
-          📍 <strong>Pabellón ${item.pabellon || 's/d'}</strong> • Stand: <strong>${item.stand || 's/d'}</strong> ${item.area ? `(Área ${item.area})` : ''}
+        <div style="font-size: 10.5px; color: var(--text-muted); margin-top: 4px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 4px;">
+          <div>
+            📍 <strong>Pabellón ${item.pabellon || 's/d'}</strong> • Stand: <strong>${item.stand || 's/d'}</strong> ${item.area ? `(Área ${item.area})` : ''}
+          </div>
+          <a href="${mapUrl}" target="_blank" rel="noopener" class="btn-chip" style="font-size: 9.5px; padding: 2px 6px; background: #E3F2FD; color: #1565C0; border-color: #90CAF9; text-decoration: none; font-weight: bold; display: inline-flex; align-items: center; gap: 3px;">
+            🗺️ Ver en Plano ↗
+          </a>
         </div>
 
         <div style="font-size: 10.5px; color: #333; margin-top: 4px;">
