@@ -3513,6 +3513,7 @@ if (typeof window !== 'undefined') {
   window.openFairMapModal = openFairMapModal;
   window.closeFairMapModal = closeFairMapModal;
   window.getCantonFairMapUrl = getCantonFairMapUrl;
+  window.toggleAgendaNote = toggleAgendaNote;
 }
 
 // =========================================================================
@@ -3547,6 +3548,19 @@ function markAgendaItemVisited(agendaId, visitedStatus = true) {
     renderAgenda();
   } catch (e) {
     console.error('Error marking agenda visited:', e);
+  }
+}
+
+function toggleAgendaNote(agendaId) {
+  const container = document.getElementById('agendaNoteContainer_' + agendaId);
+  const btn = document.getElementById('btnToggleAgendaNote_' + agendaId);
+  if (!container) return;
+  const isHidden = container.style.display === 'none' || container.style.display === '';
+  container.style.display = isHidden ? 'block' : 'none';
+  if (btn) {
+    btn.innerHTML = isHidden 
+      ? '📝 Ocultar Notas y Preguntas de Visita ▴' 
+      : '📝 Ver Notas y Preguntas de Visita ▾';
   }
 }
 
@@ -3682,12 +3696,16 @@ function renderAgenda() {
         ${item.otrosStands ? `<div style="font-size: 9.5px; color: #777; margin-top: 2px;">🎪 Otros stands: ${item.otrosStands}</div>` : ''}
         ${item.visita ? `<div style="font-size: 9.5px; color: var(--secondary-color); font-weight: bold; margin-top: 2px;">🎯 Visita: ${item.visita}</div>` : ''}
 
-        ${item.nota ? `
-          <div style="margin-top: 8px; padding: 8px 10px; background: #FFFDE7; border-left: 3px solid #FBC02D; border-radius: 6px; font-size: 10.5px; color: #333; line-height: 1.4;">
-            <div style="font-weight: bold; color: #E65100; margin-bottom: 3px;">📝 NOTAS Y DETALLES DE VISITA:</div>
-            <div style="white-space: pre-line;">${item.nota}</div>
-            ${item.equipos ? `<div style="margin-top: 6px; font-weight: bold; color: #1565C0;">🔎 Equipos para ver o consultar:</div><div style="white-space: pre-line; color: #444;">${item.equipos}</div>` : ''}
-            ${item.preguntas ? `<div style="margin-top: 6px; font-weight: bold; color: #2E7D32;">❓ Preguntas al proveedor:</div><div style="white-space: pre-line; color: #444;">${item.preguntas}</div>` : ''}
+        ${(item.nota || item.equipos || item.preguntas) ? `
+          <div style="margin-top: 6px;">
+            <button id="btnToggleAgendaNote_${item.id}" class="btn-chip" onclick="toggleAgendaNote('${item.id}')" style="font-size: 10px; padding: 4px 8px; border-color: #FBC02D; color: #E65100; background: #FFFDE7; cursor: pointer; font-weight: bold; width: 100%; text-align: center; border-radius: 6px;">
+              📝 Ver Notas y Preguntas de Visita ▾
+            </button>
+            <div id="agendaNoteContainer_${item.id}" style="display: none; margin-top: 6px; padding: 8px 10px; background: #FFFDE7; border-left: 3px solid #FBC02D; border-radius: 6px; font-size: 10.5px; color: #333; line-height: 1.4;">
+              ${item.nota ? `<div style="font-weight: bold; color: #E65100; margin-bottom: 3px;">📝 NOTAS Y DETALLES:</div><div style="white-space: pre-line;">${item.nota}</div>` : ''}
+              ${item.equipos ? `<div style="margin-top: 6px; font-weight: bold; color: #1565C0;">🔎 Equipos para ver o consultar:</div><div style="white-space: pre-line; color: #444;">${item.equipos}</div>` : ''}
+              ${item.preguntas ? `<div style="margin-top: 6px; font-weight: bold; color: #2E7D32;">❓ Preguntas al proveedor:</div><div style="white-space: pre-line; color: #444;">${item.preguntas}</div>` : ''}
+            </div>
           </div>
         ` : ''}
 
