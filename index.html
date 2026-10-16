@@ -35,12 +35,28 @@
 
       <div class="form-group" style="text-align: left;">
         <label>Correo Electrónico:</label>
-        <input type="email" id="fbEmail" class="form-control" placeholder="usuario@perren.com.ar" autocomplete="username">
+        <input type="email" id="fbEmail" class="form-control" placeholder="usuario@perren.com.ar" autocomplete="username" oninput="autoDetectOperatorFromEmail(this.value)">
       </div>
 
       <div class="form-group" style="text-align: left;">
         <label>Contraseña:</label>
         <input type="password" id="fbPassword" class="form-control" placeholder="Contraseña de acceso" autocomplete="current-password">
+      </div>
+
+      <div class="form-group" style="text-align: left; margin-top: 6px;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <label style="margin-bottom: 2px;">Operador (Registro de Visitas):</label>
+          <div style="display: flex; gap: 4px;">
+            <button type="button" class="btn-chip" onclick="selectLoginOperator('Admin')" style="font-size: 9.5px; padding: 1px 6px;">👤 Admin</button>
+            <button type="button" class="btn-chip" onclick="selectLoginOperator('Fernando')" style="font-size: 9.5px; padding: 1px 6px;">👤 Fernando</button>
+          </div>
+        </div>
+        <input type="text" id="fbOperatorName" class="form-control" placeholder="Ej: Admin o Fernando (se detecta del usuario)" style="font-size: 11.5px; padding: 6px 8px;">
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 6px; margin-top: 8px; text-align: left; font-size: 11.5px; color: var(--primary-color); background: #F0F4F8; padding: 7px 10px; border-radius: 6px;">
+        <input type="checkbox" id="fbRememberUser" checked style="width: 15px; height: 15px; cursor: pointer; accent-color: var(--primary-color);">
+        <label for="fbRememberUser" style="margin: 0; cursor: pointer; font-weight: 600;">Recordar usuario y mantener sesión por 24 hs</label>
       </div>
 
       <div style="display: flex; gap: 8px; margin-top: 12px;">
@@ -53,7 +69,7 @@
       </div>
 
       <div style="font-size: 10px; color: var(--text-muted); margin-top: 12px;" id="fbAuthStatus">
-        🟢 Servidor: <strong>perrenycia-crm</strong>
+        🟢 Servidor: <strong>perrenycia-crm</strong> • Sesión activa 24 hs
       </div>
     </div>
   </div>
@@ -319,7 +335,7 @@
             <div style="margin-top: 10px; background: #E3F2FD; padding: 8px; border-radius: 6px;">
               <label style="font-size: 10px; font-weight: bold; color: var(--secondary-color);">🎙️ GRABAR NOTA DE VOZ (AUDIO RECORDING)</label>
               <div style="display: flex; gap: 8px; margin-top: 4px; align-items: center;">
-                <button class="btn-primary btn-record-voice" id="btnRecordVoiceSec" onclick="toggleVoiceRecording()" style="font-size: 10.5px; padding: 6px 10px;">🎙️ Grabar Audio</button>
+                <button class="btn-primary btn-record-voice" id="btnRecordVoiceSec" onclick="toggleVoiceRecording()" style="font-size: 10.5px; padding: 6px 10px;">🎙️ Grabar Audio (Máx. 3 min)</button>
                 <span id="voiceRecordTimerSec" class="voice-record-timer" style="font-size: 11px; font-weight: bold; color: var(--warning-text);"></span>
               </div>
               <div id="audioPreviewContainerSec" class="audio-preview-container" style="display: none; margin-top: 6px;">
@@ -534,13 +550,14 @@
             <div style="flex: 1; min-width: 120px;">
               <label style="font-size: 9.5px; font-weight: bold; color: var(--primary-color);">👁️ ESTADO DE VISITA:</label>
               <select id="agendaStatusFilter" class="form-control" style="font-size: 11px; padding: 4px;" onchange="renderAgenda()">
-                <option value="PENDIENTES">📍 Pendientes de Visita</option>
-                <option value="VISITADOS">✅ Visitados</option>
+                <option value="PENDIENTES" selected>📍 Pendientes de Visita</option>
+                <option value="VISITADOS">✅ Visitados (Historial por Operador)</option>
                 <option value="TODOS">Ver Todos</option>
               </select>
             </div>
           </div>
           <div id="agendaSummaryBadge" style="margin-top: 6px; font-size: 10.5px; font-weight: bold; color: var(--secondary-color); text-align: center;"></div>
+          <div id="agendaVisitActionNotice" style="display: none; margin-top: 6px; padding: 6px 10px; border-radius: 6px; background: #E8F5E9; border: 1px solid #A5D6A7; color: #1B5E20; font-size: 11px; font-weight: bold; text-align: center;"></div>
         </div>
 
         <!-- Contenedor de Lista de Agenda -->
@@ -764,7 +781,7 @@
         <div class="card" style="background: #E3F2FD;">
           <label style="font-size: 10px; font-weight: bold; color: var(--secondary-color);">🎙️ GRABAR NOTA DE VOZ (AUDIO RECORDING)</label>
           <div style="display: flex; gap: 8px; margin-top: 6px; align-items: center;">
-            <button class="btn-primary btn-record-voice" id="btnRecordVoiceModal" onclick="toggleVoiceRecording()" style="font-size: 10.5px; padding: 6px 10px;">🎙️ Grabar Audio</button>
+            <button class="btn-primary btn-record-voice" id="btnRecordVoiceModal" onclick="toggleVoiceRecording()" style="font-size: 10.5px; padding: 6px 10px;">🎙️ Grabar Audio (Máx. 3 min)</button>
             <span id="voiceRecordTimerModal" class="voice-record-timer" style="font-size: 11px; font-weight: bold; color: var(--warning-text);"></span>
           </div>
           <div id="audioPreviewContainerModal" class="audio-preview-container" style="display: none; margin-top: 8px;">
