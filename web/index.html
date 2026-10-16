@@ -13,15 +13,15 @@
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📦</text></svg>">
   <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3135/3135715.png">
   <link rel="manifest" href="manifest.json">
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="styles.css?v=67">
 
   <!-- Firebase Web SDK (v9 compat mode) -->
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 
-  <!-- OCR Engine -->
-  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
+  <!-- OCR Engine (deferred so it never blocks mobile startup rendering) -->
+  <script defer src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
 </head>
 <body>
 
@@ -965,7 +965,30 @@
 
   </div> <!-- FIN DE #appContainer -->
 
-  <script src="data_agenda140.js"></script>
-  <script src="app.js"></script>
+  <script src="data_agenda140.js?v=67"></script>
+  <script src="app.js?v=67"></script>
+  <script>
+    // Salvaguarda anti-pantalla en blanco al reabrir la app en el celular
+    (function() {
+      function checkScreen() {
+        try {
+          if (typeof ensureVisibleScreenState === 'function') {
+            ensureVisibleScreenState();
+            return;
+          }
+          var loginEl = document.getElementById('loginScreen');
+          var appEl = document.getElementById('appContainer');
+          if (loginEl && appEl && loginEl.style.display === 'none' && appEl.style.display === 'none') {
+            appEl.style.display = 'block';
+          }
+        } catch (e) {}
+      }
+      window.addEventListener('pageshow', checkScreen);
+      document.addEventListener('visibilitychange', function() {
+        if (document.visibilityState === 'visible') checkScreen();
+      });
+      setTimeout(checkScreen, 800);
+    })();
+  </script>
 </body>
 </html>
