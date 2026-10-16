@@ -516,8 +516,10 @@ document.addEventListener('DOMContentLoaded', () => {
   loadStateSettings();
   loadLocalSuppliers();
   loadSavedArticles();
+  if (typeof loadAgendaVisitedState === 'function') loadAgendaVisitedState();
   initFirebaseAuthListener();
   initFirestoreSuppliersListener();
+  if (typeof initFirestoreAgendaVisitsListener === 'function') initFirestoreAgendaVisitsListener();
   setupEventListeners();
   calculateTab1();
   renderTab2List();
@@ -526,6 +528,7 @@ document.addEventListener('DOMContentLoaded', () => {
   setTimeout(() => {
     loadFlexxusCsvDatabase();
     syncPendingSuppliersToFirebase();
+    if (typeof syncAllAgendaVisitsToFirestore === 'function') syncAllAgendaVisitsToFirestore();
     ensureCanton140ScriptLoaded().catch(e => console.log('Background catalog script notice:', e));
   }, 1000);
 });
@@ -750,15 +753,122 @@ function renderCategoryChips() {
   }).join('');
 }
 
-// STRICT AUTHENTICATION DISPLAY CONTROL
+// STRICT AUTHENTICATION DISPLAY CONTROL & 24-HOUR SESSION PERSISTENCE
+const SESSION_DURATION_24H_MS = 24 * 60 * 60 * 1000; // 24 horas en milisegundos
+let sessionExpiryTimer = null;
+
+function deriveOperatorNameFromEmail(emailStr) {
+  const clean = String(emailStr || '').trim();
+  if (!clean) return 'Admin';
+  const prefix = clean.split('@')[0].toLowerCase();
+  if (prefix.includes('admin') || prefix.includes('super')) return 'Admin';
+  if (prefix.includes('fernando') || prefix === 'fer') return 'Fernando';
+  if (prefix.includes('seba')) return 'Seba';
+  const firstPart = prefix.split(/[._\-0-9]+/)[0] || prefix;
+  return firstPart.charAt(0).toUpperCase() + firstPart.slice(1);
+}
+
+function autoDetectOperatorFromEmail(emailVal) {
+  const opInput = document.getElementById('fbOperatorName');
+  if (!opInput) return;
+  const detected = deriveOperatorNameFromEmail(emailVal);
+  if (!opInput.dataset.manualEdit || !opInput.value.trim()) {
+    opInput.value = detected;
+  }
+}
+
+function selectLoginOperator(opName) {
+  const opInput = document.getElementById('fbOperatorName');
+  if (opInput) {
+    opInput.value = opName;
+    opInput.dataset.manualEdit = 'true';
+  }
+  localStorage.setItem('canton_operator_name', opName);
+}
+
+function getCurrentOperatorName() {
+  const savedOp = (localStorage.getItem('canton_operator_name') || '').trim();
+  if (savedOp) return savedOp;
+  const sessionEmail = localStorage.getItem('firebaseAuthSession') || fbAuth?.currentUser?.email || '';
+  if (sessionEmail) return deriveOperatorNameFromEmail(sessionEmail);
+  return 'Admin';
+}
+
+function isSessionValid24h() {
+  const cachedSession = localStorage.getItem('firebaseAuthSession');
+  if (!cachedSession) return false;
+  const tsRaw = localStorage.getItem('firebaseAuthSessionTimestamp');
+  if (!tsRaw) {
+    localStorage.setItem('firebaseAuthSessionTimestamp', String(Date.now()));
+    return true;
+  }
+  const ts = parseInt(tsRaw, 10);
+  if (isNaN(ts)) {
+    localStorage.setItem('firebaseAuthSessionTimestamp', String(Date.now()));
+    return true;
+  }
+  const elapsed = Date.now() - ts;
+  if (elapsed >= SESSION_DURATION_24H_MS) {
+    // Pasaron 24 horas: expirar sesión
+    localStorage.removeItem('firebaseAuthSession');
+    localStorage.removeItem('firebaseAuthSessionTimestamp');
+    return false;
+  }
+  return true;
+}
+
+function saveAuthSession24h(userEmail) {
+  const rememberEl = document.getElementById('fbRememberUser');
+  const rememberUser = rememberEl ? rememberEl.checked : (localStorage.getItem('canton_remember_user_pref') !== 'false');
+  const opInput = document.getElementById('fbOperatorName');
+  const opName = (opInput && opInput.value.trim())
+    ? opInput.value.trim()
+    : (localStorage.getItem('canton_operator_name') || deriveOperatorNameFromEmail(userEmail));
+
+  localStorage.setItem('firebaseAuthSession', userEmail);
+  localStorage.setItem('firebaseAuthSessionTimestamp', String(Date.now()));
+  localStorage.setItem('canton_operator_name', opName);
+  localStorage.setItem('canton_remember_user_pref', rememberUser ? 'true' : 'false');
+
+  if (rememberUser) {
+    localStorage.setItem('canton_remembered_email', userEmail);
+    localStorage.setItem('canton_remembered_operator', opName);
+  } else {
+    localStorage.removeItem('canton_remembered_email');
+    localStorage.removeItem('canton_remembered_operator');
+  }
+}
+
+function populateRememberedLoginFields() {
+  const rememberPref = localStorage.getItem('canton_remember_user_pref') !== 'false';
+  const savedEmail = localStorage.getItem('canton_remembered_email') || '';
+  const savedOp = localStorage.getItem('canton_remembered_operator') || localStorage.getItem('canton_operator_name') || '';
+
+  const rememberCheckbox = document.getElementById('fbRememberUser');
+  if (rememberCheckbox) rememberCheckbox.checked = rememberPref;
+
+  const emailInput = document.getElementById('fbEmail');
+  if (emailInput) {
+    emailInput.value = rememberPref ? savedEmail : '';
+  }
+
+  const opInput = document.getElementById('fbOperatorName');
+  if (opInput) {
+    opInput.value = rememberPref ? (savedOp || (savedEmail ? deriveOperatorNameFromEmail(savedEmail) : '')) : '';
+  }
+}
+
 function showAuthenticatedApp(userEmail) {
   const loginScreen = document.getElementById('loginScreen');
   const appContainer = document.getElementById('appContainer');
   const userStatusLbl = document.getElementById('userStatusLbl');
+  const opName = getCurrentOperatorName();
 
   if (loginScreen) loginScreen.style.display = 'none';
   if (appContainer) appContainer.style.display = 'block';
-  if (userStatusLbl) userStatusLbl.textContent = 'Usuario: ' + userEmail;
+  if (userStatusLbl) {
+    userStatusLbl.textContent = `👤 Operador: ${opName} (${userEmail})`;
+  }
 }
 
 function showUnauthenticatedLogin() {
@@ -768,39 +878,75 @@ function showUnauthenticatedLogin() {
   if (loginScreen) loginScreen.style.display = 'flex';
   if (appContainer) appContainer.style.display = 'none';
 
-  const emailInput = document.getElementById('fbEmail');
   const passwordInput = document.getElementById('fbPassword');
-
-  if (emailInput) emailInput.value = '';
   if (passwordInput) passwordInput.value = '';
+
+  populateRememberedLoginFields();
 }
 
 function initFirebaseAuthListener() {
-  // Purge any legacy stored plain-text credentials
+  // Purge any legacy stored plain-text password
   localStorage.removeItem('canton_saved_password');
+
+  // Migrate legacy saved email if present
+  const legacyEmail = localStorage.getItem('canton_saved_email');
+  if (legacyEmail && !localStorage.getItem('canton_remembered_email')) {
+    localStorage.setItem('canton_remembered_email', legacyEmail);
+  }
   localStorage.removeItem('canton_saved_email');
 
-  const cachedSession = localStorage.getItem('firebaseAuthSession');
-  if (cachedSession) {
-    showAuthenticatedApp(cachedSession);
+  populateRememberedLoginFields();
+
+  if (fbAuth && typeof firebase !== 'undefined' && firebase.auth?.Auth?.Persistence?.LOCAL) {
+    fbAuth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(() => {});
   }
+
+  if (isSessionValid24h()) {
+    const cachedSession = localStorage.getItem('firebaseAuthSession');
+    showAuthenticatedApp(cachedSession);
+  } else {
+    showUnauthenticatedLogin();
+  }
+
+  // Verificar expiración de 24 horas periódicamente cada minuto
+  if (sessionExpiryTimer) clearInterval(sessionExpiryTimer);
+  sessionExpiryTimer = setInterval(() => {
+    const appContainer = document.getElementById('appContainer');
+    if (appContainer && appContainer.style.display !== 'none') {
+      if (!isSessionValid24h()) {
+        handleFirebaseLogout(true);
+      }
+    }
+  }, 60000);
 
   if (fbAuth) {
     fbAuth.onAuthStateChanged((user) => {
       if (user) {
-        localStorage.setItem('firebaseAuthSession', user.email || 'autenticado');
-        showAuthenticatedApp(user.email || 'autenticado');
+        const userEmail = user.email || localStorage.getItem('firebaseAuthSession') || 'autenticado';
+        const existingTs = localStorage.getItem('firebaseAuthSessionTimestamp');
+        if (existingTs && !isSessionValid24h()) {
+          // La sesión de 24 hs ya venció: cerrar sesión en Firebase y pedir login
+          handleFirebaseLogout(true);
+          return;
+        }
+        if (!localStorage.getItem('firebaseAuthSessionTimestamp')) {
+          localStorage.setItem('firebaseAuthSessionTimestamp', String(Date.now()));
+        }
+        localStorage.setItem('firebaseAuthSession', userEmail);
+        if (!localStorage.getItem('canton_operator_name')) {
+          localStorage.setItem('canton_operator_name', deriveOperatorNameFromEmail(userEmail));
+        }
+        showAuthenticatedApp(userEmail);
       } else {
-        localStorage.removeItem('firebaseAuthSession');
-        showUnauthenticatedLogin();
+        // Si la sesión local de 24 hs sigue activa (ej. pérdida temporal de red en China), mantener la sesión activa
+        if (isSessionValid24h()) {
+          const cachedSession = localStorage.getItem('firebaseAuthSession');
+          showAuthenticatedApp(cachedSession);
+        } else {
+          showUnauthenticatedLogin();
+        }
       }
     });
-  } else {
-    if (cachedSession) {
-      showAuthenticatedApp(cachedSession);
-    } else {
-      showUnauthenticatedLogin();
-    }
   }
 }
 
@@ -825,13 +971,13 @@ function handleFirebaseAuthLogin() {
     return;
   }
 
-  fbAuth.signInWithEmailAndPassword(email, password)
+  const doSignIn = () => fbAuth.signInWithEmailAndPassword(email, password)
     .then((userCredential) => {
       const user = userCredential.user;
       const userEmail = user.email || email;
       
-      localStorage.setItem('firebaseAuthSession', userEmail);
-      if (statusEl) statusEl.textContent = '🟢 Autenticado: ' + userEmail;
+      saveAuthSession24h(userEmail);
+      if (statusEl) statusEl.textContent = `🟢 Autenticado (${getCurrentOperatorName()}): ${userEmail} • Sesión 24 hs`;
       showAuthenticatedApp(userEmail);
     })
     .catch((error) => {
@@ -849,6 +995,12 @@ function handleFirebaseAuthLogin() {
       if (statusEl) statusEl.textContent = errorMsg;
       alert(errorMsg);
     });
+
+  if (typeof firebase !== 'undefined' && firebase.auth?.Auth?.Persistence?.LOCAL) {
+    fbAuth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).then(doSignIn).catch(doSignIn);
+  } else {
+    doSignIn();
+  }
 }
 
 function handleFirebaseRegister() {
@@ -882,7 +1034,7 @@ function handleFirebaseRegister() {
       const user = userCredential.user;
       const userEmail = user.email || email;
 
-      localStorage.setItem('firebaseAuthSession', userEmail);
+      saveAuthSession24h(userEmail);
       alert('✅ Cuenta creada y autenticada con éxito!');
       showAuthenticatedApp(userEmail);
     })
@@ -907,20 +1059,25 @@ function handleFirebaseRegister() {
 
 function handleOfflineBypassLogin() {
   const emailInput = document.getElementById('fbEmail');
-  const email = (emailInput?.value || 'invitado@perren.com.ar').trim();
+  const email = (emailInput?.value || 'admin@perren.com.ar').trim();
 
-  localStorage.setItem('firebaseAuthSession', email);
+  saveAuthSession24h(email);
   showAuthenticatedApp(email);
 }
 
-function handleFirebaseLogout() {
+function handleFirebaseLogout(isExpired = false) {
   localStorage.removeItem('firebaseAuthSession');
+  localStorage.removeItem('firebaseAuthSessionTimestamp');
   localStorage.removeItem('canton_saved_password');
   localStorage.removeItem('canton_saved_email');
   if (fbAuth) {
     try { fbAuth.signOut(); } catch (_) {}
   }
   showUnauthenticatedLogin();
+  if (isExpired) {
+    const statusEl = document.getElementById('fbAuthStatus');
+    if (statusEl) statusEl.textContent = '⏰ Tu sesión de 24 horas ha expirado. Volvé a iniciar sesión.';
+  }
 }
 
 // MAIN SECTION SWITCHING
@@ -953,7 +1110,7 @@ function switchMainSection(secId) {
   if (secId === 'costos') {
     renderSecSearchResults();
   } else if (secId === 'agenda') {
-    switchAgendaPhase(activeAgendaPhase || 'Fase 1');
+    switchAgendaPhase(activeAgendaPhase || 'Fase 1', true);
   } else if (secId === 'feria140') {
     renderFeria140();
   }
@@ -3514,6 +3671,9 @@ if (typeof window !== 'undefined') {
   window.closeFairMapModal = closeFairMapModal;
   window.getCantonFairMapUrl = getCantonFairMapUrl;
   window.toggleAgendaNote = toggleAgendaNote;
+  window.autoDetectOperatorFromEmail = autoDetectOperatorFromEmail;
+  window.selectLoginOperator = selectLoginOperator;
+  window.getCurrentOperatorName = getCurrentOperatorName;
 }
 
 // =========================================================================
@@ -3524,27 +3684,231 @@ let activeAgendaPhase = 'Fase 1';
 let currentAgendaLinkId = null;
 let feria140Catalog = null;
 let feria140SearchTimeout = null;
+let agendaVisitedMap = {};
+let agendaNoticeTimeout = null;
+
+function normalizeAgendaSupplierName(name) {
+  return String(name || '').trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+function loadAgendaVisitedState() {
+  try {
+    const rawMap = localStorage.getItem('canton_agenda_visited_map');
+    if (rawMap) {
+      const parsedMap = JSON.parse(rawMap);
+      if (parsedMap && typeof parsedMap === 'object') {
+        agendaVisitedMap = { ...parsedMap, ...agendaVisitedMap };
+      }
+    }
+    const rawArr = localStorage.getItem('canton_agenda_visited');
+    if (rawArr) {
+      const parsedArr = JSON.parse(rawArr);
+      if (Array.isArray(parsedArr)) {
+        parsedArr.forEach(id => {
+          const key = String(id);
+          if (!agendaVisitedMap[key]) {
+            agendaVisitedMap[key] = {
+              id: key,
+              visited: true,
+              operator: getCurrentOperatorName(),
+              visitedAt: new Date().toISOString(),
+              updatedAt: Date.now()
+            };
+          }
+        });
+      }
+    }
+  } catch (e) {
+    console.error('Error loading visited agenda state:', e);
+  }
+}
+
+function saveAgendaVisitedState() {
+  try {
+    localStorage.setItem('canton_agenda_visited_map', JSON.stringify(agendaVisitedMap));
+    const visitedIds = Object.keys(agendaVisitedMap).filter(k => agendaVisitedMap[k] && agendaVisitedMap[k].visited);
+    localStorage.setItem('canton_agenda_visited', JSON.stringify(visitedIds));
+  } catch (e) {
+    console.error('Error saving visited agenda state:', e);
+  }
+}
 
 function getVisitedAgendaIds() {
-  try {
-    const raw = localStorage.getItem('canton_agenda_visited');
-    if (raw) return JSON.parse(raw);
-  } catch (e) {
-    console.error('Error reading visited agenda items:', e);
+  if (!agendaVisitedMap || Object.keys(agendaVisitedMap).length === 0) {
+    loadAgendaVisitedState();
   }
-  return [];
+  return Object.keys(agendaVisitedMap).filter(k => agendaVisitedMap[k] && agendaVisitedMap[k].visited);
+}
+
+function getAgendaItemVisitInfo(item) {
+  if (!item) return null;
+  if (!agendaVisitedMap || Object.keys(agendaVisitedMap).length === 0) {
+    loadAgendaVisitedState();
+  }
+  const idKey = String(item.id);
+  if (agendaVisitedMap[idKey] && typeof agendaVisitedMap[idKey].visited === 'boolean') {
+    return agendaVisitedMap[idKey].visited ? agendaVisitedMap[idKey] : null;
+  }
+  const normName = normalizeAgendaSupplierName(item.proveedor);
+  if (normName) {
+    const matchKey = Object.keys(agendaVisitedMap).find(k => {
+      const entry = agendaVisitedMap[k];
+      return entry && entry.visited && entry.proveedorNorm && entry.proveedorNorm === normName;
+    });
+    if (matchKey) return agendaVisitedMap[matchKey];
+  }
+  return null;
+}
+
+function isAgendaItemVisited(item) {
+  return Boolean(getAgendaItemVisitInfo(item));
+}
+
+async function initFirestoreAgendaVisitsListener() {
+  if (!fbDb) return;
+  try {
+    await ensureFirebaseAuth();
+    fbDb.collection('recordatorios').doc('canton_agenda_visits').onSnapshot(docSnap => {
+      if (!docSnap.exists) return;
+      const data = docSnap.data() || {};
+      let changed = false;
+      Object.keys(data).forEach(fieldKey => {
+        if (!fieldKey.startsWith('item_')) return;
+        const agendaId = fieldKey.replace(/^item_/, '');
+        const remoteEntry = data[fieldKey];
+        if (!remoteEntry || typeof remoteEntry !== 'object') return;
+        const localEntry = agendaVisitedMap[agendaId];
+        const remoteTs = remoteEntry.updatedAt || 0;
+        const localTs = localEntry ? (localEntry.updatedAt || 0) : -1;
+        if (!localEntry || remoteTs >= localTs) {
+          if (!localEntry || localEntry.visited !== remoteEntry.visited || localEntry.operator !== remoteEntry.operator) {
+            changed = true;
+          }
+          agendaVisitedMap[agendaId] = remoteEntry;
+        }
+      });
+      if (changed) {
+        saveAgendaVisitedState();
+        renderAgenda();
+      }
+    }, err => {
+      console.log('Agenda visits listener notice:', err);
+    });
+  } catch (e) {
+    console.log('Init agenda visits listener note:', e);
+  }
+}
+
+async function syncAgendaVisitToFirestore(targetId, entry) {
+  if (!fbDb || !navigator.onLine) return;
+  try {
+    await ensureFirebaseAuth();
+    await fbDb.collection('recordatorios').doc('canton_agenda_visits').set({
+      ['item_' + String(targetId)]: entry,
+      lastUpdatedAt: new Date().toISOString()
+    }, { merge: true });
+  } catch (e) {
+    console.log('Sync agenda visit notice:', e);
+  }
+}
+
+async function syncAllAgendaVisitsToFirestore() {
+  if (!fbDb || !navigator.onLine) return;
+  try {
+    loadAgendaVisitedState();
+    const keys = Object.keys(agendaVisitedMap);
+    if (keys.length === 0) return;
+    await ensureFirebaseAuth();
+    const payload = { lastUpdatedAt: new Date().toISOString() };
+    keys.forEach(k => {
+      payload['item_' + String(k)] = agendaVisitedMap[k];
+    });
+    await fbDb.collection('recordatorios').doc('canton_agenda_visits').set(payload, { merge: true });
+  } catch (e) {
+    console.log('Sync all agenda visits notice:', e);
+  }
 }
 
 function markAgendaItemVisited(agendaId, visitedStatus = true) {
   try {
-    let visited = getVisitedAgendaIds();
+    loadAgendaVisitedState();
     const targetId = String(agendaId);
-    if (visitedStatus) {
-      if (!visited.includes(targetId)) visited.push(targetId);
-    } else {
-      visited = visited.filter(id => id !== targetId);
+    const operatorName = getCurrentOperatorName();
+    const operatorEmail = localStorage.getItem('firebaseAuthSession') || fbAuth?.currentUser?.email || '';
+    const nowIso = new Date().toISOString();
+    const nowTs = Date.now();
+
+    let foundSupplierName = '';
+    const relatedIds = new Set([targetId]);
+
+    if (window.CANTON_AGENDA_DATA) {
+      Object.values(window.CANTON_AGENDA_DATA).forEach(list => {
+        if (!Array.isArray(list)) return;
+        list.forEach(item => {
+          if (String(item.id) === targetId && item.proveedor) {
+            foundSupplierName = item.proveedor;
+          }
+        });
+      });
+
+      if (foundSupplierName) {
+        const targetNorm = normalizeAgendaSupplierName(foundSupplierName);
+        Object.values(window.CANTON_AGENDA_DATA).forEach(list => {
+          if (!Array.isArray(list)) return;
+          list.forEach(item => {
+            if (normalizeAgendaSupplierName(item.proveedor) === targetNorm) {
+              relatedIds.add(String(item.id));
+            }
+          });
+        });
+      }
     }
-    localStorage.setItem('canton_agenda_visited', JSON.stringify(visited));
+
+    const entry = {
+      id: targetId,
+      visited: Boolean(visitedStatus),
+      operator: operatorName,
+      operatorEmail: operatorEmail,
+      proveedor: foundSupplierName || '',
+      proveedorNorm: normalizeAgendaSupplierName(foundSupplierName),
+      visitedAt: nowIso,
+      updatedAt: nowTs
+    };
+
+    relatedIds.forEach(rId => {
+      agendaVisitedMap[rId] = { ...entry, id: rId };
+      syncAgendaVisitToFirestore(rId, agendaVisitedMap[rId]);
+    });
+
+    saveAgendaVisitedState();
+
+    // Si el usuario marca como visitado y el filtro estaba en "TODOS", pasar a "PENDIENTES" para que se oculte de inmediato
+    const statusSelect = document.getElementById('agendaStatusFilter');
+    if (visitedStatus && statusSelect && statusSelect.value === 'TODOS') {
+      statusSelect.value = 'PENDIENTES';
+    }
+
+    const noticeEl = document.getElementById('agendaVisitActionNotice');
+    if (noticeEl) {
+      if (agendaNoticeTimeout) clearTimeout(agendaNoticeTimeout);
+      if (visitedStatus) {
+        noticeEl.style.display = 'block';
+        noticeEl.style.background = '#E8F5E9';
+        noticeEl.style.borderColor = '#A5D6A7';
+        noticeEl.style.color = '#1B5E20';
+        noticeEl.innerHTML = `✅ Ocultado de pendientes • 👤 <strong>${operatorName} visitó este proveedor</strong>${foundSupplierName ? ' (' + foundSupplierName + ')' : ''}`;
+      } else {
+        noticeEl.style.display = 'block';
+        noticeEl.style.background = '#FFF3E0';
+        noticeEl.style.borderColor = '#FFE0B2';
+        noticeEl.style.color = '#E65100';
+        noticeEl.innerHTML = `↩️ Proveedor devuelto a Pendientes de Visita (${operatorName})`;
+      }
+      agendaNoticeTimeout = setTimeout(() => {
+        if (noticeEl) noticeEl.style.display = 'none';
+      }, 4500);
+    }
+
     renderAgenda();
   } catch (e) {
     console.error('Error marking agenda visited:', e);
@@ -3593,7 +3957,8 @@ function getCantonFairMapUrl(phaseStr) {
   return 'https://365.cantonfair.org.cn/en-US/exhibition-hall-map?phase=first';
 }
 
-function switchAgendaPhase(phaseName) {
+function switchAgendaPhase(phaseName, preserveFilters = false) {
+  const isSamePhase = (activeAgendaPhase === phaseName);
   activeAgendaPhase = phaseName;
   ['Fase1', 'Fase2', 'Fase3', 'PorConfirmar'].forEach(pKey => {
     const btn = document.getElementById('agendaPhaseTab' + pKey);
@@ -3612,14 +3977,35 @@ function switchAgendaPhase(phaseName) {
 
   const daySelect = document.getElementById('agendaDayFilter');
   if (daySelect) {
+    const prevDay = daySelect.value;
     const phaseItems = (window.CANTON_AGENDA_DATA && window.CANTON_AGENDA_DATA[phaseName]) || [];
     const days = [...new Set(phaseItems.map(item => item.dia).filter(Boolean))].sort((a,b) => parseInt(a) - parseInt(b));
     daySelect.innerHTML = `<option value="TODOS">Todos los Días (${days.length > 0 ? 'Días ' + days.join(', ') : ''})</option>` +
       days.map(d => `<option value="${d}">Día ${d}</option>`).join('');
-    daySelect.value = "TODOS";
+    if (preserveFilters && isSamePhase && prevDay && (prevDay === 'TODOS' || days.map(String).includes(String(prevDay)))) {
+      daySelect.value = prevDay;
+    } else {
+      daySelect.value = "TODOS";
+    }
   }
 
   renderAgenda();
+}
+
+function formatVisitTimestamp(isoStr) {
+  if (!isoStr) return '';
+  try {
+    const d = new Date(isoStr);
+    if (isNaN(d.getTime())) return '';
+    return d.toLocaleString('es-AR', {
+      day: '2-digit',
+      month: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  } catch (_) {
+    return '';
+  }
 }
 
 function renderAgenda() {
@@ -3631,21 +4017,22 @@ function renderAgenda() {
     return;
   }
 
+  loadAgendaVisitedState();
+
   const phaseItems = window.CANTON_AGENDA_DATA[activeAgendaPhase] || [];
   const selectedDay = document.getElementById('agendaDayFilter')?.value || 'TODOS';
   const statusFilter = document.getElementById('agendaStatusFilter')?.value || 'PENDIENTES';
-  const visitedIds = getVisitedAgendaIds();
 
   let filtered = phaseItems.filter(item => {
     if (selectedDay && selectedDay !== 'TODOS' && String(item.dia) !== String(selectedDay)) return false;
-    const isVisited = visitedIds.includes(String(item.id));
-    if (statusFilter === 'PENDIENTES' && isVisited) return false;
-    if (statusFilter === 'VISITADOS' && !isVisited) return false;
+    const visited = isAgendaItemVisited(item);
+    if (statusFilter === 'PENDIENTES' && visited) return false;
+    if (statusFilter === 'VISITADOS' && !visited) return false;
     return true;
   });
 
   const totalPhase = phaseItems.length;
-  const visitedCountPhase = phaseItems.filter(i => visitedIds.includes(String(i.id))).length;
+  const visitedCountPhase = phaseItems.filter(i => isAgendaItemVisited(i)).length;
   const pendingCountPhase = totalPhase - visitedCountPhase;
 
   const badgeEl = document.getElementById('agendaSummaryBadge');
@@ -3658,13 +4045,17 @@ function renderAgenda() {
     return;
   }
 
-  container.innerHTML = filtered.map(item => {
-    const isVisited = visitedIds.includes(String(item.id));
+  container.innerHTML = filtered.map((item, idx) => {
+    const visitInfo = getAgendaItemVisitInfo(item);
+    const isVisited = Boolean(visitInfo);
+    const visitOperator = (visitInfo && visitInfo.operator) ? visitInfo.operator : getCurrentOperatorName();
+    const visitTimeFormatted = visitInfo ? formatVisitTimestamp(visitInfo.visitedAt) : '';
     const mapUrl = getCantonFairMapUrl(item.fase || activeAgendaPhase);
+    const uniqueDomKey = `${item.id}_${idx}`;
 
     return `
       <div class="card" style="border-left: 4px solid ${isVisited ? '#2E7D32' : '#E65100'}; margin-bottom: 10px; background: ${isVisited ? '#F1F8E9' : 'white'};">
-        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 6px; flex-wrap: wrap;">
           <div>
             <span class="badge" style="background: ${isVisited ? '#C8E6C9' : '#FFE0B2'}; color: ${isVisited ? '#2E7D32' : '#E65100'};">
               ${isVisited ? '✅ VISITADO' : '⏳ PENDIENTE'}
@@ -3673,10 +4064,17 @@ function renderAgenda() {
               Día ${item.dia || '1'} • Orden #${item.orden || item.id}
             </span>
           </div>
-          <button class="btn-chip" onclick="markAgendaItemVisited('${item.id}', ${!isVisited})" style="font-size: 10px; padding: 2px 6px; color: ${isVisited ? '#E65100' : '#2E7D32'}; border-color: ${isVisited ? '#E65100' : '#2E7D32'};">
+          <button type="button" class="btn-chip" onclick="markAgendaItemVisited('${item.id}', ${!isVisited})" style="font-size: 10px; padding: 3px 8px; font-weight: bold; color: ${isVisited ? '#E65100' : '#2E7D32'}; border-color: ${isVisited ? '#E65100' : '#2E7D32'}; background: white;">
             ${isVisited ? '↩️ Marcar Pendiente' : '✅ Marcar Visitado'}
           </button>
         </div>
+
+        ${isVisited ? `
+          <div style="margin-top: 6px; padding: 5px 8px; background: #C8E6C9; color: #1B5E20; border-radius: 6px; font-size: 11px; font-weight: bold; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 4px;">
+            <span>👤 ${visitOperator} visitó este proveedor</span>
+            ${visitTimeFormatted ? `<span style="font-size: 9.5px; font-weight: normal; opacity: 0.85;">🕒 ${visitTimeFormatted}</span>` : ''}
+          </div>
+        ` : ''}
 
         <strong style="font-size: 13.5px; color: var(--primary-color); display: block; margin-top: 6px;">${item.proveedor}</strong>
         
@@ -3698,10 +4096,10 @@ function renderAgenda() {
 
         ${(item.nota || item.equipos || item.preguntas) ? `
           <div style="margin-top: 6px;">
-            <button id="btnToggleAgendaNote_${item.id}" class="btn-chip" onclick="toggleAgendaNote('${item.id}')" style="font-size: 10px; padding: 4px 8px; border-color: #FBC02D; color: #E65100; background: #FFFDE7; cursor: pointer; font-weight: bold; width: 100%; text-align: center; border-radius: 6px;">
+            <button id="btnToggleAgendaNote_${uniqueDomKey}" class="btn-chip" onclick="toggleAgendaNote('${uniqueDomKey}')" style="font-size: 10px; padding: 4px 8px; border-color: #FBC02D; color: #E65100; background: #FFFDE7; cursor: pointer; font-weight: bold; width: 100%; text-align: center; border-radius: 6px;">
               📝 Ver Notas y Preguntas de Visita ▾
             </button>
-            <div id="agendaNoteContainer_${item.id}" style="display: none; margin-top: 6px; padding: 8px 10px; background: #FFFDE7; border-left: 3px solid #FBC02D; border-radius: 6px; font-size: 10.5px; color: #333; line-height: 1.4;">
+            <div id="agendaNoteContainer_${uniqueDomKey}" style="display: none; margin-top: 6px; padding: 8px 10px; background: #FFFDE7; border-left: 3px solid #FBC02D; border-radius: 6px; font-size: 10.5px; color: #333; line-height: 1.4;">
               ${item.nota ? `<div style="font-weight: bold; color: #E65100; margin-bottom: 3px;">📝 NOTAS Y DETALLES:</div><div style="white-space: pre-line;">${item.nota}</div>` : ''}
               ${item.equipos ? `<div style="margin-top: 6px; font-weight: bold; color: #1565C0;">🔎 Equipos para ver o consultar:</div><div style="white-space: pre-line; color: #444;">${item.equipos}</div>` : ''}
               ${item.preguntas ? `<div style="margin-top: 6px; font-weight: bold; color: #2E7D32;">❓ Preguntas al proveedor:</div><div style="white-space: pre-line; color: #444;">${item.preguntas}</div>` : ''}

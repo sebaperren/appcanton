@@ -1,4 +1,4 @@
-const CACHE_NAME = 'canton-app-v65';
+const CACHE_NAME = 'canton-app-v66';
 
 self.addEventListener('install', (e) => {
   self.skipWaiting();
