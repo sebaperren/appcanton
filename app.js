@@ -113,7 +113,124 @@ let selectedCantonItem = null;
 let selectedPerrenItem = null;
 let activeCategoryFilter = 'TODOS';
 
-// IndexedDB Storage setup for Photo Backup, Flexxus Products & Local Suppliers
+// =========================================================================
+// SAFE STORAGE, COOKIE & INDEXEDDB MULTI-LAYER PERSISTENCE HELPERS
+// =========================================================================
+const META_IDB_AGENDA_KEY = '__META_AGENDA_VISITED__';
+const META_IDB_AUTH_KEY = '__META_AUTH_SESSION__';
+
+function setAppCookie(name, value, maxAgeSeconds = 86400) {
+  try {
+    document.cookie = `${encodeURIComponent(name)}=${encodeURIComponent(value)}; max-age=${maxAgeSeconds}; path=/; SameSite=Lax`;
+  } catch (e) {
+    console.log('Cookie set notice:', e);
+  }
+}
+
+function getAppCookie(name) {
+  try {
+    const target = encodeURIComponent(name) + '=';
+    const parts = (document.cookie || '').split(';');
+    for (let i = 0; i < parts.length; i++) {
+      const c = parts[i].trim();
+      if (c.indexOf(target) === 0) {
+        return decodeURIComponent(c.substring(target.length));
+      }
+    }
+  } catch (e) {
+    console.log('Cookie get notice:', e);
+  }
+  return null;
+}
+
+function removeAppCookie(name) {
+  try {
+    document.cookie = `${encodeURIComponent(name)}=; max-age=0; path=/; SameSite=Lax`;
+  } catch (_) {}
+}
+
+function stripHeavyBase64FromSuppliers(suppliersList) {
+  if (!Array.isArray(suppliersList)) return [];
+  return suppliersList
+    .filter(s => s && !String(s.id || '').startsWith('__'))
+    .map(sup => {
+      const cleanPhotos = Array.isArray(sup.photos)
+        ? sup.photos.filter(p => typeof p === 'string' && p.length < 2000)
+        : [];
+      const cleanArticles = Array.isArray(sup.articles)
+        ? sup.articles.map(art => ({
+            ...art,
+            photos: Array.isArray(art.photos) ? art.photos.filter(p => typeof p === 'string' && p.length < 2000) : [],
+            voiceNoteUrl: (art.voiceNoteUrl && art.voiceNoteUrl.length < 2000) ? art.voiceNoteUrl : null
+          }))
+        : [];
+      return {
+        ...sup,
+        photos: cleanPhotos,
+        articles: cleanArticles
+      };
+    });
+}
+
+function freeLocalStorageQuotaIfNeeded() {
+  try {
+    const rawSups = localStorage.getItem('canton_local_suppliers');
+    if (rawSups && rawSups.length > 250000) {
+      const parsed = JSON.parse(rawSups);
+      if (Array.isArray(parsed)) {
+        if (localSuppliers.length === 0) {
+          localSuppliers = parsed.filter(s => s && !String(s.id || '').startsWith('__'));
+        }
+        const light = stripHeavyBase64FromSuppliers(localSuppliers.length > 0 ? localSuppliers : parsed);
+        localStorage.setItem('canton_local_suppliers', JSON.stringify(light));
+      }
+    }
+  } catch (e) {
+    try {
+      localStorage.removeItem('canton_local_suppliers');
+    } catch (_) {}
+  }
+}
+
+function safeStorageSet(key, value) {
+  const strVal = String(value);
+  try {
+    sessionStorage.setItem(key, strVal);
+  } catch (_) {}
+  try {
+    localStorage.setItem(key, strVal);
+    return true;
+  } catch (e) {
+    // QuotaExceededError recovery: strip base64 blobs from canton_local_suppliers and retry
+    freeLocalStorageQuotaIfNeeded();
+    try {
+      localStorage.setItem(key, strVal);
+      return true;
+    } catch (e2) {
+      console.warn('safeStorageSet fallback notice for', key, e2);
+      return false;
+    }
+  }
+}
+
+function safeStorageGet(key) {
+  try {
+    const v = localStorage.getItem(key);
+    if (v !== null && v !== undefined) return v;
+  } catch (_) {}
+  try {
+    const sv = sessionStorage.getItem(key);
+    if (sv !== null && sv !== undefined) return sv;
+  } catch (_) {}
+  return null;
+}
+
+function safeStorageRemove(key) {
+  try { localStorage.removeItem(key); } catch (_) {}
+  try { sessionStorage.removeItem(key); } catch (_) {}
+}
+
+// IndexedDB Storage setup for Photo Backup, Flexxus Products, Local Suppliers & Meta State
 let db;
 const request = indexedDB.open('CantonAppDB', 3);
 request.onupgradeneeded = (e) => {
@@ -137,10 +254,26 @@ request.onerror = () => {
   loadFlexxusCsvDatabase();
 };
 
+function saveMetaToIndexedDB(metaKey, dataObj) {
+  if (!db || !db.objectStoreNames || !db.objectStoreNames.contains('suppliers_store')) return;
+  try {
+    const tx = db.transaction('suppliers_store', 'readwrite');
+    const store = tx.objectStore('suppliers_store');
+    store.put({ id: metaKey, data: dataObj, updatedAt: Date.now() });
+  } catch (e) {
+    console.log('Meta IDB save notice:', e);
+  }
+}
+
 // LocalStorage & IndexedDB Persistence Helpers
 function saveLocalSuppliers() {
   try {
-    localStorage.setItem('canton_local_suppliers', JSON.stringify(localSuppliers));
+    localSuppliers = localSuppliers.filter(s => s && !String(s.id || '').startsWith('__') && !String(s.firestoreId || '').startsWith('__'));
+    // Save lightweight copy in localStorage so we NEVER exceed the 5MB localStorage quota
+    const lightCopy = stripHeavyBase64FromSuppliers(localSuppliers);
+    safeStorageSet('canton_local_suppliers', JSON.stringify(lightCopy));
+
+    // Save FULL copy (with all base64 photos and voice notes) in IndexedDB
     if (db && db.objectStoreNames.contains('suppliers_store')) {
       const tx = db.transaction('suppliers_store', 'readwrite');
       const store = tx.objectStore('suppliers_store');
@@ -153,11 +286,16 @@ function saveLocalSuppliers() {
 
 function loadLocalSuppliers() {
   try {
-    const data = localStorage.getItem('canton_local_suppliers');
+    const data = safeStorageGet('canton_local_suppliers');
     if (data) {
       const parsed = JSON.parse(data);
       if (Array.isArray(parsed) && parsed.length > 0) {
-        localSuppliers = parsed;
+        localSuppliers = parsed.filter(s => s && !String(s.id || '').startsWith('__') && !String(s.firestoreId || '').startsWith('__'));
+        // Immediately free localStorage if it was holding heavy base64 images
+        if (data.length > 250000) {
+          const lightCopy = stripHeavyBase64FromSuppliers(localSuppliers);
+          safeStorageSet('canton_local_suppliers', JSON.stringify(lightCopy));
+        }
         const lbl = document.getElementById('lblTotalSuppliers');
         if (lbl) lbl.textContent = localSuppliers.length;
         renderTarjetero();
@@ -177,15 +315,43 @@ function loadSuppliersFromIndexedDB() {
     req.onsuccess = () => {
       const items = req.result;
       if (items && items.length > 0) {
-        items.forEach(idbSup => {
-          const idx = localSuppliers.findIndex(ls => ls.id === idbSup.id);
-          if (idx >= 0) localSuppliers[idx] = idbSup;
-          else localSuppliers.unshift(idbSup);
+        items.forEach(idbItem => {
+          if (!idbItem || !idbItem.id) return;
+          const idStr = String(idbItem.id);
+          if (idStr === META_IDB_AGENDA_KEY) {
+            if (idbItem.data && typeof mergeAgendaVisitedMap === 'function') {
+              mergeAgendaVisitedMap(idbItem.data);
+              saveAgendaVisitedState(true);
+              if (typeof renderAgenda === 'function') renderAgenda();
+            }
+            return;
+          }
+          if (idStr === META_IDB_AUTH_KEY) {
+            if (idbItem.data && typeof restoreAuthSessionFromMeta === 'function') {
+              restoreAuthSessionFromMeta(idbItem.data);
+            }
+            return;
+          }
+          if (idStr.startsWith('__')) return;
+
+          const idx = localSuppliers.findIndex(ls => ls.id === idbItem.id);
+          if (idx >= 0) {
+            const locSup = localSuppliers[idx];
+            if (locSup && locSup.photos && locSup.photos.length > (idbItem.photos || []).length) {
+              idbItem.photos = locSup.photos;
+            }
+            localSuppliers[idx] = { ...locSup, ...idbItem };
+          } else {
+            localSuppliers.unshift(idbItem);
+          }
         });
         saveLocalSuppliers();
         const lbl = document.getElementById('lblTotalSuppliers');
         if (lbl) lbl.textContent = localSuppliers.length;
         renderTarjetero();
+      }
+      if (typeof agendaVisitedMap !== 'undefined' && Object.keys(agendaVisitedMap).length > 0) {
+        saveMetaToIndexedDB(META_IDB_AGENDA_KEY, agendaVisitedMap);
       }
     };
   } catch (e) {
@@ -195,7 +361,7 @@ function loadSuppliersFromIndexedDB() {
 
 function saveSavedArticles() {
   try {
-    localStorage.setItem('canton_saved_articles', JSON.stringify(savedArticles));
+    safeStorageSet('canton_saved_articles', JSON.stringify(savedArticles));
   } catch (e) {
     console.log('Error saving articles:', e);
   }
@@ -203,7 +369,7 @@ function saveSavedArticles() {
 
 function loadSavedArticles() {
   try {
-    const data = localStorage.getItem('canton_saved_articles');
+    const data = safeStorageGet('canton_saved_articles');
     if (data) {
       const parsed = JSON.parse(data);
       if (Array.isArray(parsed) && parsed.length > 0) {
@@ -325,10 +491,37 @@ async function compressBase64ForCloud(base64Str, maxWidth = 500, quality = 0.5) 
   });
 }
 
+let reauthInProgressPromise = null;
+
 async function ensureFirebaseAuth() {
   if (!fbAuth) return false;
   if (fbAuth.currentUser) return true;
-  return false;
+  if (!navigator.onLine) return false;
+
+  if (reauthInProgressPromise) {
+    return reauthInProgressPromise;
+  }
+
+  reauthInProgressPromise = (async () => {
+    try {
+      if (fbAuth.currentUser) return true;
+      const sess = (typeof getStoredAuthSession24h === 'function') ? getStoredAuthSession24h() : null;
+      if (sess && sess.email && sess.cred && isSessionValid24h()) {
+        const decPass = decodeURIComponent(escape(atob(sess.cred)));
+        if (decPass) {
+          await fbAuth.signInWithEmailAndPassword(sess.email, decPass);
+          return Boolean(fbAuth.currentUser);
+        }
+      }
+    } catch (e) {
+      console.log('Auto-reauth notice:', e.code || e.message);
+    } finally {
+      reauthInProgressPromise = null;
+    }
+    return Boolean(fbAuth && fbAuth.currentUser);
+  })();
+
+  return reauthInProgressPromise;
 }
 
 async function syncPendingSuppliersToFirebase(forceAll = false) {
@@ -336,9 +529,10 @@ async function syncPendingSuppliersToFirebase(forceAll = false) {
 
   await ensureFirebaseAuth();
 
-  const suppliersToSync = forceAll
+  const suppliersToSync = (forceAll
     ? localSuppliers
-    : localSuppliers.filter(s => s.syncState === 'pending' || !s.firestoreId);
+    : localSuppliers.filter(s => s.syncState === 'pending' || !s.firestoreId)
+  ).filter(s => s && !String(s.id || '').startsWith('__') && !String(s.firestoreId || '').startsWith('__'));
 
   if (suppliersToSync.length === 0) return;
 
@@ -442,13 +636,22 @@ async function forceCloudSync() {
 
   try {
     await ensureFirebaseAuth();
-    // Forzar el envío de todos los proveedores locales a la nube
+    // Forzar el envío de todos los proveedores locales y visitas de agenda a la nube
     await syncPendingSuppliersToFirebase(true);
+    if (typeof syncAllAgendaVisitsToFirestore === 'function') {
+      await syncAllAgendaVisitsToFirestore();
+    }
 
     if (fbDb) {
       const snapshot = await fbDb.collection('suppliers').get();
       const firestoreSuppliers = [];
       snapshot.forEach(doc => {
+        if (doc.id === '__CANTON_AGENDA_VISITS_META__' || String(doc.id).startsWith('__')) {
+          if (doc.id === '__CANTON_AGENDA_VISITS_META__' && typeof handleRemoteAgendaVisitsDoc === 'function') {
+            handleRemoteAgendaVisitsDoc(doc.data());
+          }
+          return;
+        }
         firestoreSuppliers.push({ ...doc.data(), firestoreId: doc.id });
       });
 
@@ -489,7 +692,7 @@ async function forceCloudSync() {
 
 // Initialize PWA Service Worker
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('./sw.js').catch(err => console.log('SW reg error', err));
+  navigator.serviceWorker.register('./sw.js?v=67').catch(err => console.log('SW reg error', err));
 }
 
 function ensureCanton140ScriptLoaded() {
@@ -513,32 +716,82 @@ function ensureCanton140ScriptLoaded() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  loadStateSettings();
-  loadLocalSuppliers();
-  loadSavedArticles();
-  if (typeof loadAgendaVisitedState === 'function') loadAgendaVisitedState();
-  initFirebaseAuthListener();
-  initFirestoreSuppliersListener();
-  if (typeof initFirestoreAgendaVisitsListener === 'function') initFirestoreAgendaVisitsListener();
-  setupEventListeners();
-  calculateTab1();
-  renderTab2List();
-  renderTarjetero();
-  switchAgendaPhase(activeAgendaPhase || 'Fase 1');
+  try { freeLocalStorageQuotaIfNeeded(); } catch (_) {}
+  try { loadStateSettings(); } catch (e) { console.log(e); }
+  try { loadLocalSuppliers(); } catch (e) { console.log(e); }
+  try { loadSavedArticles(); } catch (e) { console.log(e); }
+  try { if (typeof loadAgendaVisitedState === 'function') loadAgendaVisitedState(); } catch (e) { console.log(e); }
+  try { initFirebaseAuthListener(); } catch (e) { console.error('Auth init error:', e); ensureVisibleScreenState(); }
+  try { initFirestoreSuppliersListener(); } catch (e) { console.log(e); }
+  try { if (typeof initFirestoreAgendaVisitsListener === 'function') initFirestoreAgendaVisitsListener(); } catch (e) { console.log(e); }
+  try { setupEventListeners(); } catch (e) { console.log(e); }
+  try { calculateTab1(); } catch (e) { console.log(e); }
+  try { renderTab2List(); } catch (e) { console.log(e); }
+  try { renderTarjetero(); } catch (e) { console.log(e); }
+  try { switchAgendaPhase(activeAgendaPhase || 'Fase 1'); } catch (e) { console.log(e); }
+  ensureVisibleScreenState();
+
   setTimeout(() => {
     loadFlexxusCsvDatabase();
     syncPendingSuppliersToFirebase();
     if (typeof syncAllAgendaVisitsToFirestore === 'function') syncAllAgendaVisitsToFirestore();
     ensureCanton140ScriptLoaded().catch(e => console.log('Background catalog script notice:', e));
+    ensureVisibleScreenState();
   }, 1000);
 });
+
+// Prevent Blank White Screen on Mobile App Reopen / Wakeup / BFCache Restore
+window.addEventListener('pageshow', () => {
+  try {
+    if (typeof loadAgendaVisitedState === 'function') loadAgendaVisitedState();
+    ensureVisibleScreenState();
+    if (currentSection === 'agenda' && typeof renderAgenda === 'function') renderAgenda();
+  } catch (_) {}
+});
+
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') {
+    try {
+      if (typeof loadAgendaVisitedState === 'function') loadAgendaVisitedState();
+      ensureVisibleScreenState();
+      if (currentSection === 'agenda' && typeof renderAgenda === 'function') renderAgenda();
+      if (navigator.onLine) {
+        ensureFirebaseAuth().then(authed => {
+          if (authed && typeof syncAllAgendaVisitsToFirestore === 'function') {
+            syncAllAgendaVisitsToFirestore();
+          }
+        }).catch(() => {});
+      }
+    } catch (_) {}
+  }
+});
+
+window.addEventListener('focus', () => {
+  try { ensureVisibleScreenState(); } catch (_) {}
+});
+
+window.addEventListener('error', () => {
+  try { ensureVisibleScreenState(); } catch (_) {}
+});
+
+let firestoreSuppliersUnsubscribe = null;
 
 async function initFirestoreSuppliersListener() {
   if (!fbDb) return;
   await ensureFirebaseAuth();
-  fbDb.collection('suppliers').onSnapshot(snapshot => {
+  if (firestoreSuppliersUnsubscribe) {
+    try { firestoreSuppliersUnsubscribe(); } catch (_) {}
+    firestoreSuppliersUnsubscribe = null;
+  }
+  firestoreSuppliersUnsubscribe = fbDb.collection('suppliers').onSnapshot(snapshot => {
     const firestoreSuppliers = [];
     snapshot.forEach(doc => {
+      if (doc.id === '__CANTON_AGENDA_VISITS_META__' || String(doc.id).startsWith('__')) {
+        if (doc.id === '__CANTON_AGENDA_VISITS_META__' && typeof handleRemoteAgendaVisitsDoc === 'function') {
+          handleRemoteAgendaVisitsDoc(doc.data());
+        }
+        return;
+      }
       const data = doc.data();
       firestoreSuppliers.push({ ...data, firestoreId: doc.id });
     });
@@ -547,6 +800,7 @@ async function initFirestoreSuppliersListener() {
 
     // 1. Purge synced suppliers that are no longer in Firestore Cloud
     localSuppliers = localSuppliers.filter(ls => {
+      if (!ls || String(ls.id || '').startsWith('__')) return false;
       if (ls.syncState === 'pending') return true;
       const targetId = String(ls.firestoreId || ls.id || '');
       return firestoreIdSet.has(targetId);
@@ -596,6 +850,12 @@ async function initFirestoreSuppliersListener() {
         if (fbDb) {
           fbDb.collection('suppliers').get().then(snapshot => {
             snapshot.forEach(doc => {
+              if (doc.id === '__CANTON_AGENDA_VISITS_META__' || String(doc.id).startsWith('__')) {
+                if (doc.id === '__CANTON_AGENDA_VISITS_META__' && typeof handleRemoteAgendaVisitsDoc === 'function') {
+                  handleRemoteAgendaVisitsDoc(doc.data());
+                }
+                return;
+              }
               const fsSup = { ...doc.data(), firestoreId: doc.id };
               const idx = localSuppliers.findIndex(ls => (ls.id && String(ls.id) === String(fsSup.id)) || (ls.firestoreId && String(ls.firestoreId) === String(fsSup.firestoreId)));
               if (idx >= 0) localSuppliers[idx] = { ...localSuppliers[idx], ...fsSup };
@@ -753,9 +1013,10 @@ function renderCategoryChips() {
   }).join('');
 }
 
-// STRICT AUTHENTICATION DISPLAY CONTROL & 24-HOUR SESSION PERSISTENCE
+// STRICT AUTHENTICATION DISPLAY CONTROL & 24-HOUR MULTI-LAYER SESSION PERSISTENCE
 const SESSION_DURATION_24H_MS = 24 * 60 * 60 * 1000; // 24 horas en milisegundos
 let sessionExpiryTimer = null;
+let inMemoryAuthSession24h = null;
 
 function deriveOperatorNameFromEmail(emailStr) {
   const clean = String(emailStr || '').trim();
@@ -783,66 +1044,185 @@ function selectLoginOperator(opName) {
     opInput.value = opName;
     opInput.dataset.manualEdit = 'true';
   }
-  localStorage.setItem('canton_operator_name', opName);
+  safeStorageSet('canton_operator_name', opName);
+  if (inMemoryAuthSession24h) {
+    inMemoryAuthSession24h.operator = opName;
+  }
+}
+
+function getStoredAuthSession24h() {
+  if (inMemoryAuthSession24h && inMemoryAuthSession24h.email) {
+    return inMemoryAuthSession24h;
+  }
+  // 1. Try JSON session from localStorage / sessionStorage
+  try {
+    const rawJson = safeStorageGet('canton_auth_session_v67');
+    if (rawJson) {
+      const parsed = JSON.parse(rawJson);
+      if (parsed && parsed.email) {
+        inMemoryAuthSession24h = parsed;
+        return parsed;
+      }
+    }
+  } catch (_) {}
+
+  // 2. Try Cookie canton_auth_v67 (survives localStorage quota/eviction on mobile)
+  try {
+    const cookieRaw = getAppCookie('canton_auth_v67');
+    if (cookieRaw) {
+      const parsed = JSON.parse(cookieRaw);
+      if (parsed && parsed.email) {
+        inMemoryAuthSession24h = parsed;
+        return parsed;
+      }
+    }
+  } catch (_) {}
+
+  // 3. Try legacy keys in localStorage / sessionStorage
+  const legacyEmail = safeStorageGet('firebaseAuthSession');
+  if (legacyEmail) {
+    const tsRaw = safeStorageGet('firebaseAuthSessionTimestamp');
+    const ts = tsRaw ? parseInt(tsRaw, 10) : Date.now();
+    const op = safeStorageGet('canton_operator_name') || deriveOperatorNameFromEmail(legacyEmail);
+    const obj = {
+      email: legacyEmail,
+      operator: op,
+      timestamp: isNaN(ts) ? Date.now() : ts,
+      rememberUser: true
+    };
+    inMemoryAuthSession24h = obj;
+    return obj;
+  }
+
+  return null;
+}
+
+function restoreAuthSessionFromMeta(metaData) {
+  if (!metaData || !metaData.email) return;
+  const elapsed = Date.now() - (metaData.timestamp || 0);
+  if (elapsed >= SESSION_DURATION_24H_MS) return;
+
+  if (!inMemoryAuthSession24h || (metaData.timestamp || 0) > (inMemoryAuthSession24h.timestamp || 0)) {
+    inMemoryAuthSession24h = metaData;
+    safeStorageSet('canton_auth_session_v67', JSON.stringify(metaData));
+    safeStorageSet('firebaseAuthSession', metaData.email);
+    safeStorageSet('firebaseAuthSessionTimestamp', String(metaData.timestamp));
+    if (metaData.operator) safeStorageSet('canton_operator_name', metaData.operator);
+    setAppCookie('canton_auth_v67', JSON.stringify(metaData), 86400);
+    showAuthenticatedApp(metaData.email);
+  }
 }
 
 function getCurrentOperatorName() {
-  const savedOp = (localStorage.getItem('canton_operator_name') || '').trim();
+  const savedOp = (safeStorageGet('canton_operator_name') || '').trim();
   if (savedOp) return savedOp;
-  const sessionEmail = localStorage.getItem('firebaseAuthSession') || fbAuth?.currentUser?.email || '';
+  const sess = getStoredAuthSession24h();
+  if (sess && sess.operator) return sess.operator;
+  const remCookie = getAppCookie('canton_remember_v67');
+  if (remCookie) {
+    try {
+      const rem = JSON.parse(remCookie);
+      if (rem && rem.operator) return rem.operator;
+    } catch (_) {}
+  }
+  const sessionEmail = (sess && sess.email) || safeStorageGet('firebaseAuthSession') || fbAuth?.currentUser?.email || '';
   if (sessionEmail) return deriveOperatorNameFromEmail(sessionEmail);
   return 'Admin';
 }
 
 function isSessionValid24h() {
-  const cachedSession = localStorage.getItem('firebaseAuthSession');
-  if (!cachedSession) return false;
-  const tsRaw = localStorage.getItem('firebaseAuthSessionTimestamp');
-  if (!tsRaw) {
-    localStorage.setItem('firebaseAuthSessionTimestamp', String(Date.now()));
+  const sess = getStoredAuthSession24h();
+  if (!sess || !sess.email) return false;
+
+  const ts = parseInt(sess.timestamp, 10);
+  if (!ts || isNaN(ts)) {
+    sess.timestamp = Date.now();
+    safeStorageSet('firebaseAuthSessionTimestamp', String(sess.timestamp));
     return true;
   }
-  const ts = parseInt(tsRaw, 10);
-  if (isNaN(ts)) {
-    localStorage.setItem('firebaseAuthSessionTimestamp', String(Date.now()));
-    return true;
-  }
+
   const elapsed = Date.now() - ts;
   if (elapsed >= SESSION_DURATION_24H_MS) {
     // Pasaron 24 horas: expirar sesión
-    localStorage.removeItem('firebaseAuthSession');
-    localStorage.removeItem('firebaseAuthSessionTimestamp');
+    clearAuthSession24h();
     return false;
   }
   return true;
 }
 
-function saveAuthSession24h(userEmail) {
+function clearAuthSession24h() {
+  inMemoryAuthSession24h = null;
+  safeStorageRemove('canton_auth_session_v67');
+  safeStorageRemove('firebaseAuthSession');
+  safeStorageRemove('firebaseAuthSessionTimestamp');
+  removeAppCookie('canton_auth_v67');
+  saveMetaToIndexedDB(META_IDB_AUTH_KEY, null);
+}
+
+function saveAuthSession24h(userEmail, plainPassword = '') {
   const rememberEl = document.getElementById('fbRememberUser');
-  const rememberUser = rememberEl ? rememberEl.checked : (localStorage.getItem('canton_remember_user_pref') !== 'false');
+  const rememberUser = rememberEl ? rememberEl.checked : (safeStorageGet('canton_remember_user_pref') !== 'false');
   const opInput = document.getElementById('fbOperatorName');
   const opName = (opInput && opInput.value.trim())
     ? opInput.value.trim()
-    : (localStorage.getItem('canton_operator_name') || deriveOperatorNameFromEmail(userEmail));
+    : (safeStorageGet('canton_operator_name') || deriveOperatorNameFromEmail(userEmail));
 
-  localStorage.setItem('firebaseAuthSession', userEmail);
-  localStorage.setItem('firebaseAuthSessionTimestamp', String(Date.now()));
-  localStorage.setItem('canton_operator_name', opName);
-  localStorage.setItem('canton_remember_user_pref', rememberUser ? 'true' : 'false');
+  const nowTs = Date.now();
+  let encodedCred = (inMemoryAuthSession24h && inMemoryAuthSession24h.cred) || '';
+  if (plainPassword && rememberUser) {
+    try {
+      encodedCred = btoa(unescape(encodeURIComponent(plainPassword)));
+    } catch (_) {}
+  }
+
+  const sessionObj = {
+    email: userEmail,
+    operator: opName,
+    timestamp: nowTs,
+    rememberUser: Boolean(rememberUser),
+    cred: rememberUser ? encodedCred : ''
+  };
+
+  inMemoryAuthSession24h = sessionObj;
+
+  safeStorageSet('canton_auth_session_v67', JSON.stringify(sessionObj));
+  safeStorageSet('firebaseAuthSession', userEmail);
+  safeStorageSet('firebaseAuthSessionTimestamp', String(nowTs));
+  safeStorageSet('canton_operator_name', opName);
+  safeStorageSet('canton_remember_user_pref', rememberUser ? 'true' : 'false');
+
+  setAppCookie('canton_auth_v67', JSON.stringify(sessionObj), 86400);
+  saveMetaToIndexedDB(META_IDB_AUTH_KEY, sessionObj);
 
   if (rememberUser) {
-    localStorage.setItem('canton_remembered_email', userEmail);
-    localStorage.setItem('canton_remembered_operator', opName);
+    safeStorageSet('canton_remembered_email', userEmail);
+    safeStorageSet('canton_remembered_operator', opName);
+    setAppCookie('canton_remember_v67', JSON.stringify({ email: userEmail, operator: opName, remember: true }), 31536000);
   } else {
-    localStorage.removeItem('canton_remembered_email');
-    localStorage.removeItem('canton_remembered_operator');
+    safeStorageRemove('canton_remembered_email');
+    safeStorageRemove('canton_remembered_operator');
+    removeAppCookie('canton_remember_v67');
   }
 }
 
 function populateRememberedLoginFields() {
-  const rememberPref = localStorage.getItem('canton_remember_user_pref') !== 'false';
-  const savedEmail = localStorage.getItem('canton_remembered_email') || '';
-  const savedOp = localStorage.getItem('canton_remembered_operator') || localStorage.getItem('canton_operator_name') || '';
+  let rememberPref = safeStorageGet('canton_remember_user_pref') !== 'false';
+  let savedEmail = safeStorageGet('canton_remembered_email') || '';
+  let savedOp = safeStorageGet('canton_remembered_operator') || safeStorageGet('canton_operator_name') || '';
+
+  if (!savedEmail) {
+    const remCookie = getAppCookie('canton_remember_v67');
+    if (remCookie) {
+      try {
+        const parsed = JSON.parse(remCookie);
+        if (parsed && parsed.email) {
+          savedEmail = parsed.email;
+          savedOp = parsed.operator || savedOp;
+          rememberPref = parsed.remember !== false;
+        }
+      } catch (_) {}
+    }
+  }
 
   const rememberCheckbox = document.getElementById('fbRememberUser');
   if (rememberCheckbox) rememberCheckbox.checked = rememberPref;
@@ -858,16 +1238,34 @@ function populateRememberedLoginFields() {
   }
 }
 
+function ensureActiveSectionVisible() {
+  const sections = ['secInicio', 'secAgenda', 'secFeria140', 'secAddProveedor', 'secCostos', 'secComparador', 'secTarjetero'];
+  const hasVisibleSection = sections.some(s => {
+    const el = document.getElementById(s);
+    return el && el.style.display === 'block';
+  });
+  if (!hasVisibleSection) {
+    const targetSecId = 'sec' + capitalize(currentSection || 'inicio');
+    sections.forEach(s => {
+      const el = document.getElementById(s);
+      if (el) el.style.display = (s === targetSecId) ? 'block' : 'none';
+    });
+  }
+}
+
 function showAuthenticatedApp(userEmail) {
   const loginScreen = document.getElementById('loginScreen');
   const appContainer = document.getElementById('appContainer');
   const userStatusLbl = document.getElementById('userStatusLbl');
   const opName = getCurrentOperatorName();
+  const displayEmail = userEmail || (getStoredAuthSession24h()?.email) || 'activo';
 
   if (loginScreen) loginScreen.style.display = 'none';
   if (appContainer) appContainer.style.display = 'block';
+  ensureActiveSectionVisible();
+
   if (userStatusLbl) {
-    userStatusLbl.textContent = `👤 Operador: ${opName} (${userEmail})`;
+    userStatusLbl.textContent = `👤 Operador: ${opName} (${displayEmail})`;
   }
 }
 
@@ -884,16 +1282,38 @@ function showUnauthenticatedLogin() {
   populateRememberedLoginFields();
 }
 
+function ensureVisibleScreenState() {
+  try {
+    if (isSessionValid24h()) {
+      const sess = getStoredAuthSession24h();
+      showAuthenticatedApp(sess ? sess.email : '');
+    } else if (fbAuth && fbAuth.currentUser) {
+      const email = fbAuth.currentUser.email || 'autenticado';
+      saveAuthSession24h(email);
+      showAuthenticatedApp(email);
+    } else {
+      showUnauthenticatedLogin();
+    }
+  } catch (e) {
+    console.error('ensureVisibleScreenState fallback:', e);
+    const loginScreen = document.getElementById('loginScreen');
+    const appContainer = document.getElementById('appContainer');
+    if (appContainer && appContainer.style.display !== 'block' && loginScreen) {
+      loginScreen.style.display = 'flex';
+    }
+  }
+}
+
 function initFirebaseAuthListener() {
   // Purge any legacy stored plain-text password
-  localStorage.removeItem('canton_saved_password');
+  safeStorageRemove('canton_saved_password');
 
   // Migrate legacy saved email if present
-  const legacyEmail = localStorage.getItem('canton_saved_email');
-  if (legacyEmail && !localStorage.getItem('canton_remembered_email')) {
-    localStorage.setItem('canton_remembered_email', legacyEmail);
+  const legacyEmail = safeStorageGet('canton_saved_email');
+  if (legacyEmail && !safeStorageGet('canton_remembered_email')) {
+    safeStorageSet('canton_remembered_email', legacyEmail);
   }
-  localStorage.removeItem('canton_saved_email');
+  safeStorageRemove('canton_saved_email');
 
   populateRememberedLoginFields();
 
@@ -901,12 +1321,7 @@ function initFirebaseAuthListener() {
     fbAuth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(() => {});
   }
 
-  if (isSessionValid24h()) {
-    const cachedSession = localStorage.getItem('firebaseAuthSession');
-    showAuthenticatedApp(cachedSession);
-  } else {
-    showUnauthenticatedLogin();
-  }
+  ensureVisibleScreenState();
 
   // Verificar expiración de 24 horas periódicamente cada minuto
   if (sessionExpiryTimer) clearInterval(sessionExpiryTimer);
@@ -921,30 +1336,45 @@ function initFirebaseAuthListener() {
 
   if (fbAuth) {
     fbAuth.onAuthStateChanged((user) => {
-      if (user) {
-        const userEmail = user.email || localStorage.getItem('firebaseAuthSession') || 'autenticado';
-        const existingTs = localStorage.getItem('firebaseAuthSessionTimestamp');
-        if (existingTs && !isSessionValid24h()) {
-          // La sesión de 24 hs ya venció: cerrar sesión en Firebase y pedir login
-          handleFirebaseLogout(true);
-          return;
-        }
-        if (!localStorage.getItem('firebaseAuthSessionTimestamp')) {
-          localStorage.setItem('firebaseAuthSessionTimestamp', String(Date.now()));
-        }
-        localStorage.setItem('firebaseAuthSession', userEmail);
-        if (!localStorage.getItem('canton_operator_name')) {
-          localStorage.setItem('canton_operator_name', deriveOperatorNameFromEmail(userEmail));
-        }
-        showAuthenticatedApp(userEmail);
-      } else {
-        // Si la sesión local de 24 hs sigue activa (ej. pérdida temporal de red en China), mantener la sesión activa
-        if (isSessionValid24h()) {
-          const cachedSession = localStorage.getItem('firebaseAuthSession');
-          showAuthenticatedApp(cachedSession);
+      try {
+        if (user) {
+          const sess = getStoredAuthSession24h();
+          const userEmail = user.email || (sess && sess.email) || 'autenticado';
+          if (sess && sess.timestamp && !isSessionValid24h()) {
+            // La sesión de 24 hs ya venció: cerrar sesión en Firebase y pedir login
+            handleFirebaseLogout(true);
+            return;
+          }
+          if (!sess || !sess.timestamp) {
+            saveAuthSession24h(userEmail);
+          } else {
+            showAuthenticatedApp(userEmail);
+          }
+          // Re-attach Firestore listeners now that Firebase Auth is confirmed active
+          initFirestoreSuppliersListener();
+          if (typeof initFirestoreAgendaVisitsListener === 'function') initFirestoreAgendaVisitsListener();
+          if (typeof syncAllAgendaVisitsToFirestore === 'function') syncAllAgendaVisitsToFirestore();
         } else {
-          showUnauthenticatedLogin();
+          // Si la sesión local de 24 hs sigue activa (ej. cuando el celular se cierra/bloquea o sin red), mantener sesión abierta
+          if (isSessionValid24h()) {
+            const sess = getStoredAuthSession24h();
+            showAuthenticatedApp(sess ? sess.email : '');
+            if (navigator.onLine) {
+              ensureFirebaseAuth().then(reauthed => {
+                if (reauthed) {
+                  initFirestoreSuppliersListener();
+                  if (typeof initFirestoreAgendaVisitsListener === 'function') initFirestoreAgendaVisitsListener();
+                  if (typeof syncAllAgendaVisitsToFirestore === 'function') syncAllAgendaVisitsToFirestore();
+                }
+              }).catch(() => {});
+            }
+          } else {
+            showUnauthenticatedLogin();
+          }
         }
+      } catch (err) {
+        console.error('onAuthStateChanged error:', err);
+        ensureVisibleScreenState();
       }
     });
   }
@@ -976,9 +1406,12 @@ function handleFirebaseAuthLogin() {
       const user = userCredential.user;
       const userEmail = user.email || email;
       
-      saveAuthSession24h(userEmail);
+      saveAuthSession24h(userEmail, password);
       if (statusEl) statusEl.textContent = `🟢 Autenticado (${getCurrentOperatorName()}): ${userEmail} • Sesión 24 hs`;
       showAuthenticatedApp(userEmail);
+      initFirestoreSuppliersListener();
+      if (typeof initFirestoreAgendaVisitsListener === 'function') initFirestoreAgendaVisitsListener();
+      if (typeof syncAllAgendaVisitsToFirestore === 'function') syncAllAgendaVisitsToFirestore();
     })
     .catch((error) => {
       console.error("Auth Error:", error.code, error.message);
@@ -1034,9 +1467,12 @@ function handleFirebaseRegister() {
       const user = userCredential.user;
       const userEmail = user.email || email;
 
-      saveAuthSession24h(userEmail);
+      saveAuthSession24h(userEmail, password);
       alert('✅ Cuenta creada y autenticada con éxito!');
       showAuthenticatedApp(userEmail);
+      initFirestoreSuppliersListener();
+      if (typeof initFirestoreAgendaVisitsListener === 'function') initFirestoreAgendaVisitsListener();
+      if (typeof syncAllAgendaVisitsToFirestore === 'function') syncAllAgendaVisitsToFirestore();
     })
     .catch((error) => {
       console.error("Register Error:", error.code, error.message);
@@ -1066,10 +1502,9 @@ function handleOfflineBypassLogin() {
 }
 
 function handleFirebaseLogout(isExpired = false) {
-  localStorage.removeItem('firebaseAuthSession');
-  localStorage.removeItem('firebaseAuthSessionTimestamp');
-  localStorage.removeItem('canton_saved_password');
-  localStorage.removeItem('canton_saved_email');
+  clearAuthSession24h();
+  safeStorageRemove('canton_saved_password');
+  safeStorageRemove('canton_saved_email');
   if (fbAuth) {
     try { fbAuth.signOut(); } catch (_) {}
   }
@@ -1110,6 +1545,10 @@ function switchMainSection(secId) {
   if (secId === 'costos') {
     renderSecSearchResults();
   } else if (secId === 'agenda') {
+    // Al abrir o volver a la sección Agenda, mostrar por defecto solo Pendientes (ocultando los ya visitados)
+    const statusSelect = document.getElementById('agendaStatusFilter');
+    if (statusSelect) statusSelect.value = 'PENDIENTES';
+    if (typeof loadAgendaVisitedState === 'function') loadAgendaVisitedState();
     switchAgendaPhase(activeAgendaPhase || 'Fase 1', true);
   } else if (secId === 'feria140') {
     renderFeria140();
@@ -3686,21 +4125,90 @@ let feria140Catalog = null;
 let feria140SearchTimeout = null;
 let agendaVisitedMap = {};
 let agendaNoticeTimeout = null;
+let agendaHistoryAccordionOpen = false;
 
 function normalizeAgendaSupplierName(name) {
   return String(name || '').trim().toLowerCase().replace(/\s+/g, ' ');
 }
 
+function mergeAgendaVisitedMap(incomingMap) {
+  if (!incomingMap || typeof incomingMap !== 'object') return false;
+  let changed = false;
+  Object.keys(incomingMap).forEach(rawKey => {
+    const key = String(rawKey).replace(/^item_/, '');
+    const inc = incomingMap[rawKey];
+    if (!inc || typeof inc !== 'object' || typeof inc.visited !== 'boolean') return;
+    const cur = agendaVisitedMap[key];
+    const incTs = Number(inc.updatedAt) || 0;
+    const curTs = cur ? (Number(cur.updatedAt) || 0) : -1;
+    if (!cur || incTs >= curTs) {
+      if (!cur || cur.visited !== inc.visited || cur.operator !== inc.operator) {
+        changed = true;
+      }
+      agendaVisitedMap[key] = { ...inc, id: key };
+    }
+  });
+  return changed;
+}
+
+function encodeAgendaVisitsCookie() {
+  try {
+    const entries = Object.keys(agendaVisitedMap)
+      .filter(k => !k.startsWith('name_') && agendaVisitedMap[k] && typeof agendaVisitedMap[k].visited === 'boolean')
+      .map(k => {
+        const e = agendaVisitedMap[k];
+        const vFlag = e.visited ? '1' : '0';
+        const opSafe = String(e.operator || 'Admin').replace(/[~|]/g, '');
+        const tsSec = Math.floor((Number(e.updatedAt) || Date.now()) / 1000);
+        return `${k}~${vFlag}~${opSafe}~${tsSec}`;
+      })
+      .slice(-140);
+    return entries.join('|');
+  } catch (_) {
+    return '';
+  }
+}
+
+function decodeAgendaVisitsCookie(cookieStr) {
+  const map = {};
+  if (!cookieStr || typeof cookieStr !== 'string') return map;
+  try {
+    cookieStr.split('|').forEach(part => {
+      if (!part) return;
+      const [id, vFlag, op, tsSec] = part.split('~');
+      if (!id) return;
+      const tsMs = (parseInt(tsSec, 10) || 0) * 1000;
+      map[String(id)] = {
+        id: String(id),
+        visited: vFlag === '1',
+        operator: op || 'Admin',
+        visitedAt: tsMs ? new Date(tsMs).toISOString() : new Date().toISOString(),
+        updatedAt: tsMs || 1000
+      };
+    });
+  } catch (_) {}
+  return map;
+}
+
 function loadAgendaVisitedState() {
   try {
-    const rawMap = localStorage.getItem('canton_agenda_visited_map');
+    // 1. Cookie layer (immune to localStorage quota/clearing)
+    const rawCookie = getAppCookie('canton_agenda_v67');
+    if (rawCookie) {
+      mergeAgendaVisitedMap(decodeAgendaVisitsCookie(rawCookie));
+    }
+
+    // 2. localStorage / sessionStorage map layer
+    const rawMap = safeStorageGet('canton_agenda_visited_map');
     if (rawMap) {
       const parsedMap = JSON.parse(rawMap);
       if (parsedMap && typeof parsedMap === 'object') {
-        agendaVisitedMap = { ...parsedMap, ...agendaVisitedMap };
+        mergeAgendaVisitedMap(parsedMap);
       }
     }
-    const rawArr = localStorage.getItem('canton_agenda_visited');
+
+    // 3. Legacy array layer
+    const rawArr = safeStorageGet('canton_agenda_visited');
     if (rawArr) {
       const parsedArr = JSON.parse(rawArr);
       if (Array.isArray(parsedArr)) {
@@ -3712,22 +4220,49 @@ function loadAgendaVisitedState() {
               visited: true,
               operator: getCurrentOperatorName(),
               visitedAt: new Date().toISOString(),
-              updatedAt: Date.now()
+              updatedAt: 1000
             };
           }
         });
       }
+    }
+
+    // Propagate normalized supplier name keys for any visited IDs
+    if (window.CANTON_AGENDA_DATA) {
+      Object.values(window.CANTON_AGENDA_DATA).forEach(list => {
+        if (!Array.isArray(list)) return;
+        list.forEach(item => {
+          const idKey = String(item.id);
+          const entry = agendaVisitedMap[idKey];
+          if (entry && typeof entry.visited === 'boolean' && item.proveedor) {
+            const norm = normalizeAgendaSupplierName(item.proveedor);
+            if (norm) {
+              if (!entry.proveedor) entry.proveedor = item.proveedor;
+              if (!entry.proveedorNorm) entry.proveedorNorm = norm;
+              const nameKey = 'name_' + norm;
+              const curNameEntry = agendaVisitedMap[nameKey];
+              if (!curNameEntry || (entry.updatedAt || 0) >= (curNameEntry.updatedAt || 0)) {
+                agendaVisitedMap[nameKey] = { ...entry };
+              }
+            }
+          }
+        });
+      });
     }
   } catch (e) {
     console.error('Error loading visited agenda state:', e);
   }
 }
 
-function saveAgendaVisitedState() {
+function saveAgendaVisitedState(skipIdb = false) {
   try {
-    localStorage.setItem('canton_agenda_visited_map', JSON.stringify(agendaVisitedMap));
-    const visitedIds = Object.keys(agendaVisitedMap).filter(k => agendaVisitedMap[k] && agendaVisitedMap[k].visited);
-    localStorage.setItem('canton_agenda_visited', JSON.stringify(visitedIds));
+    safeStorageSet('canton_agenda_visited_map', JSON.stringify(agendaVisitedMap));
+    const visitedIds = Object.keys(agendaVisitedMap).filter(k => !k.startsWith('name_') && agendaVisitedMap[k] && agendaVisitedMap[k].visited);
+    safeStorageSet('canton_agenda_visited', JSON.stringify(visitedIds));
+    setAppCookie('canton_agenda_v67', encodeAgendaVisitsCookie(), 31536000);
+    if (!skipIdb) {
+      saveMetaToIndexedDB(META_IDB_AGENDA_KEY, agendaVisitedMap);
+    }
   } catch (e) {
     console.error('Error saving visited agenda state:', e);
   }
@@ -3737,7 +4272,7 @@ function getVisitedAgendaIds() {
   if (!agendaVisitedMap || Object.keys(agendaVisitedMap).length === 0) {
     loadAgendaVisitedState();
   }
-  return Object.keys(agendaVisitedMap).filter(k => agendaVisitedMap[k] && agendaVisitedMap[k].visited);
+  return Object.keys(agendaVisitedMap).filter(k => !k.startsWith('name_') && agendaVisitedMap[k] && agendaVisitedMap[k].visited);
 }
 
 function getAgendaItemVisitInfo(item) {
@@ -3751,11 +4286,17 @@ function getAgendaItemVisitInfo(item) {
   }
   const normName = normalizeAgendaSupplierName(item.proveedor);
   if (normName) {
+    const directNameEntry = agendaVisitedMap['name_' + normName];
+    if (directNameEntry && typeof directNameEntry.visited === 'boolean') {
+      return directNameEntry.visited ? directNameEntry : null;
+    }
     const matchKey = Object.keys(agendaVisitedMap).find(k => {
       const entry = agendaVisitedMap[k];
-      return entry && entry.visited && entry.proveedorNorm && entry.proveedorNorm === normName;
+      return entry && typeof entry.visited === 'boolean' && entry.proveedorNorm && entry.proveedorNorm === normName;
     });
-    if (matchKey) return agendaVisitedMap[matchKey];
+    if (matchKey) {
+      return agendaVisitedMap[matchKey].visited ? agendaVisitedMap[matchKey] : null;
+    }
   }
   return null;
 }
@@ -3764,35 +4305,31 @@ function isAgendaItemVisited(item) {
   return Boolean(getAgendaItemVisitInfo(item));
 }
 
+function handleRemoteAgendaVisitsDoc(data) {
+  if (!data || typeof data !== 'object') return;
+  const incoming = data.visitsMap && typeof data.visitsMap === 'object' ? data.visitsMap : data;
+  const changed = mergeAgendaVisitedMap(incoming);
+  if (changed) {
+    saveAgendaVisitedState();
+    renderAgenda();
+  }
+}
+
+let firestoreAgendaVisitsUnsubscribe = null;
+
 async function initFirestoreAgendaVisitsListener() {
   if (!fbDb) return;
   try {
     await ensureFirebaseAuth();
-    fbDb.collection('recordatorios').doc('canton_agenda_visits').onSnapshot(docSnap => {
+    if (firestoreAgendaVisitsUnsubscribe) {
+      try { firestoreAgendaVisitsUnsubscribe(); } catch (_) {}
+      firestoreAgendaVisitsUnsubscribe = null;
+    }
+    firestoreAgendaVisitsUnsubscribe = fbDb.collection('recordatorios').doc('canton_agenda_visits').onSnapshot(docSnap => {
       if (!docSnap.exists) return;
-      const data = docSnap.data() || {};
-      let changed = false;
-      Object.keys(data).forEach(fieldKey => {
-        if (!fieldKey.startsWith('item_')) return;
-        const agendaId = fieldKey.replace(/^item_/, '');
-        const remoteEntry = data[fieldKey];
-        if (!remoteEntry || typeof remoteEntry !== 'object') return;
-        const localEntry = agendaVisitedMap[agendaId];
-        const remoteTs = remoteEntry.updatedAt || 0;
-        const localTs = localEntry ? (localEntry.updatedAt || 0) : -1;
-        if (!localEntry || remoteTs >= localTs) {
-          if (!localEntry || localEntry.visited !== remoteEntry.visited || localEntry.operator !== remoteEntry.operator) {
-            changed = true;
-          }
-          agendaVisitedMap[agendaId] = remoteEntry;
-        }
-      });
-      if (changed) {
-        saveAgendaVisitedState();
-        renderAgenda();
-      }
+      handleRemoteAgendaVisitsDoc(docSnap.data());
     }, err => {
-      console.log('Agenda visits listener notice:', err);
+      console.log('Agenda visits listener notice:', err.code || err.message);
     });
   } catch (e) {
     console.log('Init agenda visits listener note:', e);
@@ -3803,10 +4340,15 @@ async function syncAgendaVisitToFirestore(targetId, entry) {
   if (!fbDb || !navigator.onLine) return;
   try {
     await ensureFirebaseAuth();
-    await fbDb.collection('recordatorios').doc('canton_agenda_visits').set({
-      ['item_' + String(targetId)]: entry,
+    const fieldName = 'item_' + String(targetId);
+    const updatePayload = {
+      [fieldName]: entry,
       lastUpdatedAt: new Date().toISOString()
-    }, { merge: true });
+    };
+    // 1. Primary Cloud Store inside 'suppliers' collection (guaranteed read/write rules & active snapshot listener)
+    await fbDb.collection('suppliers').doc('__CANTON_AGENDA_VISITS_META__').set(updatePayload, { merge: true }).catch(() => {});
+    // 2. Secondary Cloud Store inside 'recordatorios' collection
+    await fbDb.collection('recordatorios').doc('canton_agenda_visits').set(updatePayload, { merge: true }).catch(() => {});
   } catch (e) {
     console.log('Sync agenda visit notice:', e);
   }
@@ -3816,17 +4358,26 @@ async function syncAllAgendaVisitsToFirestore() {
   if (!fbDb || !navigator.onLine) return;
   try {
     loadAgendaVisitedState();
-    const keys = Object.keys(agendaVisitedMap);
+    const keys = Object.keys(agendaVisitedMap).filter(k => !k.startsWith('name_'));
     if (keys.length === 0) return;
     await ensureFirebaseAuth();
     const payload = { lastUpdatedAt: new Date().toISOString() };
     keys.forEach(k => {
       payload['item_' + String(k)] = agendaVisitedMap[k];
     });
-    await fbDb.collection('recordatorios').doc('canton_agenda_visits').set(payload, { merge: true });
+    await fbDb.collection('suppliers').doc('__CANTON_AGENDA_VISITS_META__').set(payload, { merge: true }).catch(() => {});
+    await fbDb.collection('recordatorios').doc('canton_agenda_visits').set(payload, { merge: true }).catch(() => {});
   } catch (e) {
     console.log('Sync all agenda visits notice:', e);
   }
+}
+
+function toggleAgendaVisitedHistoryAccordion() {
+  agendaHistoryAccordionOpen = !agendaHistoryAccordionOpen;
+  renderAgenda();
+}
+if (typeof window !== 'undefined') {
+  window.toggleAgendaVisitedHistoryAccordion = toggleAgendaVisitedHistoryAccordion;
 }
 
 function markAgendaItemVisited(agendaId, visitedStatus = true) {
@@ -3834,7 +4385,7 @@ function markAgendaItemVisited(agendaId, visitedStatus = true) {
     loadAgendaVisitedState();
     const targetId = String(agendaId);
     const operatorName = getCurrentOperatorName();
-    const operatorEmail = localStorage.getItem('firebaseAuthSession') || fbAuth?.currentUser?.email || '';
+    const operatorEmail = safeStorageGet('firebaseAuthSession') || fbAuth?.currentUser?.email || '';
     const nowIso = new Date().toISOString();
     const nowTs = Date.now();
 
@@ -3864,16 +4415,21 @@ function markAgendaItemVisited(agendaId, visitedStatus = true) {
       }
     }
 
+    const normName = normalizeAgendaSupplierName(foundSupplierName);
     const entry = {
       id: targetId,
       visited: Boolean(visitedStatus),
       operator: operatorName,
       operatorEmail: operatorEmail,
       proveedor: foundSupplierName || '',
-      proveedorNorm: normalizeAgendaSupplierName(foundSupplierName),
+      proveedorNorm: normName,
       visitedAt: nowIso,
       updatedAt: nowTs
     };
+
+    if (normName) {
+      agendaVisitedMap['name_' + normName] = { ...entry };
+    }
 
     relatedIds.forEach(rId => {
       agendaVisitedMap[rId] = { ...entry, id: rId };
@@ -3882,7 +4438,7 @@ function markAgendaItemVisited(agendaId, visitedStatus = true) {
 
     saveAgendaVisitedState();
 
-    // Si el usuario marca como visitado y el filtro estaba en "TODOS", pasar a "PENDIENTES" para que se oculte de inmediato
+    // Si el usuario marca como visitado, asegurarse de que el filtro esté en "PENDIENTES" para que se oculte de inmediato
     const statusSelect = document.getElementById('agendaStatusFilter');
     if (visitedStatus && statusSelect && statusSelect.value === 'TODOS') {
       statusSelect.value = 'PENDIENTES';
@@ -4008,6 +4564,77 @@ function formatVisitTimestamp(isoStr) {
   }
 }
 
+function renderAgendaCardHtml(item, idx) {
+  const visitInfo = getAgendaItemVisitInfo(item);
+  const isVisited = Boolean(visitInfo);
+  const visitOperator = (visitInfo && visitInfo.operator) ? visitInfo.operator : getCurrentOperatorName();
+  const visitTimeFormatted = visitInfo ? formatVisitTimestamp(visitInfo.visitedAt) : '';
+  const mapUrl = getCantonFairMapUrl(item.fase || activeAgendaPhase);
+  const uniqueDomKey = `${item.id}_${idx}`;
+
+  return `
+    <div class="card" style="border-left: 4px solid ${isVisited ? '#2E7D32' : '#E65100'}; margin-bottom: 10px; background: ${isVisited ? '#F1F8E9' : 'white'};">
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 6px; flex-wrap: wrap;">
+        <div>
+          <span class="badge" style="background: ${isVisited ? '#C8E6C9' : '#FFE0B2'}; color: ${isVisited ? '#2E7D32' : '#E65100'};">
+            ${isVisited ? '✅ VISITADO' : '⏳ PENDIENTE'}
+          </span>
+          <span class="badge" style="background: #E3F2FD; color: #1565C0; margin-left: 4px;">
+            Día ${item.dia || '1'} • Orden #${item.orden || item.id}
+          </span>
+        </div>
+        <button type="button" class="btn-chip" onclick="markAgendaItemVisited('${item.id}', ${!isVisited})" style="font-size: 10px; padding: 3px 8px; font-weight: bold; color: ${isVisited ? '#E65100' : '#2E7D32'}; border-color: ${isVisited ? '#E65100' : '#2E7D32'}; background: white;">
+          ${isVisited ? '↩️ Marcar Pendiente' : '✅ Marcar Visitado'}
+        </button>
+      </div>
+
+      ${isVisited ? `
+        <div style="margin-top: 6px; padding: 5px 8px; background: #C8E6C9; color: #1B5E20; border-radius: 6px; font-size: 11px; font-weight: bold; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 4px;">
+          <span>👤 ${visitOperator} visitó este proveedor</span>
+          ${visitTimeFormatted ? `<span style="font-size: 9.5px; font-weight: normal; opacity: 0.85;">🕒 ${visitTimeFormatted}</span>` : ''}
+        </div>
+      ` : ''}
+
+      <strong style="font-size: 13.5px; color: var(--primary-color); display: block; margin-top: 6px;">${item.proveedor}</strong>
+      
+      <div style="font-size: 10.5px; color: var(--text-muted); margin-top: 4px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 4px;">
+        <div>
+          📍 <strong>Pabellón ${item.pabellon || 's/d'}</strong> • Stand: <strong>${item.stand || 's/d'}</strong> ${item.area ? `(Área ${item.area})` : ''}
+        </div>
+        <a href="${mapUrl}" target="_blank" rel="noopener" class="btn-chip" style="font-size: 9.5px; padding: 2px 6px; background: #E3F2FD; color: #1565C0; border-color: #90CAF9; text-decoration: none; font-weight: bold; display: inline-flex; align-items: center; gap: 3px;">
+          🗺️ Ver en Plano ↗
+        </a>
+      </div>
+
+      <div style="font-size: 10.5px; color: #333; margin-top: 4px;">
+        🏷️ <strong>Rubro:</strong> ${item.rubro || 'General'}
+      </div>
+      ${item.descripcion ? `<div style="font-size: 10px; color: #555; margin-top: 2px;">📝 ${item.descripcion}</div>` : ''}
+      ${item.otrosStands ? `<div style="font-size: 9.5px; color: #777; margin-top: 2px;">🎪 Otros stands: ${item.otrosStands}</div>` : ''}
+      ${item.visita ? `<div style="font-size: 9.5px; color: var(--secondary-color); font-weight: bold; margin-top: 2px;">🎯 Visita: ${item.visita}</div>` : ''}
+
+      ${(item.nota || item.equipos || item.preguntas) ? `
+        <div style="margin-top: 6px;">
+          <button id="btnToggleAgendaNote_${uniqueDomKey}" class="btn-chip" onclick="toggleAgendaNote('${uniqueDomKey}')" style="font-size: 10px; padding: 4px 8px; border-color: #FBC02D; color: #E65100; background: #FFFDE7; cursor: pointer; font-weight: bold; width: 100%; text-align: center; border-radius: 6px;">
+            📝 Ver Notas y Preguntas de Visita ▾
+          </button>
+          <div id="agendaNoteContainer_${uniqueDomKey}" style="display: none; margin-top: 6px; padding: 8px 10px; background: #FFFDE7; border-left: 3px solid #FBC02D; border-radius: 6px; font-size: 10.5px; color: #333; line-height: 1.4;">
+            ${item.nota ? `<div style="font-weight: bold; color: #E65100; margin-bottom: 3px;">📝 NOTAS Y DETALLES:</div><div style="white-space: pre-line;">${item.nota}</div>` : ''}
+            ${item.equipos ? `<div style="margin-top: 6px; font-weight: bold; color: #1565C0;">🔎 Equipos para ver o consultar:</div><div style="white-space: pre-line; color: #444;">${item.equipos}</div>` : ''}
+            ${item.preguntas ? `<div style="margin-top: 6px; font-weight: bold; color: #2E7D32;">❓ Preguntas al proveedor:</div><div style="white-space: pre-line; color: #444;">${item.preguntas}</div>` : ''}
+          </div>
+        </div>
+      ` : ''}
+
+      <div style="margin-top: 10px; display: flex; gap: 6px;">
+        <button class="btn-primary" onclick="loadSupplierFromAgenda('${item.id}')" style="flex: 1; padding: 7px 10px; font-size: 11px;">
+          📍 Visitar / Cargar Ficha (+ Proveedor)
+        </button>
+      </div>
+    </div>
+  `;
+}
+
 function renderAgenda() {
   const container = document.getElementById('agendaList');
   if (!container) return;
@@ -4023,13 +4650,20 @@ function renderAgenda() {
   const selectedDay = document.getElementById('agendaDayFilter')?.value || 'TODOS';
   const statusFilter = document.getElementById('agendaStatusFilter')?.value || 'PENDIENTES';
 
-  let filtered = phaseItems.filter(item => {
+  const dayMatchedItems = phaseItems.filter(item => {
     if (selectedDay && selectedDay !== 'TODOS' && String(item.dia) !== String(selectedDay)) return false;
-    const visited = isAgendaItemVisited(item);
-    if (statusFilter === 'PENDIENTES' && visited) return false;
-    if (statusFilter === 'VISITADOS' && !visited) return false;
     return true;
   });
+
+  const pendingItems = dayMatchedItems.filter(item => !isAgendaItemVisited(item));
+  const visitedItems = dayMatchedItems.filter(item => isAgendaItemVisited(item));
+
+  let filtered = pendingItems;
+  if (statusFilter === 'VISITADOS') {
+    filtered = visitedItems;
+  } else if (statusFilter === 'TODOS') {
+    filtered = dayMatchedItems;
+  }
 
   const totalPhase = phaseItems.length;
   const visitedCountPhase = phaseItems.filter(i => isAgendaItemVisited(i)).length;
@@ -4037,84 +4671,39 @@ function renderAgenda() {
 
   const badgeEl = document.getElementById('agendaSummaryBadge');
   if (badgeEl) {
-    badgeEl.innerHTML = `📍 <strong>${activeAgendaPhase}:</strong> ${pendingCountPhase} Pendiente(s) | ✅ ${visitedCountPhase} Visitado(s) (Total ${totalPhase})`;
+    badgeEl.innerHTML = `📍 <strong>${activeAgendaPhase}:</strong> ${pendingCountPhase} Pendiente(s) | ✅ ${visitedCountPhase} Visitado(s) y ocultos (Total ${totalPhase})`;
   }
 
+  let mainHtml = '';
   if (filtered.length === 0) {
-    container.innerHTML = `<div class="card" style="text-align: center; font-size: 11px; color: var(--text-muted);">No hay proveedores en esta vista de agenda (${statusFilter.toLowerCase()}).</div>`;
-    return;
+    mainHtml = `<div class="card" style="text-align: center; font-size: 11px; color: var(--text-muted);">No hay proveedores en esta vista de agenda (${statusFilter.toLowerCase()}).</div>`;
+  } else {
+    mainHtml = filtered.map((item, idx) => renderAgendaCardHtml(item, idx)).join('');
   }
 
-  container.innerHTML = filtered.map((item, idx) => {
-    const visitInfo = getAgendaItemVisitInfo(item);
-    const isVisited = Boolean(visitInfo);
-    const visitOperator = (visitInfo && visitInfo.operator) ? visitInfo.operator : getCurrentOperatorName();
-    const visitTimeFormatted = visitInfo ? formatVisitTimestamp(visitInfo.visitedAt) : '';
-    const mapUrl = getCantonFairMapUrl(item.fase || activeAgendaPhase);
-    const uniqueDomKey = `${item.id}_${idx}`;
-
-    return `
-      <div class="card" style="border-left: 4px solid ${isVisited ? '#2E7D32' : '#E65100'}; margin-bottom: 10px; background: ${isVisited ? '#F1F8E9' : 'white'};">
-        <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 6px; flex-wrap: wrap;">
-          <div>
-            <span class="badge" style="background: ${isVisited ? '#C8E6C9' : '#FFE0B2'}; color: ${isVisited ? '#2E7D32' : '#E65100'};">
-              ${isVisited ? '✅ VISITADO' : '⏳ PENDIENTE'}
-            </span>
-            <span class="badge" style="background: #E3F2FD; color: #1565C0; margin-left: 4px;">
-              Día ${item.dia || '1'} • Orden #${item.orden || item.id}
-            </span>
-          </div>
-          <button type="button" class="btn-chip" onclick="markAgendaItemVisited('${item.id}', ${!isVisited})" style="font-size: 10px; padding: 3px 8px; font-weight: bold; color: ${isVisited ? '#E65100' : '#2E7D32'}; border-color: ${isVisited ? '#E65100' : '#2E7D32'}; background: white;">
-            ${isVisited ? '↩️ Marcar Pendiente' : '✅ Marcar Visitado'}
-          </button>
+  // Si estamos en PENDIENTES y hay proveedores ya visitados en este día/fase, mostrar resumen plegable de quién los visitó
+  let visitedFooterHtml = '';
+  if (statusFilter === 'PENDIENTES' && visitedItems.length > 0) {
+    visitedFooterHtml = `
+      <div class="card" style="margin-top: 12px; background: #F1F8E9; border: 1px solid #C8E6C9; padding: 10px;">
+        <div onclick="toggleAgendaVisitedHistoryAccordion()" style="display: flex; justify-content: space-between; align-items: center; cursor: pointer;">
+          <span style="font-size: 11px; font-weight: bold; color: #1B5E20;">
+            ✅ ${visitedItems.length} proveedor(es) ya visitado(s) y oculto(s) de pendientes
+          </span>
+          <span style="font-size: 10.5px; font-weight: bold; color: #2E7D32;">
+            ${agendaHistoryAccordionOpen ? 'Ocultar historial ▴' : 'Ver quién visitó ▾'}
+          </span>
         </div>
-
-        ${isVisited ? `
-          <div style="margin-top: 6px; padding: 5px 8px; background: #C8E6C9; color: #1B5E20; border-radius: 6px; font-size: 11px; font-weight: bold; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 4px;">
-            <span>👤 ${visitOperator} visitó este proveedor</span>
-            ${visitTimeFormatted ? `<span style="font-size: 9.5px; font-weight: normal; opacity: 0.85;">🕒 ${visitTimeFormatted}</span>` : ''}
+        ${agendaHistoryAccordionOpen ? `
+          <div style="margin-top: 10px;">
+            ${visitedItems.map((item, idx) => renderAgendaCardHtml(item, 1000 + idx)).join('')}
           </div>
         ` : ''}
-
-        <strong style="font-size: 13.5px; color: var(--primary-color); display: block; margin-top: 6px;">${item.proveedor}</strong>
-        
-        <div style="font-size: 10.5px; color: var(--text-muted); margin-top: 4px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 4px;">
-          <div>
-            📍 <strong>Pabellón ${item.pabellon || 's/d'}</strong> • Stand: <strong>${item.stand || 's/d'}</strong> ${item.area ? `(Área ${item.area})` : ''}
-          </div>
-          <a href="${mapUrl}" target="_blank" rel="noopener" class="btn-chip" style="font-size: 9.5px; padding: 2px 6px; background: #E3F2FD; color: #1565C0; border-color: #90CAF9; text-decoration: none; font-weight: bold; display: inline-flex; align-items: center; gap: 3px;">
-            🗺️ Ver en Plano ↗
-          </a>
-        </div>
-
-        <div style="font-size: 10.5px; color: #333; margin-top: 4px;">
-          🏷️ <strong>Rubro:</strong> ${item.rubro || 'General'}
-        </div>
-        ${item.descripcion ? `<div style="font-size: 10px; color: #555; margin-top: 2px;">📝 ${item.descripcion}</div>` : ''}
-        ${item.otrosStands ? `<div style="font-size: 9.5px; color: #777; margin-top: 2px;">🎪 Otros stands: ${item.otrosStands}</div>` : ''}
-        ${item.visita ? `<div style="font-size: 9.5px; color: var(--secondary-color); font-weight: bold; margin-top: 2px;">🎯 Visita: ${item.visita}</div>` : ''}
-
-        ${(item.nota || item.equipos || item.preguntas) ? `
-          <div style="margin-top: 6px;">
-            <button id="btnToggleAgendaNote_${uniqueDomKey}" class="btn-chip" onclick="toggleAgendaNote('${uniqueDomKey}')" style="font-size: 10px; padding: 4px 8px; border-color: #FBC02D; color: #E65100; background: #FFFDE7; cursor: pointer; font-weight: bold; width: 100%; text-align: center; border-radius: 6px;">
-              📝 Ver Notas y Preguntas de Visita ▾
-            </button>
-            <div id="agendaNoteContainer_${uniqueDomKey}" style="display: none; margin-top: 6px; padding: 8px 10px; background: #FFFDE7; border-left: 3px solid #FBC02D; border-radius: 6px; font-size: 10.5px; color: #333; line-height: 1.4;">
-              ${item.nota ? `<div style="font-weight: bold; color: #E65100; margin-bottom: 3px;">📝 NOTAS Y DETALLES:</div><div style="white-space: pre-line;">${item.nota}</div>` : ''}
-              ${item.equipos ? `<div style="margin-top: 6px; font-weight: bold; color: #1565C0;">🔎 Equipos para ver o consultar:</div><div style="white-space: pre-line; color: #444;">${item.equipos}</div>` : ''}
-              ${item.preguntas ? `<div style="margin-top: 6px; font-weight: bold; color: #2E7D32;">❓ Preguntas al proveedor:</div><div style="white-space: pre-line; color: #444;">${item.preguntas}</div>` : ''}
-            </div>
-          </div>
-        ` : ''}
-
-        <div style="margin-top: 10px; display: flex; gap: 6px;">
-          <button class="btn-primary" onclick="loadSupplierFromAgenda('${item.id}')" style="flex: 1; padding: 7px 10px; font-size: 11px;">
-            📍 Visitar / Cargar Ficha (+ Proveedor)
-          </button>
-        </div>
       </div>
     `;
-  }).join('');
+  }
+
+  container.innerHTML = mainHtml + visitedFooterHtml;
 }
 
 function loadSupplierFromAgenda(agendaId) {
